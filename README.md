@@ -149,6 +149,10 @@
 - 📄 **[SecRandom 官方文档](https://secrandom.netlify.app)**
 - [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SECTL/SecRandom)
 
+## 贡献指南与 Actions 构建工作流
+
+查看我们的 [贡献指南](./CONTRIBUTING.md) 来查看更多内容！
+
 ## ✨ Star历程
 
 <picture>
@@ -156,8 +160,5 @@
   <img alt="Star History" src="https://api.star-history.com/svg?repos=SECTL/SecRandom&type=Date">
 </picture>
 
-## 贡献指南与 Actions 构建工作流
-
-查看我们的 [贡献指南](./CONTRIBUTING.md) 来查看更多内容！
 
 **Copyright © 2025 SECTL**
