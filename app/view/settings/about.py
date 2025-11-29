@@ -44,9 +44,7 @@ class about(GroupHeaderCardWidget):
         )
 
         # 查看当前软件版本号
-        version_text = (
-            VERSION if VERSION != "v0.0.0" else f"{NEXT_VERSION}-dev-{CODENAME}"
-        )
+        version_text = SPECIAL_VERSION
         self.about_version_label = BodyLabel(version_text)
 
         # 查看当前软件版权所属

@@ -27,9 +27,7 @@ from app.tools.personalised import get_theme_icon
 from app.tools.settings_access import readme_settings_async
 from app.tools.list import get_student_list, get_group_list
 from app.tools.variable import (
-    VERSION,
-    NEXT_VERSION,
-    CODENAME,
+    SPECIAL_VERSION,
     LOG_DIR,
     LOG_FILENAME_FORMAT,
     LOG_ROTATION_SIZE,
@@ -629,9 +627,7 @@ def export_diagnostic_data(parent: Optional[QWidget] = None) -> None:
         app_dir = get_app_root()
 
         # 获取版本信息
-        version_text = (
-            VERSION if VERSION != "v0.0.0" else f"{NEXT_VERSION}-dev-{CODENAME}"
-        )
+        version_text = SPECIAL_VERSION
 
         # 打开文件保存对话框
         file_path, _ = QFileDialog.getSaveFileName(
@@ -1061,7 +1057,7 @@ def export_all_data(parent: Optional[QWidget] = None) -> None:
         file_path, _ = QFileDialog.getSaveFileName(
             parent,
             get_content_pushbutton_name_async("basic_settings", "export_all_data"),
-            f"SecRandom_{VERSION if VERSION != 'v0.0.0' else f'{NEXT_VERSION}-dev-{CODENAME}'}_all_data.zip",
+            f"SecRandom_{SPECIAL_VERSION}_all_data.zip",
             "ZIP Files (*.zip);;All Files (*)",
         )
         if not file_path:
@@ -1080,9 +1076,7 @@ def export_all_data(parent: Optional[QWidget] = None) -> None:
         with zipfile.ZipFile(file_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             version_info = {
                 "software_name": "SecRandom",
-                "version": VERSION
-                if VERSION != "v0.0.0"
-                else f"{NEXT_VERSION}-dev-{CODENAME}",
+                "version": SPECIAL_VERSION,
             }
             zipf.writestr(
                 "version.json", json.dumps(version_info, ensure_ascii=False, indent=2)
@@ -1165,9 +1159,7 @@ def import_all_data(parent: Optional[QWidget] = None) -> None:
             if version_info:
                 software_name = version_info.get("software_name", "")
                 version = version_info.get("version", "")
-                current_version = (
-                    VERSION if VERSION != "v0.0.0" else f"{NEXT_VERSION}-dev-{CODENAME}"
-                )
+                current_version = SPECIAL_VERSION
                 if software_name != "SecRandom" or version != current_version:
                     _mismatch_cancelled = False
 

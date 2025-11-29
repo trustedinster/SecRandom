@@ -11,6 +11,7 @@ APPLY_NAME = "SecRandom"  # 软件名称
 VERSION = "v0.0.0"  # 软件当前版本
 NEXT_VERSION = "v2.0.0-alpha.1"  # 软件下一个版本
 CODENAME = "Koharu"  # 软件代号
+SPECIAL_VERSION = VERSION if VERSION != "v0.0.0" else f"{NEXT_VERSION}-{CODENAME}"
 SYSTEM = "windows" if os.name == "nt" else "linux"  # 软件系统
 ARCH = "x64"  # 软件架构
 STRUCT = "dir"  # 软件结构
