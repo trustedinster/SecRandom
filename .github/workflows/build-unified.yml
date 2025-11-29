@@ -239,16 +239,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 设置 git-cliff
-        uses: kenji-miyake/setup-git-cliff@v2
-        with:
-          version: latest
-
-      - name: 生成 changelog
-        id: generate-changelog
-        run: |
-          git cliff
-
       - name: 准备发布
         run: |
           echo "准备发布目录..."
@@ -303,6 +293,10 @@ jobs:
       - name: 生成 需发布 的表格信息
         run: |
           cd release
+          # 创建CHANGELOG目录结构
+          mkdir -p ../CHANGELOG/${{ github.ref_name }}
+          # 创建CHANGELOG.md文件（如果不存在）
+          touch ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "**国内 下载链接**" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| 平台/打包方式 | 支持架构 | 完整版 |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
@@ -343,7 +337,7 @@ jobs:
         with:
           token: ${{ secrets.Releases_BOT }}
           files: release/*
-          body_path: CHANGELOG.md
+          body_path: CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           draft: false
           prerelease: ${{ env.is_beta == 'true' }}
           tag_name: ${{ github.ref_name }}
