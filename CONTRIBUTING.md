@@ -19,7 +19,7 @@ SecRandom 欢迎**任何人**向我们的仓库提交代码。您可以帮助我
 > 除了使用命令行，您还可以使用 GitHub Desktop 或您 IDE 中的内置功能/插件进行操作。
 
 1. **Fork 项目**
-   
+
     - 访问 [SecRandom GitHub 仓库](https://github.com/SECTL/SecRandom)
     - 点击右上角的 "Fork" 按钮创建您自己的仓库副本
 
@@ -27,7 +27,7 @@ SecRandom 欢迎**任何人**向我们的仓库提交代码。您可以帮助我
 
 > [!WARNING]
 > 确保在这一步之前，您已经将终端的工作目录切换到您想保存/修改 SecRandom 源代码的地方。
-   
+
     ```bash
     git clone https://github.com/您的用户名/SecRandom.git
     cd SecRandom
@@ -176,4 +176,3 @@ SecRandom 项目使用统一的 GitHub Actions 工作流进行构建和发布，
 
 - `git commit -m "优化性能 打包 pi"` - 使用 PyInstaller 构建 Windows 平台
 - `git commit -m "修复bug 打包 pi"` - 使用 PyInstaller 构建 Linux 平台
-

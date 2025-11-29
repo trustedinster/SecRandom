@@ -65,13 +65,14 @@ def configure_logging():
         level=log_level,
     )
 
-    # 配置日志格式 - 终端输出
-    logger.add(
-        sys.stdout,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-        level=log_level,
-        colorize=True,
-    )
+    # 配置日志格式 - 终端输出（仅当stdout可用时）
+    if sys.stdout is not None:
+        logger.add(
+            sys.stdout,
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+            level=log_level,
+            colorize=True,
+        )
 
     logger.debug(f"日志系统已配置，当前日志等级: {log_level}")
 
