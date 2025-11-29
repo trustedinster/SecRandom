@@ -480,7 +480,7 @@ DEFAULT_SETTINGS = {
     "more_settings": {
         "title": {"default_value": None},
     },
-    "advanced_settings": {
+    "fair_draw_settings": {
         "title": {"default_value": None},
         "fair_draw": {"default_value": True},
         "fair_draw_group": {"default_value": True},

@@ -143,7 +143,7 @@ class more_settings_page(PivotPageTemplate):
             "sidebar_tray_management": get_content_name_async(
                 "sidebar_tray_management", "title"
             ),
-            "advanced_settings": get_content_name_async("advanced_settings", "title"),
+            "fair_draw": get_content_name_async("fair_draw_settings", "title"),
             # "debug": get_content_name_async("debug", "title"),
         }
         super().__init__(page_config, parent)

@@ -1452,6 +1452,8 @@ def check_clear_record():
         prefix = "all"
     elif clear_record == 1:  # 直至全部抽取完
         prefix = "until"
+    else:  # 不清除记录或其他情况
+        prefix = None
     return prefix
 
 
