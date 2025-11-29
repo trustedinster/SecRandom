@@ -64,6 +64,23 @@ PRIZE_IMAGE_FOLDER = "images/prize_images"  # 奖品图片文件夹名
 ANIMATION_MUSIC_FOLDER = "music/animation_music"  # 动画音乐文件夹名
 RESULT_MUSIC_FOLDER = "music/result_music"  # 结果音乐文件夹名
 
+# ==================== 更新相关常量 ====================
+# 通道映射
+CHANNEL_MAP = {
+    0: "release",  # 稳定通道
+    1: "beta",  # 测试通道
+    2: "alpha",  # 发布预览通道
+}
+
+# 更新源映射
+SOURCE_MAP = {
+    0: "https://github.com",  # GitHub
+    1: "https://ghfast.top",  # ghfast
+    2: "https://gh-proxy.com",  # gh-proxy
+}
+# 默认文件名格式
+DEFAULT_NAME_FORMAT = "SecRandom-Windows-[version]-[arch]-[struct].zip"
+
 # ==================== 日志相关常量 ====================
 LOG_ROTATION_SIZE = "1 MB"  # 日志文件轮转大小
 LOG_RETENTION_DAYS = "30 days"  # 日志保留天数

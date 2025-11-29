@@ -4,33 +4,11 @@
 import yaml
 import aiohttp
 import asyncio
+from typing import Any, Tuple
 from loguru import logger
 from app.tools.path_utils import *
+from app.tools.variable import *
 from app.tools.settings_access import readme_settings
-
-
-# ==================================================
-# 常量定义
-# ==================================================
-# 更新通道映射
-CHANNEL_MAP = {
-    0: "release",  # 稳定通道
-    1: "beta",  # 测试通道
-    2: "alpha",  # 发布预览通道
-}
-
-# 更新源映射
-SOURCE_MAP = {
-    0: "https://github.com",  # GitHub
-    1: "https://ghfast.top",  # ghfast
-    2: "https://gh-proxy.com",  # gh-proxy
-}
-
-# 默认更新文件名格式
-DEFAULT_NAME_FORMAT = "SecRandom-Windows-[version]-[arch]-[struct].zip"
-
-# 默认版本号
-DEFAULT_VERSION = "v0.0.0.0"
 
 
 # ==================================================
@@ -51,7 +29,7 @@ def safe_int(s: str) -> int:
         return 0
 
 
-def _run_async_func(async_func, *args, **kwargs):
+def _run_async_func(async_func: Any, *args: Any, **kwargs: Any) -> Any:
     """运行异步函数（同步包装器）
 
     Args:
@@ -69,19 +47,30 @@ def _run_async_func(async_func, *args, **kwargs):
         return None
 
 
+def parse_version(version_str: str) -> Tuple[list[int], list[str]]:
+    """解析版本号为数字部分和预发布部分
+
+    Args:
+        version_str (str): 版本号字符串，如 "1.2.3" 或 "1.2.3-alpha.1"
+
+    Returns:
+        Tuple[list[int], list[str]]: 数字部分和预发布部分的元组
+    """
+    if "-" in version_str:
+        main_version, pre_release = version_str.split("-", 1)
+        pre_parts = pre_release.split(".")
+    else:
+        main_version = version_str
+        pre_parts = []
+
+    # 分割主版本号为数字部分
+    main_parts = list(map(safe_int, main_version.split(".")))
+    return main_parts, pre_parts
+
+
 # ==================================================
 # 更新工具函数
 # ==================================================
-def get_github_repo_url() -> str:
-    """
-    获取 GitHub 仓库 URL
-
-    Returns:
-        str: GitHub 仓库 URL
-    """
-    return "https://github.com/SECTL/SecRandom"
-
-
 def get_update_source_url() -> str:
     """
     获取更新源 URL
@@ -108,7 +97,7 @@ def get_update_check_url() -> str:
         str: 更新检查 URL
     """
     source_url = get_update_source_url()
-    repo_url = get_github_repo_url()
+    repo_url = GITHUB_WEB
 
     # 构建完整的 GitHub URL
     github_raw_url = f"{repo_url}/raw/master/metadata.yaml"
@@ -183,7 +172,7 @@ async def get_latest_version_async(channel: int | None = None) -> dict | None:
         latest_no = metadata.get("latest_no", {})
 
         # 获取版本信息，如果通道不存在则使用稳定通道的版本
-        version = latest.get(channel_name, latest.get("release", DEFAULT_VERSION))
+        version = latest.get(channel_name, latest.get("release", VERSION))
         version_no = latest_no.get(channel_name, latest_no.get("release", 0))
 
         logger.debug(
@@ -231,20 +220,6 @@ def compare_versions(current_version: str, latest_version: str) -> int:
         # 移除版本号前缀 "v"
         current = current_version.lstrip("v")
         latest = latest_version.lstrip("v")
-
-        # 分割版本号和预发布标识符
-        def parse_version(version_str: str) -> tuple[list[int], list[str]]:
-            """解析版本号为数字部分和预发布部分"""
-            if "-" in version_str:
-                main_version, pre_release = version_str.split("-", 1)
-                pre_parts = pre_release.split(".")
-            else:
-                main_version = version_str
-                pre_parts = []
-
-            # 分割主版本号为数字部分
-            main_parts = list(map(safe_int, main_version.split(".")))
-            return main_parts, pre_parts
 
         # 解析两个版本号
         current_main, current_pre = parse_version(current)
