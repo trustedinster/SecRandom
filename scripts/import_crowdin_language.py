@@ -1,15 +1,15 @@
 """
-Import translations from Crowdin JSON export and merge them into language module files.
+从Crowdin JSON导出文件导入翻译并合并到语言模块文件中。
 
-Usage:
+使用方法：
     python scripts/import_crowdin_language.py path/to/EN_US.json
     python scripts/import_crowdin_language.py path/to/ZH_TW.json --dry-run
 
-The script will:
-1. Parse the Crowdin JSON file (array of {identifier, translation, ...})
-2. Extract the language code from the filename (e.g., EN_US from EN_US.json)
-3. Scan module files to find actual variable names defined in each file
-4. Update each module file in app/Language/modules/ with the new language entries
+脚本将执行以下操作：
+1. 解析Crowdin JSON文件（包含{identifier, translation, ...}的数组）
+2. 从文件名中提取语言代码（例如，从EN_US.json中提取EN_US）
+3. 扫描模块文件以查找每个文件中定义的实际变量名
+4. 更新app/Language/modules/中的每个模块文件，添加新的语言条目
 """
 
 from __future__ import annotations
@@ -29,43 +29,41 @@ LANGUAGE_MODULES_DIR = ROOT_DIR / "app" / "Language" / "modules"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Import Crowdin translations into language module files."
-    )
+    parser = argparse.ArgumentParser(description="将Crowdin翻译导入到语言模块文件中。")
     parser.add_argument(
         "crowdin_file",
         type=Path,
-        help="Path to the Crowdin JSON export file (e.g., EN_US.json)",
+        help="Crowdin JSON导出文件的路径（例如：EN_US.json）",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print what would be changed without modifying files",
+        help="打印将要更改的内容但不修改文件",
     )
     return parser.parse_args()
 
 
 def load_crowdin_json(path: Path) -> list[dict[str, Any]]:
-    """Load the Crowdin export JSON file."""
+    """加载Crowdin导出的JSON文件。"""
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def extract_language_code(filename: str) -> str:
-    """Extract language code from filename (e.g., 'EN_US' from 'EN_US.json')."""
+    """从文件名中提取语言代码（例如：从'EN_US.json'中提取'EN_US'）。"""
     return Path(filename).stem.upper()
 
 
 def scan_module_files() -> dict[str, tuple[Path, str]]:
     """
-    Scan all module files and extract variable names that define language dicts.
+    扫描所有模块文件并提取定义语言字典的变量名。
 
-    Returns a dict: {variable_name: (file_path, variable_name)}
-    e.g., {"set_prize_name": (Path(".../lottery_list.py"), "set_prize_name")}
+    返回一个字典：{variable_name: (file_path, variable_name)}
+    例如：{"set_prize_name": (Path(".../lottery_list.py"), "set_prize_name")}
     """
     var_to_file: dict[str, tuple[Path, str]] = {}
 
-    # Pattern to match variable assignments like: variable_name = {
+    # 匹配变量赋值的正则表达式，例如：variable_name = {
     var_pattern = re.compile(r"^([a-z_][a-z0-9_]*)\s*=\s*\{", re.MULTILINE)
 
     for py_file in LANGUAGE_MODULES_DIR.glob("*.py"):
@@ -76,23 +74,23 @@ def scan_module_files() -> dict[str, tuple[Path, str]]:
             content = py_file.read_text(encoding="utf-8")
             for match in var_pattern.finditer(content):
                 var_name = match.group(1)
-                # Check if this looks like a language dict (contains "ZH_CN")
-                # Find the dict content
+                # 检查这是否看起来像语言字典（包含"ZH_CN"）
+                # 查找字典内容
                 start = match.end() - 1
                 if '"ZH_CN"' in content[start : start + 500]:
                     var_to_file[var_name] = (py_file, var_name)
         except Exception as e:
-            print(f"  Warning: Error reading {py_file}: {e}")
+            print(f"警告：读取 {py_file} 时出错：{e}")
 
     return var_to_file
 
 
 def group_by_module(entries: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
     """
-    Group Crowdin entries by module name.
+    按模块名对Crowdin条目进行分组。
 
-    Returns a dict: {module_name: {dotted_key: translation}}
-    e.g., {"basic_settings": {"title.name": "Basic settings", ...}}
+    返回一个字典：{module_name: {dotted_key: translation}}
+    例如：{"basic_settings": {"title.name": "基本设置", ...}}
     """
     modules: dict[str, dict[str, str]] = {}
 
@@ -121,10 +119,10 @@ def group_by_module(entries: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
 
 def set_nested_value(d: dict, key_path: str, value: Any) -> None:
     """
-    Set a nested value in a dictionary using dot notation.
+    使用点表示法在字典中设置嵌套值。
 
-    e.g., set_nested_value(d, "title.name", "Hello")
-    sets d["title"]["name"] = "Hello"
+    例如：set_nested_value(d, "title.name", "你好")
+    设置 d["title"]["name"] = "你好"
     """
     keys = key_path.split(".")
     current = d
@@ -144,10 +142,10 @@ def set_nested_value(d: dict, key_path: str, value: Any) -> None:
 
 def build_language_dict(translations: dict[str, str]) -> dict[str, Any]:
     """
-    Build a nested dictionary from flat dotted keys.
+    从扁平的点分隔键构建嵌套字典。
 
-    Input: {"title.name": "Hello", "title.description": "World"}
-    Output: {"title": {"name": "Hello", "description": "World"}}
+    输入：{"title.name": "你好", "title.description": "世界"}
+    输出：{"title": {"name": "你好", "description": "世界"}}
     """
     result: dict[str, Any] = {}
     for key_path, value in translations.items():
@@ -156,7 +154,7 @@ def build_language_dict(translations: dict[str, str]) -> dict[str, Any]:
 
 
 def format_dict_as_python(d: dict, indent: int = 0) -> str:
-    """Format a dictionary as Python code with proper indentation."""
+    """将字典格式化为带有适当缩进的Python代码。"""
     lines = []
     prefix = "    " * indent
     inner_prefix = "    " * (indent + 1)
@@ -198,63 +196,63 @@ def update_module_file(
     dry_run: bool = False,
 ) -> bool:
     """
-    Update a language module file to include the new language.
+    更新语言模块文件以包含新的语言。
 
-    Returns True if the file was modified (or would be in dry-run mode).
+    如果文件被修改（或在dry-run模式下会被修改），则返回True。
     """
     if not module_path.exists():
-        print(f"  Warning: Module file not found: {module_path}")
+        print(f"警告：模块文件未找到：{module_path}")
         return False
 
     content = module_path.read_text(encoding="utf-8")
 
-    # Build the nested dictionary for this language
+    # 构建该语言的嵌套字典
     lang_dict = build_language_dict(translations)
 
-    # Check if language already exists in the module
-    # Pattern to find the variable dict definition
-    # e.g., "basic_settings = {"
+    # 检查模块中是否已存在该语言
+    # 查找变量字典定义的正则表达式
+    # 例如："basic_settings = {"
     dict_pattern = rf"^{re.escape(var_name)}\s*=\s*\{{"
     match = re.search(dict_pattern, content, re.MULTILINE)
 
     if not match:
-        print(f"  Warning: Could not find '{var_name} = {{' in {module_path.name}")
+        print(f"警告：在 {module_path.name} 中未找到 '{var_name} = {{' 定义")
         return False
 
-    # Check if language code already exists
+    # 检查语言代码是否已存在
     lang_pattern = rf'"{language_code}":\s*\{{'
     if re.search(lang_pattern, content):
         print(
-            f"  Language '{language_code}' already exists in {module_path.name}:{var_name}, skipping..."
+            f"  语言 '{language_code}' 已存在于 {module_path.name}:{var_name} 中，跳过..."
         )
-        # For now, we'll skip updating existing entries to avoid complexity
-        # A more sophisticated approach would parse and merge
-        # For safety, let's just add if not exists
+        # 目前，我们将跳过更新现有条目以避免复杂性
+        # 更复杂的方法是解析并合并
+        # 为了安全起见，我们只在不存在时添加
         return False
 
-    # Find the position to insert the new language
-    # We'll insert after "ZH_CN": {...}, if it exists
-    # Strategy: Find the closing of the main dict and insert before it
+    # 查找插入新语言的位置
+    # 我们将在 "ZH_CN": {...} 之后插入（如果存在）
+    # 策略：找到主字典的结束位置并在其之前插入
 
-    # Parse the file to find where to insert
-    # Simple approach: find the last "}" that closes the module dict
+    # 解析文件以找到插入位置
+    # 简单方法：找到关闭模块字典的最后一个 "}"
 
-    # Find all language entries and their positions
-    # Pattern: "LANG_CODE": {
+    # 查找所有语言条目及其位置
+    # 模式："LANG_CODE": {
     lang_entries = list(re.finditer(r'"([A-Z_]+)":\s*\{', content))
 
     if not lang_entries:
-        print(f"  Warning: No language entries found in {module_path.name}")
+        print(f"警告：在 {module_path.name} 中未找到语言条目")
         return False
 
-    # Find the end of the last language entry
-    # This is tricky due to nested braces, so we'll use a different approach:
-    # Insert the new language entry at the end of the dict, before the final }
+    # 查找最后一个语言条目的结束位置
+    # 由于嵌套大括号的存在，这很棘手，所以我们使用不同的方法：
+    # 在字典末尾、最后一个 } 之前插入新的语言条目
 
-    # Find the module dict definition start
-    dict_start = match.end() - 1  # Position of the opening {
+    # 查找模块字典定义的开始位置
+    dict_start = match.end() - 1  # 左大括号的位置
 
-    # Count braces to find the matching closing brace
+    # 计算大括号数量以找到匹配的右大括号
     brace_count = 0
     dict_end = -1
     in_string = False
@@ -281,42 +279,40 @@ def update_module_file(
                 break
 
     if dict_end == -1:
-        print(
-            f"  Warning: Could not find closing brace for {var_name} in {module_path.name}"
-        )
+        print(f"  警告：在 {module_path.name} 中找不到 {var_name} 的右大括号")
         return False
 
-    # Format the new language entry
+    # 格式化新的语言条目
     formatted_dict = format_dict_as_python(lang_dict, indent=1)
     new_entry = f'    "{language_code}": {formatted_dict},\n'
 
-    # Check if there's a trailing comma before the closing brace
-    # Look backwards from dict_end to find the last non-whitespace character
+    # 检查右大括号前是否有尾随逗号
+    # 从dict_end向前查找最后一个非空白字符
     before_close = content[dict_start:dict_end]
     last_non_ws_idx = len(before_close) - 1
     while last_non_ws_idx >= 0 and before_close[last_non_ws_idx] in " \t\n\r":
         last_non_ws_idx -= 1
 
-    # If the last non-whitespace character is not a comma, we need to add one
+    # 如果最后一个非空白字符不是逗号，我们需要添加一个
     if last_non_ws_idx >= 0 and before_close[last_non_ws_idx] != ",":
-        # Insert a comma after the last non-whitespace character
+        # 在最后一个非空白字符后插入逗号
         insert_comma_pos = dict_start + last_non_ws_idx + 1
         content = content[:insert_comma_pos] + "," + content[insert_comma_pos:]
-        # Adjust dict_end since we added a character
+        # 调整dict_end，因为我们添加了一个字符
         dict_end += 1
 
-    # Insert the new language at the end, before the closing brace
+    # 在字典末尾、右大括号之前插入新的语言
     new_content = content[:dict_end] + new_entry + content[dict_end:]
 
     if dry_run:
-        print(f"  Would add '{language_code}' to {module_path.name}:{var_name}")
+        print(f"将要添加 '{language_code}' 到 {module_path.name}:{var_name}")
         print(
-            f"    Keys: {list(translations.keys())[:5]}{'...' if len(translations) > 5 else ''}"
+            f"键: {list(translations.keys())[:5]}{'...' if len(translations) > 5 else ''}"
         )
         return True
 
     module_path.write_text(new_content, encoding="utf-8")
-    print(f"  Added '{language_code}' to {module_path.name}:{var_name}")
+    print(f"已添加 '{language_code}' 到 {module_path.name}:{var_name}")
     return True
 
 
@@ -325,39 +321,39 @@ def main() -> None:
 
     crowdin_file: Path = args.crowdin_file
     if not crowdin_file.exists():
-        print(f"Error: File not found: {crowdin_file}")
+        print(f"错误：文件未找到：{crowdin_file}")
         sys.exit(1)
 
-    # Extract language code from filename
+    # 从文件名中提取语言代码
     language_code = extract_language_code(crowdin_file.name)
-    print(f"Importing language: {language_code}")
-    print(f"Source file: {crowdin_file}")
-    print(f"Target directory: {LANGUAGE_MODULES_DIR}")
+    print(f"正在导入语言：{language_code}")
+    print(f"源文件：{crowdin_file}")
+    print(f"目标目录：{LANGUAGE_MODULES_DIR}")
     print()
 
-    # Scan module files to find actual variable names
-    print("Scanning module files...")
+    # 扫描模块文件以查找实际变量名
+    print("正在扫描模块文件...")
     var_to_file = scan_module_files()
     print(
-        f"Found {len(var_to_file)} language variables: {', '.join(sorted(var_to_file.keys()))}"
+        f"找到 {len(var_to_file)} 个语言变量：{', '.join(sorted(var_to_file.keys()))}"
     )
     print()
 
-    # Load Crowdin data
+    # 加载Crowdin数据
     entries = load_crowdin_json(crowdin_file)
-    print(f"Loaded {len(entries)} translation entries")
+    print(f"已加载 {len(entries)} 个翻译条目")
 
-    # Group by module (identifier prefix)
+    # 按模块（标识符前缀）分组
     modules = group_by_module(entries)
-    print(f"Found {len(modules)} identifier prefixes in Crowdin file")
+    print(f"在Crowdin文件中找到 {len(modules)} 个标识符前缀")
     print()
 
-    # Match Crowdin modules to actual variable names
+    # 将Crowdin模块与实际变量名匹配
     updated_count = 0
     unmatched_modules = []
 
     for module_name, translations in sorted(modules.items()):
-        # First, try to find by exact variable name match
+        # 首先，尝试通过精确变量名匹配
         if module_name in var_to_file:
             file_path, var_name = var_to_file[module_name]
             if update_module_file(
@@ -365,21 +361,21 @@ def main() -> None:
             ):
                 updated_count += 1
         else:
-            # Module not found in any file
+            # 模块未在任何文件中找到
             unmatched_modules.append(module_name)
 
     print()
     if unmatched_modules:
         print(
-            f"Unmatched Crowdin modules ({len(unmatched_modules)}): {', '.join(sorted(unmatched_modules))}"
+            f"未匹配的Crowdin模块 ({len(unmatched_modules)}): {', '.join(sorted(unmatched_modules))}"
         )
-        print("  (These identifiers have no matching variable in module files)")
+        print("(这些标识符在模块文件中没有匹配的变量)")
 
     print()
     if args.dry_run:
-        print(f"Dry run complete. Would update {updated_count} language entries.")
+        print(f"模拟运行完成。将更新 {updated_count} 个语言条目。")
     else:
-        print(f"Import complete. Updated {updated_count} language entries.")
+        print(f"导入完成。已更新 {updated_count} 个语言条目。")
 
 
 if __name__ == "__main__":

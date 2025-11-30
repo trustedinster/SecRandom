@@ -1,4 +1,4 @@
-"""Export the ZH_CN language dictionary to a JSON file for external use."""
+"""将ZH_CN语言字典导出为JSON文件供外部使用。"""
 
 from __future__ import annotations
 
@@ -14,13 +14,11 @@ from app.tools.language_manager import get_simple_language_manager
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Dump the ZH_CN language bundle to a JSON file."
-    )
+    parser = argparse.ArgumentParser(description="将ZH_CN语言包导出到JSON文件。")
     parser.add_argument(
         "-o",
         "--output",
-        help="Destination file for the exported JSON. Defaults to scripts/zh_cn_language.json",
+        help="导出JSON的目标文件。默认为scripts/zh_cn_language.json",
         type=Path,
         default=None,
     )
@@ -33,9 +31,7 @@ def export_language(language_code: str, destination: Path) -> None:
     language_data = languages.get(language_code)
 
     if language_data is None:
-        raise RuntimeError(
-            f"Language {language_code} not found; available: {sorted(languages)}"
-        )
+        raise RuntimeError(f"未找到语言 {language_code}；可用语言：{sorted(languages)}")
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", encoding="utf-8") as handle:
@@ -47,9 +43,9 @@ def main() -> None:
     default_path = Path(__file__).resolve().parent / "zh_cn_language.json"
     target_path = args.output or default_path
 
-    print(f"Exporting ZH_CN resources to {target_path}")
+    print(f"正在将ZH_CN资源导出到 {target_path}")
     export_language("ZH_CN", target_path)
-    print("Export complete.")
+    print("导出完成。")
 
 
 if __name__ == "__main__":
