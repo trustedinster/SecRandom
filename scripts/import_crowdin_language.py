@@ -21,7 +21,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Ensure project root is on path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
@@ -63,7 +62,6 @@ def scan_module_files() -> dict[str, tuple[Path, str]]:
     """
     var_to_file: dict[str, tuple[Path, str]] = {}
 
-    # 匹配变量赋值的正则表达式，例如：variable_name = {
     var_pattern = re.compile(r"^([a-z_][a-z0-9_]*)\s*=\s*\{", re.MULTILINE)
 
     for py_file in LANGUAGE_MODULES_DIR.glob("*.py"):
@@ -74,8 +72,6 @@ def scan_module_files() -> dict[str, tuple[Path, str]]:
             content = py_file.read_text(encoding="utf-8")
             for match in var_pattern.finditer(content):
                 var_name = match.group(1)
-                # 检查这是否看起来像语言字典（包含"ZH_CN"）
-                # 查找字典内容
                 start = match.end() - 1
                 if '"ZH_CN"' in content[start : start + 500]:
                     var_to_file[var_name] = (py_file, var_name)
@@ -101,13 +97,11 @@ def group_by_module(entries: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
         if not identifier or not translation:
             continue
 
-        # Split identifier: "basic_settings.title.name" -> ["basic_settings", "title", "name"]
         parts = identifier.split(".")
         if len(parts) < 2:
             continue
 
         module_name = parts[0]
-        # The rest is the key path within the module
         key_path = ".".join(parts[1:])
 
         if module_name not in modules:
@@ -131,11 +125,9 @@ def set_nested_value(d: dict, key_path: str, value: Any) -> None:
         if key not in current:
             current[key] = {}
         elif not isinstance(current[key], dict):
-            # If current value is not a dict, we need to convert it
             current[key] = {}
         current = current[key]
 
-    # Set the final value
     final_key = keys[-1]
     current[final_key] = value
 
@@ -169,7 +161,6 @@ def format_dict_as_python(d: dict, indent: int = 0) -> str:
             nested = format_dict_as_python(value, indent + 1)
             lines.append(f'{inner_prefix}"{key}": {nested}{comma}')
         elif isinstance(value, str):
-            # Escape backslashes, quotes, and newlines in strings
             escaped = (
                 value.replace("\\", "\\\\")
                 .replace('"', '\\"')
@@ -206,12 +197,9 @@ def update_module_file(
 
     content = module_path.read_text(encoding="utf-8")
 
-    # 构建该语言的嵌套字典
     lang_dict = build_language_dict(translations)
 
     # 检查模块中是否已存在该语言
-    # 查找变量字典定义的正则表达式
-    # 例如："basic_settings = {"
     dict_pattern = rf"^{re.escape(var_name)}\s*=\s*\{{"
     match = re.search(dict_pattern, content, re.MULTILINE)
 
@@ -225,34 +213,15 @@ def update_module_file(
         print(
             f"  语言 '{language_code}' 已存在于 {module_path.name}:{var_name} 中，跳过..."
         )
-        # 目前，我们将跳过更新现有条目以避免复杂性
-        # 更复杂的方法是解析并合并
-        # 为了安全起见，我们只在不存在时添加
         return False
 
-    # 查找插入新语言的位置
-    # 我们将在 "ZH_CN": {...} 之后插入（如果存在）
-    # 策略：找到主字典的结束位置并在其之前插入
-
-    # 解析文件以找到插入位置
-    # 简单方法：找到关闭模块字典的最后一个 "}"
-
-    # 查找所有语言条目及其位置
-    # 模式："LANG_CODE": {
     lang_entries = list(re.finditer(r'"([A-Z_]+)":\s*\{', content))
 
     if not lang_entries:
         print(f"警告：在 {module_path.name} 中未找到语言条目")
         return False
 
-    # 查找最后一个语言条目的结束位置
-    # 由于嵌套大括号的存在，这很棘手，所以我们使用不同的方法：
-    # 在字典末尾、最后一个 } 之前插入新的语言条目
-
-    # 查找模块字典定义的开始位置
-    dict_start = match.end() - 1  # 左大括号的位置
-
-    # 计算大括号数量以找到匹配的右大括号
+    dict_start = match.end() - 1
     brace_count = 0
     dict_end = -1
     in_string = False
@@ -282,26 +251,19 @@ def update_module_file(
         print(f"  警告：在 {module_path.name} 中找不到 {var_name} 的右大括号")
         return False
 
-    # 格式化新的语言条目
     formatted_dict = format_dict_as_python(lang_dict, indent=1)
     new_entry = f'    "{language_code}": {formatted_dict},\n'
 
-    # 检查右大括号前是否有尾随逗号
-    # 从dict_end向前查找最后一个非空白字符
     before_close = content[dict_start:dict_end]
     last_non_ws_idx = len(before_close) - 1
     while last_non_ws_idx >= 0 and before_close[last_non_ws_idx] in " \t\n\r":
         last_non_ws_idx -= 1
 
-    # 如果最后一个非空白字符不是逗号，我们需要添加一个
     if last_non_ws_idx >= 0 and before_close[last_non_ws_idx] != ",":
-        # 在最后一个非空白字符后插入逗号
         insert_comma_pos = dict_start + last_non_ws_idx + 1
         content = content[:insert_comma_pos] + "," + content[insert_comma_pos:]
-        # 调整dict_end，因为我们添加了一个字符
         dict_end += 1
 
-    # 在字典末尾、右大括号之前插入新的语言
     new_content = content[:dict_end] + new_entry + content[dict_end:]
 
     if dry_run:
@@ -324,14 +286,12 @@ def main() -> None:
         print(f"错误：文件未找到：{crowdin_file}")
         sys.exit(1)
 
-    # 从文件名中提取语言代码
     language_code = extract_language_code(crowdin_file.name)
     print(f"正在导入语言：{language_code}")
     print(f"源文件：{crowdin_file}")
     print(f"目标目录：{LANGUAGE_MODULES_DIR}")
     print()
 
-    # 扫描模块文件以查找实际变量名
     print("正在扫描模块文件...")
     var_to_file = scan_module_files()
     print(
@@ -339,21 +299,17 @@ def main() -> None:
     )
     print()
 
-    # 加载Crowdin数据
     entries = load_crowdin_json(crowdin_file)
     print(f"已加载 {len(entries)} 个翻译条目")
 
-    # 按模块（标识符前缀）分组
     modules = group_by_module(entries)
     print(f"在Crowdin文件中找到 {len(modules)} 个标识符前缀")
     print()
 
-    # 将Crowdin模块与实际变量名匹配
     updated_count = 0
     unmatched_modules = []
 
     for module_name, translations in sorted(modules.items()):
-        # 首先，尝试通过精确变量名匹配
         if module_name in var_to_file:
             file_path, var_name = var_to_file[module_name]
             if update_module_file(
@@ -361,7 +317,6 @@ def main() -> None:
             ):
                 updated_count += 1
         else:
-            # 模块未在任何文件中找到
             unmatched_modules.append(module_name)
 
     print()
