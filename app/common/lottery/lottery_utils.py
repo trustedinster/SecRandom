@@ -18,7 +18,7 @@ from app.tools.config import (
     read_drawn_record_simple,
     reset_drawn_record,
 )
-from app.tools.path_utils import get_resources_path, open_file
+from app.tools.path_utils import get_data_path, open_file
 from app.tools.settings_access import readme_settings_async, get_safe_font_size
 
 from app.Language.obtain_language import get_any_position_value
@@ -132,7 +132,7 @@ class LotteryUtils:
         Returns:
             dict: 包含抽取结果的字典
         """
-        student_file = get_resources_path("list/roll_call_list", f"{class_name}.json")
+        student_file = get_data_path("list/roll_call_list", f"{class_name}.json")
         with open_file(student_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
