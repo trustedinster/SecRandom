@@ -108,7 +108,7 @@ class roll_call(QWidget):
             get_content_pushbutton_name_async("roll_call", "reset_button")
         )
         self._set_widget_font(self.reset_button, 15)
-        self.reset_button.setFixedSize(165, 45)
+        self.reset_button.setFixedHeight(45)
         self.reset_button.clicked.connect(lambda: self.reset_count())
 
         self.minus_button = PushButton("-")
@@ -141,21 +141,24 @@ class roll_call(QWidget):
         self.count_widget = QWidget()
         horizontal_layout = QHBoxLayout()
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
-        horizontal_layout.addWidget(self.minus_button, 0, Qt.AlignmentFlag.AlignLeft)
-        horizontal_layout.addWidget(self.count_label, 0, Qt.AlignmentFlag.AlignLeft)
-        horizontal_layout.addWidget(self.plus_button, 0, Qt.AlignmentFlag.AlignLeft)
+        horizontal_layout.setSpacing(0)
+        horizontal_layout.addWidget(self.minus_button)
+        horizontal_layout.addStretch()
+        horizontal_layout.addWidget(self.count_label)
+        horizontal_layout.addStretch()
+        horizontal_layout.addWidget(self.plus_button)
         self.count_widget.setLayout(horizontal_layout)
 
         self.start_button = PrimaryPushButton(
             get_content_pushbutton_name_async("roll_call", "start_button")
         )
         self._set_widget_font(self.start_button, 15)
-        self.start_button.setFixedSize(165, 45)
+        self.start_button.setFixedHeight(45)
         self.start_button.clicked.connect(lambda: self.start_draw())
 
         self.list_combobox = ComboBox()
         self._set_widget_font(self.list_combobox, 12)
-        self.list_combobox.setFixedSize(165, 45)
+        self.list_combobox.setFixedHeight(45)
         self.list_combobox.setPlaceholderText(
             get_content_name_async("roll_call", "default_empty_item")
         )
@@ -164,13 +167,13 @@ class roll_call(QWidget):
 
         self.range_combobox = ComboBox()
         self._set_widget_font(self.range_combobox, 12)
-        self.range_combobox.setFixedSize(165, 45)
+        self.range_combobox.setFixedHeight(45)
         # 延迟填充范围选项
         self.range_combobox.currentTextChanged.connect(self.on_filter_changed)
 
         self.gender_combobox = ComboBox()
         self._set_widget_font(self.gender_combobox, 12)
-        self.gender_combobox.setFixedSize(165, 45)
+        self.gender_combobox.setFixedHeight(45)
         # 延迟填充性别选项
         self.gender_combobox.currentTextChanged.connect(self.on_filter_changed)
 
@@ -178,7 +181,7 @@ class roll_call(QWidget):
             get_content_pushbutton_name_async("roll_call", "remaining_button")
         )
         self._set_widget_font(self.remaining_button, 12)
-        self.remaining_button.setFixedSize(165, 45)
+        self.remaining_button.setFixedHeight(45)
         self.remaining_button.clicked.connect(lambda: self.show_remaining_list())
 
         # 初始时不进行昂贵的数据加载，改为延迟填充
@@ -193,7 +196,6 @@ class roll_call(QWidget):
         self.many_count_label = BodyLabel(formatted_text)
         self.many_count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._set_widget_font(self.many_count_label, 10)
-        self.many_count_label.setFixedWidth(165)
 
         self.control_widget = QWidget()
         self.control_layout = QVBoxLayout(self.control_widget)
@@ -271,6 +273,9 @@ class roll_call(QWidget):
             main_layout.addWidget(scroll, 1)
             main_layout.addWidget(self.control_widget)
 
+        # 统一调整控件宽度以适应文本内容
+        self._adjustControlWidgetWidths()
+
         # 在事件循环中延迟填充下拉框和初始统计，减少启动阻塞
         QTimer.singleShot(0, self.populate_lists)
 
@@ -286,6 +291,53 @@ class roll_call(QWidget):
             logger.error(f"添加控件 {setting_name} 时出错: {e}")
             # 出错时默认添加控件
             layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def _adjustControlWidgetWidths(self):
+        """统一调整控件宽度以适应文本内容"""
+        try:
+            # 收集所有需要调整宽度的控件
+            widgets_to_adjust = [
+                self.reset_button,
+                self.count_widget,
+                self.start_button,
+                self.list_combobox,
+                self.range_combobox,
+                self.gender_combobox,
+                self.remaining_button,
+                self.many_count_label,
+            ]
+
+            # 计算所有控件文本所需的最大宽度
+            max_text_width = 0
+            for widget in widgets_to_adjust:
+                fm = widget.fontMetrics()
+                # 检查按钮/标签文本
+                if hasattr(widget, "text") and widget.text():
+                    text_width = fm.horizontalAdvance(widget.text())
+                    max_text_width = max(max_text_width, text_width)
+                # 检查占位符文本
+                if hasattr(widget, "placeholderText") and widget.placeholderText():
+                    text_width = fm.horizontalAdvance(widget.placeholderText())
+                    max_text_width = max(max_text_width, text_width)
+                # 检查下拉框所有选项的宽度
+                if hasattr(widget, "count"):
+                    for i in range(widget.count()):
+                        item_text = widget.itemText(i)
+                        if item_text:
+                            text_width = fm.horizontalAdvance(item_text)
+                            max_text_width = max(max_text_width, text_width)
+
+            # 计算统一宽度（文本宽度 + 边距 + 下拉框箭头空间）
+            padding = 60  # 左右边距 + 下拉箭头空间
+            min_width = 165  # 最小宽度
+            unified_width = max(min_width, max_text_width + padding)
+
+            # 设置所有控件的固定宽度
+            for widget in widgets_to_adjust:
+                widget.setFixedWidth(int(unified_width))
+
+        except Exception as e:
+            logger.debug(f"调整控件宽度时出错: {e}")
 
     def on_class_changed(self):
         """当班级选择改变时，更新范围选择、性别选择和人数显示"""
@@ -883,6 +935,9 @@ class roll_call(QWidget):
 
             # 根据总人数是否为0，启用或禁用开始按钮
             RollCallUtils.update_start_button_state(self.start_button, total_count)
+
+            # 重新调整控件宽度以适应下拉框内容
+            self._adjustControlWidgetWidths()
 
         except Exception as e:
             logger.error(f"延迟填充列表失败: {e}")
