@@ -17,14 +17,7 @@ from qfluentwidgets import InfoBar, InfoBarPosition, FluentIcon, InfoBarIcon, Me
 from app.common.safety.verify_ops import require_and_run
 
 # 平台特定导入
-if sys.platform == "win32":
-    try:
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-        import comtypes
-        from comtypes import POINTER
-    except ImportError:
-        pass
-elif sys.platform.startswith("linux"):
+if sys.platform.startswith("linux"):
     try:
         import pulsectl
     except ImportError:
@@ -520,30 +513,73 @@ def restore_volume(volume_value):
     if sys.platform == "win32":
         # Windows音频控制
         try:
+            # 确保所有必要模块都已导入
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+            import comtypes
+            from comtypes import POINTER, CLSCTX_ALL
+
             # 初始化COM库
             comtypes.CoInitialize()
 
-            # 获取默认音频设备
-            devices = AudioUtilities.GetSpeakers()
-            interface = devices.Activate(
-                IAudioEndpointVolume._iid_, comtypes.CLSCTX_ALL, None
-            )
-            volume = comtypes.cast(interface, POINTER(IAudioEndpointVolume))
-
             try:
-                # 取消静音
-                volume.SetMute(0, None)
-
-                # 设置音量
-                volume.SetMasterVolumeLevelScalar(volume_value / 100.0, None)
-                logger.info(f"Windows音量设置为: {volume_value}%")
+                # 直接获取系统主音量控制器（这是正确设置系统音量的方法）
+                try:
+                    # 获取默认音频设备
+                    devices = AudioUtilities.GetSpeakers()
+                    if hasattr(devices, "Activate"):
+                        # 激活音量接口
+                        interface = devices.Activate(
+                            IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+                        )
+                        # 转换为音量接口
+                        volume = comtypes.cast(interface, POINTER(IAudioEndpointVolume))
+                        # 取消静音
+                        volume.SetMute(0, None)
+                        # 设置主音量（0.0-1.0范围）
+                        volume.SetMasterVolumeLevelScalar(volume_value / 100.0, None)
+                        # 获取实际设置的音量值进行验证
+                        actual_volume = volume.GetMasterVolumeLevelScalar() * 100
+                        logger.info(
+                            f"Windows音量设置为: {volume_value}%，实际设置值: {actual_volume:.1f}%"
+                        )
+                    else:
+                        # 如果Activate方法不可用，尝试使用设备枚举器
+                        device_enumerator = AudioUtilities.GetDeviceEnumerator()
+                        if hasattr(device_enumerator, "GetDefaultAudioEndpoint"):
+                            speakers = device_enumerator.GetDefaultAudioEndpoint(0, 1)
+                            if hasattr(speakers, "Activate"):
+                                volume_interface = speakers.Activate(
+                                    IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+                                )
+                                volume = comtypes.cast(
+                                    volume_interface, POINTER(IAudioEndpointVolume)
+                                )
+                                volume.SetMute(0, None)
+                                volume.SetMasterVolumeLevelScalar(
+                                    volume_value / 100.0, None
+                                )
+                                actual_volume = (
+                                    volume.GetMasterVolumeLevelScalar() * 100
+                                )
+                                logger.info(
+                                    f"Windows音量设置为: {volume_value}%，实际设置值: {actual_volume:.1f}%"
+                                )
+                            else:
+                                logger.error("音频设备没有Activate方法")
+                        else:
+                            logger.error("无法获取音频设备接口")
+                except Exception as e:
+                    logger.error(f"获取系统主音量控制器失败: {e}")
+                    # 作为最后尝试，遍历所有会话并设置音量
+                    sessions = AudioUtilities.GetAllSessions()
+                    for session in sessions:
+                        try:
+                            session_volume = session.SimpleAudioVolume
+                            session_volume.SetMasterVolume(volume_value / 100.0, None)
+                            logger.info(f"设置会话音量为: {volume_value}%")
+                        except Exception:
+                            continue
             finally:
-                # 确保COM对象在释放COM库前被正确释放
-                # 通过将对象设置为None来减少引用计数
-                volume = None
-                interface = None
-                devices = None
-
                 # 释放COM库
                 comtypes.CoUninitialize()
         except Exception as e:

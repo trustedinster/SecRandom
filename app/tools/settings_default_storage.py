@@ -443,7 +443,8 @@ DEFAULT_SETTINGS = {
         "edge_tts_voice_name": {"default_value": "zh-CN-XiaoxiaoNeural"},
         "volume_size": {"default_value": 80},
         "speech_rate": {"default_value": 100},
-        "system_volume_size": {"default_value": 80},
+        "system_volume_control": {"default_value": False},
+        "system_volume_size": {"default_value": 50},
     },
     "specific_announcements": {
         "title": {"default_value": None},

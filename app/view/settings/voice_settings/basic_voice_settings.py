@@ -82,18 +82,6 @@ class basic_settings_voice_engine(GroupHeaderCardWidget):
         if current_index == 1:
             self.update_edge_tts_voices()
 
-        # 语速调节设置
-        self.speech_rate = SpinBox()
-        self.speech_rate.setFixedWidth(WIDTH_SPINBOX)
-        self.speech_rate.setRange(1, 500)
-        self.speech_rate.setSuffix("wpm")
-        self.speech_rate.setValue(
-            int(readme_settings_async("basic_voice_settings", "speech_rate"))
-        )
-        self.speech_rate.valueChanged.connect(
-            lambda value: update_settings("basic_voice_settings", "speech_rate", value)
-        )
-
         # 添加设置项到分组
         self.addGroup(
             get_theme_icon("ic_fluent_speaker_2_20_filled"),
@@ -108,12 +96,6 @@ class basic_settings_voice_engine(GroupHeaderCardWidget):
                 "basic_voice_settings", "edge_tts_voice_name"
             ),
             self.edge_tts_voiceComboBox,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_top_speed_20_filled"),
-            get_content_name_async("basic_voice_settings", "speech_rate"),
-            get_content_description_async("basic_voice_settings", "speech_rate"),
-            self.speech_rate,
         )
 
     def on_voice_engine_changed(self, index):
@@ -163,7 +145,7 @@ class basic_settings_voice_engine(GroupHeaderCardWidget):
                 # 如果之前的语音不存在，选择第一个
                 self.edge_tts_voiceComboBox.setCurrentIndex(0)
 
-            logger.info(f"Edge TTS语音列表已更新，共{len(voices)}个语音")
+            logger.debug(f"Edge TTS语音列表已更新，共{len(voices)}个语音")
         except Exception as e:
             logger.error(f"处理Edge TTS语音列表失败: {e}")
 
@@ -185,6 +167,18 @@ class basic_settings_volume(GroupHeaderCardWidget):
         self.setTitle(get_content_name_async("basic_voice_settings", "volume_group"))
         self.setBorderRadius(8)
 
+        # 语速调节设置
+        self.speech_rate = SpinBox()
+        self.speech_rate.setFixedWidth(WIDTH_SPINBOX)
+        self.speech_rate.setRange(1, 500)
+        self.speech_rate.setSuffix("wpm")
+        self.speech_rate.setValue(
+            int(readme_settings_async("basic_voice_settings", "speech_rate"))
+        )
+        self.speech_rate.valueChanged.connect(
+            lambda value: update_settings("basic_voice_settings", "speech_rate", value)
+        )
+
         # 音量大小设置
         self.volume_size = SpinBox()
         self.volume_size.setFixedWidth(WIDTH_SPINBOX)
@@ -195,6 +189,27 @@ class basic_settings_volume(GroupHeaderCardWidget):
         )
         self.volume_size.valueChanged.connect(
             lambda value: update_settings("basic_voice_settings", "volume_size", value)
+        )
+
+        # 是否开启系统音量控制
+        self.system_volume_control = SwitchButton()
+        self.system_volume_control.setOffText(
+            get_content_switchbutton_name_async(
+                "basic_voice_settings", "system_volume_control", "disable"
+            )
+        )
+        self.system_volume_control.setOnText(
+            get_content_switchbutton_name_async(
+                "basic_voice_settings", "system_volume_control", "enable"
+            )
+        )
+        self.system_volume_control.setChecked(
+            readme_settings_async("basic_voice_settings", "system_volume_control")
+        )
+        self.system_volume_control.checkedChanged.connect(
+            lambda state: update_settings(
+                "basic_voice_settings", "system_volume_control", state
+            )
         )
 
         # 系统音量大小设置
@@ -213,10 +228,24 @@ class basic_settings_volume(GroupHeaderCardWidget):
 
         # 添加设置项到分组
         self.addGroup(
+            get_theme_icon("ic_fluent_top_speed_20_filled"),
+            get_content_name_async("basic_voice_settings", "speech_rate"),
+            get_content_description_async("basic_voice_settings", "speech_rate"),
+            self.speech_rate,
+        )
+        self.addGroup(
             get_theme_icon("ic_fluent_speaker_edit_20_filled"),
             get_content_name_async("basic_voice_settings", "volume_size"),
             get_content_description_async("basic_voice_settings", "volume_size"),
             self.volume_size,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_voicemail_20_filled"),
+            get_content_name_async("basic_voice_settings", "system_volume_control"),
+            get_content_description_async(
+                "basic_voice_settings", "system_volume_control"
+            ),
+            self.system_volume_control,
         )
         self.addGroup(
             get_theme_icon("ic_fluent_speaker_edit_20_filled"),

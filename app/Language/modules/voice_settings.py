@@ -11,15 +11,15 @@ basic_voice_settings = {
             "name": "语音引擎",
             "description": "选择语音合成引擎类型",
         },
-        "volume_group": {"name": "音量设置", "description": "调整语音播报音量大小"},
+        "volume_group": {"name": "语音设置", "description": "调整语音播报相关设置"},
         "voice_engine": {
             "name": "语音引擎",
             "description": "选择语音合成引擎类型",
             "combo_items": ["系统TTS", "Edge TTS"],
         },
         "edge_tts_voice_name": {
-            "name": "Edge TTS-语音名称",
-            "description": "选择Edge TTS语音播报角色",
+            "name": "Edge TTS 语音角色",
+            "description": "选择Edge TTS的语音播报角色",
             "combo_items": [
                 "zh-CN-XiaoxiaoNeural",
                 "zh-CN-YunxiNeural",
@@ -28,21 +28,16 @@ basic_voice_settings = {
                 "en-US-GuyNeural",
             ],
         },
-        "voice_playback": {
-            "name": "语音播放设备",
-            "description": "选择语音播报播放设备",
-            "combo_items": ["系统默认", "扬声器", "耳机", "蓝牙设备"],
-        },
-        "volume_size": {"name": "播报音量", "description": "调整语音播报音量大小"},
-        "speech_rate": {"name": "语速调节", "description": "调整语音播报语速"},
+        "volume_size": {"name": "播报音量", "description": "调整语音播报的音量大小"},
+        "speech_rate": {"name": "语速调节", "description": "调整语音播报的语速"},
         "system_volume_control": {
             "name": "系统音量控制",
-            "description": "选择要控制的系统音量类型",
-            "combo_items": ["主音量", "应用音量", "系统音效", "麦克风音量"],
+            "description": "是否开启系统音量自动控制",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "system_volume_size": {
             "name": "系统音量大小",
-            "description": "调整系统音量大小",
+            "description": "设置系统音量的大小",
         },
     },
     "EN_US": {
@@ -119,10 +114,15 @@ basic_voice_settings = {
 specific_announcements = {
     "ZH_CN": {
         "title": {"name": "特定播报设置", "description": "配置特定结果的语音播报"},
-        "enabled": {"name": "开关", "description": "开启或关闭语音播报功能"},
+        "enabled": {
+            "name": "特定播报开关",
+            "description": "开启或关闭特定结果语音播报的总开关",
+            "switchbutton_name": {"enable": "", "disable": ""},
+        },
+        "header": {"name": "开关"},
         "mode": {
             "name": "播报模式",
-            "description": "选择语音播报的模式",
+            "description": "选择语音播报模式",
             "combo_items": ["点名模式", "抽奖模式"],
         },
         "roll_call_title": {
@@ -133,26 +133,29 @@ specific_announcements = {
             "name": "选择班级/奖池",
             "description": "选择要管理TTS的班级或奖池",
         },
-        "id_field": {"name": "学号", "description": "是否在播报中包含学号"},
-        "name_field": {"name": "姓名", "description": "是否在播报中包含姓名"},
-        "prefix_field": {"name": "播报前缀", "description": "在播报内容前添加的文本"},
-        "suffix_field": {"name": "播报后缀", "description": "在播报内容后添加的文本"},
+        "id_field": {"name": "学号"},
+        "name_field": {"name": "姓名"},
+        "prefix_field": {
+            "name": "播报前缀",
+            "description": "在播报内容前添加自定义文本",
+        },
+        "suffix_field": {
+            "name": "播报后缀",
+            "description": "在播报内容后添加自定义文本",
+        },
         "lottery_title": {
             "name": "抽奖模式配置",
             "description": "配置抽奖模式下的语音播报",
         },
-        "lottery_id_field": {"name": "序号", "description": "是否在播报中包含序号"},
-        "lottery_name_field": {
-            "name": "名称",
-            "description": "是否在播报中包含名称",
-        },
+        "lottery_id_field": {"name": "序号"},
+        "lottery_name_field": {"name": "名称"},
         "lottery_prefix_field": {
             "name": "抽奖前缀",
-            "description": "在播报内容前添加的文本",
+            "description": "在抽奖播报内容前添加自定义文本",
         },
         "lottery_suffix_field": {
             "name": "抽奖后缀",
-            "description": "在播报内容后添加的文本",
+            "description": "在抽奖播报内容后添加自定义文本",
         },
         "tts_alias": {
             "name": "替换名称",

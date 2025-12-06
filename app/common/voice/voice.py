@@ -32,6 +32,8 @@ from PySide6.QtWidgets import *
 
 # --------- 项目内部 ---------
 from app.tools.path_utils import ensure_dir, get_audio_path
+from app.tools.settings_access import readme_settings_async
+from app.tools.config import restore_volume
 
 
 # 权限检查装饰器
@@ -175,13 +177,13 @@ class VoicePlaybackSystem:
 
             with self._is_playing_lock:
                 self._is_playing = True  # 开始播放
-            logger.debug("开始播放音频")
+            logger.info("开始播放音频")
 
             # 分块写入避免卡顿
             chunk_size: int = 4096
             for i in range(0, len(data), chunk_size):
                 if self._stop_flag.is_set():
-                    logger.debug("收到停止信号，中断播放")
+                    logger.info("收到停止信号，中断播放")
                     break
 
                 chunk = data[i : i + chunk_size]
@@ -193,7 +195,7 @@ class VoicePlaybackSystem:
                 # 写入音频流
                 stream.write(chunk)
 
-            logger.debug("音频播放完毕")
+            logger.info("音频播放完毕")
             with self._is_playing_lock:
                 self._is_playing = False  # 播放结束
 
@@ -303,7 +305,7 @@ class VoiceCacheManager:
             logger.error(f"无效的语音名称: {voice}")
             raise ValueError("语音名称不能为空")
 
-        logger.debug(f"获取语音: text='{text[:50]}...', voice='{voice}'")
+        logger.info(f"获取语音: text='{text}', voice='{voice}'")
 
         # 检查并执行缓存清理
         self._check_and_cleanup()
@@ -349,7 +351,7 @@ class VoiceCacheManager:
     async def _generate_voice(self, text: str, voice: str) -> Tuple[np.ndarray, int]:
         """生成语音核心方法"""
         # 限制文本长度，防止生成过大的音频
-        max_text_length = 1000
+        max_text_length = 500
         if len(text) > max_text_length:
             text = text[:max_text_length]
             logger.warning(f"文本长度超过限制{max_text_length}，已截断")
@@ -464,32 +466,33 @@ class LoadBalancer:
 
     # 基础队列大小设置
     BASE_QUEUE_SIZE: int = 3  # 基础队列大小(最低3人)
+    MAX_QUEUE_SIZE: int = 100  # 最大队列大小，防止无限增长
 
-    # CPU负载阈值与对应的队列大小增量
-    CPU_THRESHOLDS: list[tuple[float, int]] = [
-        (90, 0),  # CPU > 90%: 不增加
-        (80, 2),  # 80% < CPU ≤ 90%: 增加2人
-        (70, 4),  # 70% < CPU ≤ 80%: 增加4人
-        (60, 6),  # 60% < CPU ≤ 70%: 增加6人
-        (50, 8),  # 50% < CPU ≤ 60%: 增加8人
-        (40, 10),  # 40% < CPU ≤ 50%: 增加10人
-        (30, 12),  # 30% < CPU ≤ 40%: 增加12人
-        (20, 14),  # 20% < CPU ≤ 30%: 增加14人
-        (10, 16),  # 10% < CPU ≤ 20%: 增加16人
-        (0, 20),  # CPU ≤ 10%: 增加20人
+    # CPU负载阈值与对应的队列大小系数（按CPU使用率从低到高排序）
+    CPU_THRESHOLDS: list[tuple[float, float]] = [
+        (0, 1.0),  # CPU ≤ 10%: 正常系数
+        (10, 0.9),  # 10% < CPU ≤ 20%: 略降系数
+        (20, 0.8),  # 20% < CPU ≤ 30%: 降低系数
+        (30, 0.7),  # 30% < CPU ≤ 40%: 进一步降低
+        (40, 0.6),  # 40% < CPU ≤ 50%: 继续降低
+        (50, 0.5),  # 50% < CPU ≤ 60%: 中等负载
+        (60, 0.4),  # 60% < CPU ≤ 70%: 较高负载
+        (70, 0.3),  # 70% < CPU ≤ 80%: 高负载
+        (80, 0.2),  # 80% < CPU ≤ 90%: 很高负载
+        (90, 0.1),  # CPU > 90%: 极高负载
     ]
 
-    # 内存负载阈值与对应的队列大小增量
-    MEMORY_THRESHOLDS: list[tuple[float, int]] = [
-        (0.5, 0),  # 内存 < 0.5GB: 不增加
-        (1, 5),  # 0.5GB ≤ 内存 < 1GB: 增加5人
-        (2, 10),  # 1GB ≤ 内存 < 2GB: 增加10人
-        (4, 20),  # 2GB ≤ 内存 < 4GB: 增加20人
-        (8, 30),  # 4GB ≤ 内存 < 8GB: 增加30人
-        (16, 40),  # 8GB ≤ 内存 < 16GB: 增加40人
-        (32, 50),  # 16GB ≤ 内存 < 32GB: 增加50人
-        (64, 60),  # 32GB ≤ 内存 < 64GB: 增加60人
-        (float("inf"), 70),  # 内存 ≥ 64GB: 增加70人
+    # 内存负载阈值与对应的队列大小系数（按可用内存从低到高排序）
+    MEMORY_THRESHOLDS: list[tuple[float, float]] = [
+        (0, 0.2),  # 内存 < 0.5GB: 极低内存，大幅降低队列
+        (0.5, 0.3),  # 0.5GB ≤ 内存 < 1GB: 低内存，降低队列
+        (1, 0.5),  # 1GB ≤ 内存 < 2GB: 中等偏低内存，适当降低
+        (2, 0.7),  # 2GB ≤ 内存 < 4GB: 中等内存，略微降低
+        (4, 0.8),  # 4GB ≤ 内存 < 8GB: 较充足内存，小幅降低
+        (8, 0.9),  # 8GB ≤ 内存 < 16GB: 充足内存，略降
+        (16, 0.95),  # 16GB ≤ 内存 < 32GB: 很充足内存，微调
+        (32, 1.0),  # 32GB ≤ 内存 < 64GB: 充足内存，正常系数
+        (64, 1.0),  # 内存 ≥ 64GB: 非常充足内存，正常系数
     ]
 
     def get_optimal_queue_size(self) -> int:
@@ -500,6 +503,7 @@ class LoadBalancer:
             mem_available: float = psutil.virtual_memory().available / (
                 1024**3
             )  # GB(可用内存)
+            mem_percent: float = psutil.virtual_memory().percent  # 内存使用率%
 
             # 参数有效性检查
             if (
@@ -514,25 +518,40 @@ class LoadBalancer:
                 logger.error("内存信息异常，使用基础队列大小")
                 return self.BASE_QUEUE_SIZE
 
-            # 根据CPU使用率确定增量
-            cpu_bonus: int = 0
-            for threshold, bonus in self.CPU_THRESHOLDS:
-                if cpu_percent >= threshold:
-                    cpu_bonus = bonus
+            # 计算基于CPU的队列大小调整系数
+            cpu_factor: float = 1.0
+            for threshold, factor in self.CPU_THRESHOLDS:
+                if cpu_percent > threshold:
+                    cpu_factor = factor
+                else:
                     break
 
-            # 根据可用内存确定增量
-            mem_bonus: int = 0
-            for threshold, bonus in self.MEMORY_THRESHOLDS:
-                if mem_available <= threshold:
-                    mem_bonus = bonus
+            # 计算基于内存的队列大小调整系数
+            mem_factor: float = 1.0
+            for threshold, factor in self.MEMORY_THRESHOLDS:
+                if mem_available > threshold:
+                    mem_factor = factor
+                else:
                     break
 
-            # 计算最终队列大小
-            queue_size: int = self.BASE_QUEUE_SIZE + cpu_bonus + mem_bonus
+            # 计算动态队列基础值（根据系统资源情况）
+            # 可用内存越多，动态基础值越大
+            dynamic_base = self.BASE_QUEUE_SIZE + int(
+                mem_available * 5
+            )  # 每GB内存增加5个队列位置
+
+            # 结合CPU和内存负载，计算最终队列大小
+            # 使用几何平均计算综合系数，更合理地平衡CPU和内存负载
+            combined_factor = (cpu_factor * mem_factor) ** 0.5
+            queue_size: int = int(dynamic_base * combined_factor)
+
+            # 确保队列大小在合理范围内
+            queue_size = max(self.BASE_QUEUE_SIZE, min(queue_size, self.MAX_QUEUE_SIZE))
 
             logger.debug(
-                f"系统负载 (CPU:{cpu_percent}%, 内存:{mem_available:.2f}GB)，队列大小设为{queue_size}"
+                f"系统负载 (CPU:{cpu_percent}%, 内存使用率:{mem_percent}%, 可用内存:{mem_available:.2f}GB) "
+                f"→ CPU系数:{cpu_factor}, 内存系数:{mem_factor}, 综合系数:{combined_factor:.2f} "
+                f"→ 队列大小设为{queue_size}"
             )
             return queue_size
         except Exception as e:
@@ -718,6 +737,23 @@ class TTSHandler:
         self, student_names: List[str], config: Dict[str, Any]
     ) -> None:
         """系统TTS处理"""
+        # 检查是否开启系统音量控制（增强错误处理，防止崩溃）
+        try:
+            system_volume_control = readme_settings_async(
+                "basic_voice_settings", "system_volume_control"
+            )
+            if system_volume_control:
+                # 获取系统音量大小并设置
+                system_volume_size = readme_settings_async(
+                    "basic_voice_settings", "system_volume_size"
+                )
+                # 确保音量值是整数
+                if isinstance(system_volume_size, (int, str)):
+                    restore_volume(int(system_volume_size))
+        except Exception as e:
+            logger.error(f"系统音量控制处理失败: {e}")
+            # 继续执行，不影响语音播报
+
         with self.system_tts_lock:
             if self.voice_engine is None:
                 logger.error("系统TTS引擎未初始化，无法播放语音")
@@ -769,6 +805,23 @@ class TTSHandler:
         self, student_names: List[str], config: Dict[str, Any], voice_name: str
     ) -> None:
         """准备并播放语音"""
+        # 检查是否开启系统音量控制（增强错误处理，防止崩溃）
+        try:
+            system_volume_control = readme_settings_async(
+                "basic_voice_settings", "system_volume_control"
+            )
+            if system_volume_control:
+                # 获取系统音量大小并设置
+                system_volume_size = readme_settings_async(
+                    "basic_voice_settings", "system_volume_size"
+                )
+                # 确保音量值是整数
+                if isinstance(system_volume_size, (int, str)):
+                    restore_volume(int(system_volume_size))
+        except Exception as e:
+            logger.error(f"系统音量控制处理失败: {e}")
+            # 继续执行，不影响语音播报
+
         # 设置播放音量，转换为0.0-1.0范围
         self.playback_system.set_volume(config["voice_volume"] / 100.0)
         # 设置播放语速

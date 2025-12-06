@@ -59,6 +59,16 @@ class voice_announcement_main(GroupHeaderCardWidget):
 
         # 启用/禁用语音播报开关
         self.enabled_switch = SwitchButton()
+        self.enabled_switch.setOffText(
+            get_content_switchbutton_name_async(
+                "specific_announcements", "enabled", "disable"
+            )
+        )
+        self.enabled_switch.setOnText(
+            get_content_switchbutton_name_async(
+                "specific_announcements", "enabled", "enable"
+            )
+        )
         self.enabled_switch.setChecked(
             readme_settings_async("specific_announcements", "enabled")
         )
@@ -89,7 +99,7 @@ class voice_announcement_main(GroupHeaderCardWidget):
             self.enabled_switch,
         )
         self.addGroup(
-            get_theme_icon("ic_fluent_switch_20_filled"),
+            get_theme_icon("ic_fluent_voicemail_20_filled"),
             get_content_name_async("specific_announcements", "mode"),
             get_content_description_async("specific_announcements", "mode"),
             self.mode_comboBox,
@@ -174,7 +184,7 @@ class voice_announcement_main(GroupHeaderCardWidget):
             self.table.setColumnCount(6)
             self.table.setHorizontalHeaderLabels(
                 [
-                    get_content_name_async("specific_announcements", "enabled"),
+                    get_content_name_async("specific_announcements", "header"),
                     get_content_name_async("specific_announcements", "id_field"),
                     get_content_name_async("specific_announcements", "name_field"),
                     get_content_name_async("specific_announcements", "tts_alias"),
@@ -186,7 +196,7 @@ class voice_announcement_main(GroupHeaderCardWidget):
             self.table.setColumnCount(6)
             self.table.setHorizontalHeaderLabels(
                 [
-                    get_content_name_async("specific_announcements", "enabled"),
+                    get_content_name_async("specific_announcements", "header"),
                     get_content_name_async(
                         "specific_announcements", "lottery_id_field"
                     ),
@@ -282,7 +292,7 @@ class voice_announcement_main(GroupHeaderCardWidget):
                 json.dump(audio_data, f, indent=4, ensure_ascii=False)
 
             item_type = "学生" if self.current_mode == 0 else "奖品"
-            logger.info(f"已更新{item_type} {name_field} 的语音播报设置")
+            logger.debug(f"已更新{item_type} {name_field} 的语音播报设置")
         except Exception as e:
             logger.error(f"更新语音播报设置失败: {e}")
 
