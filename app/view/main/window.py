@@ -161,6 +161,10 @@ class MainWindow(FluentWindow):
         self.settingsInterface = QWidget(self)
         self.settingsInterface.setObjectName("settingsInterface")
 
+        # 为所有子页面安装事件过滤器，点击时自动折叠导航栏
+        for page in [self.roll_call_page, self.lottery_page, self.history_page]:
+            page.installEventFilter(self)
+
         self.initNavigation()
 
     def initNavigation(self):
@@ -247,22 +251,63 @@ class MainWindow(FluentWindow):
 
     def _setupCollapsibleNavigation(self):
         """配置可折叠的导航栏
-        默认折叠只显示图标，点击汉堡菜单展开显示完整文本"""
+        默认折叠只显示图标，点击汉堡菜单展开显示完整文本
+        针对触摸屏优化：增大图标尺寸和间距"""
         try:
             nav = self.navigationInterface
             if not nav:
                 return
 
             # 设置导航栏展开宽度（展开时显示图标+文本）
-            nav.setExpandWidth(200)
-            nav.setMinimumExpandWidth(200)
+            nav.setExpandWidth(220)
+            nav.setMinimumExpandWidth(220)
 
-            # 默认折叠导航栏（只显示图标）
             if hasattr(nav, "panel") and nav.panel:
-                nav.panel.collapse()
+                panel = nav.panel
+
+                # 先确保导航栏处于展开状态以正确计算布局
+                panel.expand()
+
+                # 增大导航项高度以适配触摸屏（默认36px -> 48px）
+                for item in panel.items.values():
+                    if hasattr(item, "widget") and item.widget:
+                        widget = item.widget
+                        widget.setFixedHeight(48)
+
+                # 增大菜单按钮的高度
+                if hasattr(panel, "menuButton") and panel.menuButton:
+                    panel.menuButton.setFixedHeight(48)
+
+                # 强制更新布局
+                panel.updateGeometry()
+                nav.updateGeometry()
+
+                # 延迟折叠导航栏，确保布局计算完成
+                QTimer.singleShot(50, panel.collapse)
 
         except Exception as e:
             logger.debug(f"配置可折叠导航栏时出错: {e}")
+
+    def _collapseNavigationPanel(self):
+        """折叠导航栏面板"""
+        try:
+            nav = self.navigationInterface
+            if nav and hasattr(nav, "panel") and nav.panel:
+                if not nav.panel.isCollapsed():
+                    nav.panel.collapse()
+        except Exception as e:
+            logger.debug(f"折叠导航栏时出错: {e}")
+
+    def eventFilter(self, watched, event):
+        """事件过滤器 - 监听子页面的点击事件，自动折叠导航栏"""
+        if event.type() == QEvent.MouseButtonPress:
+            self._collapseNavigationPanel()
+        return super().eventFilter(watched, event)
+
+    def mousePressEvent(self, event):
+        """鼠标点击事件 - 点击主区域时自动折叠导航栏"""
+        self._collapseNavigationPanel()
+        super().mousePressEvent(event)
 
     def _toggle_float_window(self):
         if self.float_window.isVisible():
