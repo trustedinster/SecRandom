@@ -835,25 +835,64 @@ class SettingsWindow(FluentWindow):
             if not nav:
                 return
 
-            # 设置导航栏展开宽度（展开时显示图标+文本）
-            nav.setExpandWidth(220)
-            nav.setMinimumExpandWidth(220)
+            # 触摸屏优化的尺寸常量
+            TOUCH_COMPACT_WIDTH = 60  # 折叠时的侧边栏宽度
+            TOUCH_ITEM_HEIGHT = 55  # 导航项高度
+
+            # 设置导航栏展开宽度（展开时显示图标+文本，设置窗口需要更宽）
+            nav.setExpandWidth(320)
+            nav.setMinimumExpandWidth(320)
+
+            # 隐藏返回按钮，避免与标题栏冲突
+            nav.setReturnButtonVisible(False)
 
             if hasattr(nav, "panel") and nav.panel:
                 panel = nav.panel
 
-                # 先确保导航栏处于展开状态以正确计算布局
-                panel.expand()
+                # 增加顶部边距，避免汉堡菜单与标题栏冲突
+                # 标题栏高度通常是48px
+                panel.vBoxLayout.setContentsMargins(0, 48, 0, 5)
 
-                # 增大导航项高度以适配触摸屏（默认36px -> 48px）
-                for item in panel.items.values():
-                    if hasattr(item, "widget") and item.widget:
-                        widget = item.widget
-                        widget.setFixedHeight(48)
+                # 修改面板的初始宽度
+                panel.resize(TOUCH_COMPACT_WIDTH, panel.height())
 
-                # 增大菜单按钮的高度
+                # 重写 collapse 方法以使用自定义宽度
+                original_collapse = panel.collapse
+
+                def custom_collapse():
+                    from PySide6.QtCore import QPropertyAnimation, QRect, QSize
+                    from qfluentwidgets.components.navigation import (
+                        NavigationTreeWidgetBase,
+                    )
+
+                    if panel.expandAni.state() == QPropertyAnimation.Running:
+                        return
+
+                    for item in panel.items.values():
+                        w = item.widget
+                        if isinstance(w, NavigationTreeWidgetBase) and w.isRoot():
+                            w.setExpanded(False)
+
+                    panel.expandAni.setStartValue(
+                        QRect(panel.pos(), QSize(panel.width(), panel.height()))
+                    )
+                    panel.expandAni.setEndValue(
+                        QRect(panel.pos(), QSize(TOUCH_COMPACT_WIDTH, panel.height()))
+                    )
+                    panel.expandAni.setProperty("expand", False)
+                    panel.expandAni.start()
+
+                    panel.menuButton.setToolTip(panel.tr("Open Navigation"))
+
+                panel.collapse = custom_collapse
+
+                # 为所有导航项应用触摸屏优化的尺寸
+                # 通过替换 setCompacted 方法来持久化自定义高度
+                self._applyTouchOptimizedNavItems(panel)
+
+                # 菜单按钮也需要增大高度
                 if hasattr(panel, "menuButton") and panel.menuButton:
-                    panel.menuButton.setFixedHeight(48)
+                    self._patchNavigationToolButton(panel.menuButton)
 
                 # 强制更新布局
                 panel.updateGeometry()
@@ -864,6 +903,248 @@ class SettingsWindow(FluentWindow):
 
         except Exception as e:
             logger.debug(f"配置可折叠导航栏时出错: {e}")
+
+    def _applyTouchOptimizedNavItems(self, panel):
+        """为导航项应用触摸屏优化的尺寸
+
+        通过替换每个导航项的 setCompacted 方法和 paintEvent 方法，确保在导航栏展开/折叠时
+        保持自定义的高度，并使图标和指示器居中
+        """
+        from PySide6.QtGui import QPainter, QColor
+        from PySide6.QtCore import Qt, QRectF, QMargins
+        from qfluentwidgets.common.font import setFont
+        from qfluentwidgets.common.icon import drawIcon
+        from qfluentwidgets.common.config import isDarkTheme
+        from qfluentwidgets.common.color import autoFallbackThemeColor
+
+        # 触摸屏优化的尺寸常量
+        TOUCH_ITEM_HEIGHT = 55  # 比默认36px更大，适合触摸
+        TOUCH_COMPACT_WIDTH = 60  # 折叠时的宽度
+        TOUCH_EXPAND_WIDTH = 320  # 展开时的宽度（设置窗口更宽）
+        TOUCH_FONT_SIZE = 14  # 字体大小
+        TOUCH_ICON_SIZE = 20  # 图标大小（默认16）
+        TOUCH_INDICATOR_HEIGHT = 18  # 指示器高度（默认16）
+
+        for item in panel.items.values():
+            if hasattr(item, "widget") and item.widget:
+                widget = item.widget
+
+                # 获取实际需要绑定paintEvent的widget
+                target_widget = (
+                    widget.itemWidget
+                    if hasattr(widget, "itemWidget") and widget.itemWidget
+                    else widget
+                )
+
+                # 设置字体大小
+                setFont(target_widget, TOUCH_FONT_SIZE)
+
+                # 保存原始的 paintEvent 方法并创建自定义绘制
+                original_paintEvent = target_widget.paintEvent
+
+                def make_custom_paintEvent(
+                    w, height, icon_size, indicator_height, compact_width
+                ):
+                    def custom_paintEvent(e):
+                        painter = QPainter(w)
+                        painter.setRenderHints(
+                            QPainter.Antialiasing
+                            | QPainter.TextAntialiasing
+                            | QPainter.SmoothPixmapTransform
+                        )
+                        painter.setPen(Qt.NoPen)
+
+                        if w.isPressed:
+                            painter.setOpacity(0.7)
+                        if not w.isEnabled():
+                            painter.setOpacity(0.4)
+
+                        # 获取margins
+                        m = (
+                            w._margins()
+                            if hasattr(w, "_margins")
+                            else QMargins(0, 0, 0, 0)
+                        )
+                        pl, pr = m.left(), m.right()
+
+                        # 计算垂直居中位置
+                        icon_y = (height - icon_size) // 2
+                        indicator_y = (height - indicator_height) // 2
+
+                        c = 255 if isDarkTheme() else 0
+                        globalRect = w.mapToGlobal(w.rect().topLeft())
+
+                        # 绘制背景和指示器
+                        can_draw_indicator = (
+                            w._canDrawIndicator()
+                            if hasattr(w, "_canDrawIndicator")
+                            else w.isSelected
+                        )
+                        if can_draw_indicator:
+                            painter.setBrush(QColor(c, c, c, 6 if w.isEnter else 10))
+                            painter.drawRoundedRect(w.rect(), 5, 5)
+                            # 绘制指示器 - 垂直居中
+                            light_color = (
+                                w.lightIndicatorColor
+                                if hasattr(w, "lightIndicatorColor")
+                                else QColor()
+                            )
+                            dark_color = (
+                                w.darkIndicatorColor
+                                if hasattr(w, "darkIndicatorColor")
+                                else QColor()
+                            )
+                            painter.setBrush(
+                                autoFallbackThemeColor(light_color, dark_color)
+                            )
+                            painter.drawRoundedRect(
+                                pl, indicator_y, 3, indicator_height, 1.5, 1.5
+                            )
+                        elif w.isEnter and w.isEnabled():
+                            painter.setBrush(QColor(c, c, c, 10))
+                            painter.drawRoundedRect(w.rect(), 5, 5)
+
+                        # 绘制图标 - 垂直居中，更大的尺寸
+                        icon = w._icon if hasattr(w, "_icon") else None
+                        if icon:
+                            icon_x = (compact_width - icon_size) // 2 + pl
+                            drawIcon(
+                                icon,
+                                painter,
+                                QRectF(icon_x, icon_y, icon_size, icon_size),
+                            )
+
+                        # 绘制文本（仅展开时）
+                        if not w.isCompacted:
+                            painter.setFont(w.font())
+                            text_color = (
+                                w.textColor()
+                                if hasattr(w, "textColor")
+                                else QColor(255, 255, 255)
+                                if isDarkTheme()
+                                else QColor(0, 0, 0)
+                            )
+                            painter.setPen(text_color)
+                            text_x = compact_width + pl
+                            text = (
+                                w._text
+                                if hasattr(w, "_text")
+                                else w.text()
+                                if hasattr(w, "text")
+                                else ""
+                            )
+                            painter.drawText(
+                                QRectF(text_x, 0, w.width() - text_x - pr, height),
+                                Qt.AlignVCenter,
+                                text,
+                            )
+
+                        painter.end()
+
+                    return custom_paintEvent
+
+                # 替换 paintEvent
+                target_widget.paintEvent = make_custom_paintEvent(
+                    target_widget,
+                    TOUCH_ITEM_HEIGHT,
+                    TOUCH_ICON_SIZE,
+                    TOUCH_INDICATOR_HEIGHT,
+                    TOUCH_COMPACT_WIDTH,
+                )
+
+                # 保存原始的 setCompacted 方法
+                original_setCompacted = widget.setCompacted
+
+                # 创建新的 setCompacted 方法，使用自定义尺寸
+                def make_custom_setCompacted(
+                    w, target_w, orig_method, height, compact_w, expand_w
+                ):
+                    def custom_setCompacted(isCompacted):
+                        # 先调用原始方法以保持其他逻辑
+                        orig_method(isCompacted)
+                        # 然后覆盖尺寸为我们想要的值
+                        if isCompacted:
+                            w.setFixedSize(compact_w, height)
+                        else:
+                            w.setFixedSize(expand_w, height)
+                        # 如果是 NavigationTreeWidget，还需要设置内部的 itemWidget
+                        if target_w and target_w != w:
+                            if isCompacted:
+                                target_w.setFixedSize(compact_w, height)
+                            else:
+                                target_w.setFixedSize(expand_w, height)
+
+                    return custom_setCompacted
+
+                # 替换方法
+                widget.setCompacted = make_custom_setCompacted(
+                    widget,
+                    target_widget if target_widget != widget else None,
+                    original_setCompacted,
+                    TOUCH_ITEM_HEIGHT,
+                    TOUCH_COMPACT_WIDTH,
+                    TOUCH_EXPAND_WIDTH,
+                )
+
+                # 立即应用当前状态的尺寸
+                widget.setCompacted(widget.isCompacted)
+                widget.setCompacted(widget.isCompacted)
+
+    def _patchNavigationToolButton(self, button):
+        """为导航工具按钮（如菜单按钮）应用触摸屏优化尺寸，并使图标居中"""
+        from PySide6.QtGui import QPainter, QColor
+        from PySide6.QtCore import Qt, QRectF
+        from qfluentwidgets.common.icon import drawIcon
+        from qfluentwidgets.common.config import isDarkTheme
+
+        TOUCH_BUTTON_WIDTH = 60  # 按钮宽度与侧边栏一致
+        TOUCH_BUTTON_HEIGHT = 55  # 按钮高度与导航项一致
+        TOUCH_ICON_SIZE = 20  # 图标大小
+
+        original_setCompacted = button.setCompacted
+
+        def custom_setCompacted(isCompacted):
+            original_setCompacted(isCompacted)
+            button.setFixedSize(TOUCH_BUTTON_WIDTH, TOUCH_BUTTON_HEIGHT)
+
+        button.setCompacted = custom_setCompacted
+        button.setFixedSize(TOUCH_BUTTON_WIDTH, TOUCH_BUTTON_HEIGHT)
+
+        # 重写 paintEvent 使图标居中
+        original_paintEvent = button.paintEvent
+
+        def custom_paintEvent(e):
+            painter = QPainter(button)
+            painter.setRenderHints(
+                QPainter.Antialiasing | QPainter.SmoothPixmapTransform
+            )
+            painter.setPen(Qt.NoPen)
+
+            if button.isPressed:
+                painter.setOpacity(0.7)
+            if not button.isEnabled():
+                painter.setOpacity(0.4)
+
+            # 绘制悬停背景
+            if button.isEnter and button.isEnabled():
+                c = 255 if isDarkTheme() else 0
+                painter.setBrush(QColor(c, c, c, 10))
+                painter.drawRoundedRect(button.rect(), 5, 5)
+
+            # 绘制图标 - 居中
+            icon = button._icon if hasattr(button, "_icon") else None
+            if icon:
+                icon_x = (TOUCH_BUTTON_WIDTH - TOUCH_ICON_SIZE) / 2
+                icon_y = (TOUCH_BUTTON_HEIGHT - TOUCH_ICON_SIZE) / 2
+                drawIcon(
+                    icon,
+                    painter,
+                    QRectF(icon_x, icon_y, TOUCH_ICON_SIZE, TOUCH_ICON_SIZE),
+                )
+
+            painter.end()
+
+        button.paintEvent = custom_paintEvent
 
     def _collapseNavigationPanel(self):
         """折叠导航栏面板"""
