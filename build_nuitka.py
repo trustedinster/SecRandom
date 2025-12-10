@@ -1,6 +1,7 @@
-"""Nuitka packaging helper for SecRandom using the shared packaging utilities."""
-
-from __future__ import annotations
+"""
+Nuitka 打包脚本
+用于构建 SecRandom 的独立可执行文件
+"""
 
 import subprocess
 import sys
@@ -24,7 +25,11 @@ from packaging_utils import (
     normalize_hidden_imports,
 )
 
+# 导入项目配置信息
+sys.path.insert(0, str(Path(__file__).parent))
 from app.tools.variable import APPLY_NAME, VERSION, APP_DESCRIPTION, AUTHOR, WEBSITE
+
+# 导入deb包构建工具
 from packaging_utils_deb import DebBuilder
 
 PACKAGE_INCLUDE_NAMES = {
@@ -36,6 +41,8 @@ PACKAGE_INCLUDE_NAMES = {
 
 
 def _print_packaging_summary() -> None:
+    """Log a quick overview of the data and modules that will be bundled."""
+
     data_includes = collect_data_includes()
     hidden_names = normalize_hidden_imports(
         collect_language_modules() + collect_view_modules() + ADDITIONAL_HIDDEN_IMPORTS
@@ -45,19 +52,22 @@ def _print_packaging_summary() -> None:
     )
     module_names = [name for name in hidden_names if "." in name]
 
-    print(f"\nSelected data includes ({len(data_includes)} entries):")
+    print("\nSelected data includes ({len(data_includes)} entries):".format(len(data_includes)))
     for item in data_includes:
         kind = "dir " if item.is_dir else "file"
         print(f"  - {kind} {item.source} -> {item.target}")
-    print(f"\nRequired packages ({len(package_names)} entries):")
+
+    print("\nRequired packages ({len(package_names)} entries):".format(len(package_names)))
     for pkg in package_names:
         print(f"  - {pkg}")
-    print(f"\nHidden modules ({len(module_names)} entries):")
+
+    print("\nHidden modules ({len(module_names)} entries):".format(len(module_names)))
     for mod in module_names:
         print(f"  - {mod}")
 
 
 def _gather_data_flags() -> list[str]:
+    """收集数据文件包含标志"""
     flags: list[str] = []
     for include in collect_data_includes():
         flag = "--include-data-dir" if include.is_dir else "--include-data-file"
@@ -70,7 +80,9 @@ def _gather_data_flags() -> list[str]:
     return flags
 
 
+
 def _gather_module_and_package_flags() -> tuple[list[str], list[str]]:
+    """收集模块和包包含标志"""
     hidden_names = normalize_hidden_imports(
         collect_language_modules() + collect_view_modules() + ADDITIONAL_HIDDEN_IMPORTS
     )
@@ -86,7 +98,9 @@ def _gather_module_and_package_flags() -> tuple[list[str], list[str]]:
     return module_flags, package_flags
 
 
+
 def _sanitize_version(ver_str: str) -> str:
+    """清理版本字符串，确保符合Nuitka要求"""
     if not ver_str:
         return "0.0.0.0"
     ver_str = ver_str.lstrip("vV").strip()
@@ -99,7 +113,9 @@ def _sanitize_version(ver_str: str) -> str:
     return "0.0.0.0"
 
 
-def get_nuitka_command():
+
+def get_nuitka_command() -> list[str]:
+    """获取Nuitka命令列表"""
     raw_version = VERSION if VERSION else "0.0.0"
     clean_version = _sanitize_version(raw_version)
     print(f"\n版本号处理: '{raw_version}' -> '{clean_version}'")
@@ -124,7 +140,7 @@ def get_nuitka_command():
         "--no-deployment-flag=self-execution",
     ]
 
-    # === 编译器选择逻辑 ===
+    # 编译器选择逻辑
     if sys.platform == "win32":
         # 检测是否为 Python 3.13 及以上
         if sys.version_info >= (3, 13):
@@ -153,7 +169,8 @@ def get_nuitka_command():
     return cmd
 
 
-def check_compiler_env():
+
+def check_compiler_env() -> bool:
     """检查编译器环境"""
     if sys.platform != "win32":
         return True
@@ -196,24 +213,31 @@ def check_compiler_env():
     return input("是否继续? (y/n): ").lower() == "y"
 
 
+
 def build_deb() -> None:
+    """构建deb包"""
     if sys.platform != "linux":
         return
-    print("\n" + "=" * 60 + "\n开始构建deb包...\n" + "=" * 60)
+
+    print("\n" + "=" * 60)
+    print("开始构建deb包...")
+    print("=" * 60)
+
     try:
         DebBuilder.build_from_nuitka(
             PROJECT_ROOT, APPLY_NAME, VERSION, APP_DESCRIPTION, AUTHOR, WEBSITE
         )
+        print("=" * 60)
+
     except Exception as e:
         print(f"构建deb包失败: {e}")
         sys.exit(1)
 
 
 def main():
+    """执行 Nuitka 打包"""
     print("=" * 60)
-    print(
-        f"开始打包 SecRandom (Python {sys.version_info.major}.{sys.version_info.minor} on {sys.platform})"
-    )
+    print("开始使用 Nuitka + uv 打包 SecRandom")
     print("=" * 60)
 
     if sys.platform == "win32" and not check_compiler_env():
@@ -222,27 +246,46 @@ def main():
     _print_packaging_summary()
     cmd = get_nuitka_command()
 
+    # 打印命令
     print("\n执行命令:")
     print(" ".join(cmd))
     print("\n" + "=" * 60)
 
+    # 执行打包
     try:
-        # capture_output=False 允许看到实时进度
         subprocess.run(
             cmd,
             check=True,
             cwd=PROJECT_ROOT,
             capture_output=False,
+            text=True,
             encoding="utf-8",
             errors="replace",
         )
-        print("\n" + "=" * 60 + "\nNuitka打包成功！\n" + "=" * 60)
+        print("\n" + "=" * 60)
+        print("Nuitka打包成功！")
+        print("=" * 60)
+
+        # 构建deb包（仅在Linux平台）
         build_deb()
+
     except subprocess.CalledProcessError as e:
-        print(f"\n打包失败 (返回码: {e.returncode})")
+        print("\n" + "=" * 60)
+        print(f"打包失败: {e}")
+        print(f"返回码: {e.returncode}")
+        print("=" * 60)
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\n用户取消打包")
+        print("\n" + "=" * 60)
+        print("用户取消打包")
+        print("=" * 60)
+        sys.exit(1)
+    except Exception as e:
+        print("\n" + "=" * 60)
+        print(f"发生意外错误: {e}")
+        import traceback
+        traceback.print_exc()
+        print("=" * 60)
         sys.exit(1)
 
 
