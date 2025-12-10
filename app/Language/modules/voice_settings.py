@@ -12,6 +12,11 @@ basic_voice_settings = {
             "description": "选择语音合成引擎类型",
         },
         "volume_group": {"name": "语音设置", "description": "调整语音播报相关设置"},
+        "voice_enable": {
+            "name": "语音功能开关",
+            "description": "开启或关闭语音播报功能",
+            "switchbutton_name": {"enable": "开启", "disable": "关闭"},
+        },
         "voice_engine": {
             "name": "语音引擎",
             "description": "选择语音合成引擎类型",
@@ -52,6 +57,11 @@ basic_voice_settings = {
         "volume_group": {
             "name": "Volume settings",
             "description": "调整语音播报音量大小",
+        },
+        "voice_enable": {
+            "name": "Voice Function Switch",
+            "description": "Turn the voice broadcast function on or off",
+            "switchbutton_name": {"enable": "ON", "disable": "OFF"},
         },
         "system_volume_group": {
             "name": "System volume control",

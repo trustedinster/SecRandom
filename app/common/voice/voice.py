@@ -696,6 +696,12 @@ class TTSHandler:
             return
 
         try:
+            # 检查语音功能是否开启
+            voice_enable = readme_settings_async("basic_voice_settings", "voice_enable", default=True)
+            if not voice_enable:
+                logger.info("语音功能已关闭，跳过语音播放")
+                return
+
             if not student_names:
                 return
 

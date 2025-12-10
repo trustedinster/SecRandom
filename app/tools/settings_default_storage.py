@@ -443,6 +443,7 @@ DEFAULT_SETTINGS = {
         "voice_engine_group": {"default_value": None},
         "volume_group": {"default_value": None},
         "system_volume_group": {"default_value": None},
+        "voice_enable": {"default_value": True},
         "voice_engine": {"default_value": 0},
         "edge_tts_voice_name": {"default_value": "zh-CN-XiaoxiaoNeural"},
         "volume_size": {"default_value": 80},

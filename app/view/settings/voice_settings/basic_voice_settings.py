@@ -50,6 +50,27 @@ class basic_settings_voice_engine(GroupHeaderCardWidget):
         # 初始化Edge TTS Worker
         self.edge_tts_worker = None
 
+        # 语音功能开关
+        self.voice_enable_switch = SwitchButton()
+        self.voice_enable_switch.setOffText(
+            get_content_switchbutton_name_async(
+                "basic_voice_settings", "voice_enable", "disable"
+            )
+        )
+        self.voice_enable_switch.setOnText(
+            get_content_switchbutton_name_async(
+                "basic_voice_settings", "voice_enable", "enable"
+            )
+        )
+        self.voice_enable_switch.setChecked(
+            readme_settings_async("basic_voice_settings", "voice_enable", default=True)
+        )
+        self.voice_enable_switch.checkedChanged.connect(
+            lambda state: update_settings(
+                "basic_voice_settings", "voice_enable", state
+            )
+        )
+
         # 语音引擎设置
         self.voice_engine = ComboBox()
         self.voice_engine.addItems(
@@ -83,6 +104,12 @@ class basic_settings_voice_engine(GroupHeaderCardWidget):
             self.update_edge_tts_voices()
 
         # 添加设置项到分组
+        self.addGroup(
+            get_theme_icon("ic_fluent_speaker_off_20_filled"),
+            get_content_name_async("basic_voice_settings", "voice_enable"),
+            get_content_description_async("basic_voice_settings", "voice_enable"),
+            self.voice_enable_switch,
+        )
         self.addGroup(
             get_theme_icon("ic_fluent_speaker_2_20_filled"),
             get_content_name_async("basic_voice_settings", "voice_engine"),
