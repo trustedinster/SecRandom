@@ -48,7 +48,7 @@ class DebBuilder:
         self.deb_root = project_root / "deb_build"
 
         # deb包文件名
-        self.deb_filename = f"{self.app_name}-{self.deb_version}-amd64.deb"
+        self.deb_filename = f"{self.app_name}-linux-{self.deb_version}-amd64.deb"
         self.deb_path = self.output_dir / self.deb_filename
 
     def _normalize_version(self, version: str) -> str:

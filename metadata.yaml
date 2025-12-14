@@ -1,7 +1,7 @@
 latest:
   release: Disable
   beta: Disable
-  alpha: v1.3.2-alpha.3
+  alpha: v1.3.2-alpha.4
 
 latest_no:
   release: 1
