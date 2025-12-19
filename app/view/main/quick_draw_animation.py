@@ -128,14 +128,9 @@ class QuickDrawAnimation(QObject):
         self.quick_draw_settings = quick_draw_settings
 
         try:
-            # 连接动画完成信号到显示最终结果的槽函数
-            def show_final_result():
-                # 确保在所有其他显示逻辑之后执行，使用闪抽设置显示最终结果
-                QTimer.singleShot(
-                    100, lambda: self.display_final_result(quick_draw_settings)
-                )
-
-            self.animation_finished.connect(show_final_result)
+            self.animation_finished.connect(
+                lambda: self.display_final_result(quick_draw_settings)
+            )
 
             # 根据动画模式执行不同逻辑
             animation_mode = quick_draw_settings["animation"]
@@ -195,6 +190,20 @@ class QuickDrawAnimation(QObject):
                     self.roll_call_widget.result_grid, student_labels
                 )
 
+                # 记录已抽取学生
+                self._record_drawn_student(quick_draw_settings)
+
+                # 更新剩余人数显示
+                self.roll_call_widget.update_many_count_label()
+
+                # 更新剩余名单窗口
+                from app.tools.variable import APP_INIT_DELAY
+                from PySide6.QtCore import QTimer
+
+                QTimer.singleShot(
+                    APP_INIT_DELAY, self.roll_call_widget._update_remaining_list_delayed
+                )
+
                 # 播放语音
                 self.roll_call_widget.play_voice_result()
 
@@ -252,6 +261,29 @@ class QuickDrawAnimation(QObject):
 
         except Exception as e:
             logger.error(f"display_final_result: 显示最终结果失败: {e}")
+
+    def _record_drawn_student(self, quick_draw_settings):
+        """记录已抽取的学生
+
+        Args:
+            quick_draw_settings: 闪抽设置字典
+        """
+        logger.debug("_record_drawn_student: 记录已抽取的学生")
+
+        try:
+            from app.tools.config import record_drawn_student
+
+            # 检查是否需要记录已抽取学生（半重复设置大于0）
+            half_repeat = quick_draw_settings.get("half_repeat", 0)
+            if half_repeat > 0:
+                record_drawn_student(
+                    class_name=self.roll_call_widget.final_class_name,
+                    gender=self.roll_call_widget.final_gender_filter,
+                    group=self.roll_call_widget.final_group_filter,
+                    student_name=self.roll_call_widget.final_selected_students,
+                )
+        except Exception as e:
+            logger.error(f"_record_drawn_student: 记录已抽取学生失败: {e}")
 
     def _update_floating_notification(self):
         """更新浮窗通知内容

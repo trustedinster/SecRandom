@@ -437,16 +437,6 @@ class MainWindow(FluentWindow):
             # 创建闪抽动画实例
             quick_draw_animation = QuickDrawAnimation(roll_call_widget)
 
-            # 连接动画完成信号
-            def on_animation_finished():
-                """动画完成后的处理"""
-                logger.debug("_handle_quick_draw: 闪抽动画完成")
-
-                # 显示最终结果
-                quick_draw_animation.display_final_result(quick_draw_settings)
-
-            quick_draw_animation.animation_finished.connect(on_animation_finished)
-
             # 执行闪抽动画
             quick_draw_animation.execute_quick_draw(quick_draw_settings)
 
