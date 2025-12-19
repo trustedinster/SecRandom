@@ -872,17 +872,13 @@ class lottery_history_table(GroupHeaderCardWidget):
             headers = get_content_name_async(
                 "lottery_history_table", "HeaderLabels_all_weight"
             )
-            self.table.setColumnCount(len(headers))
-            self.table.setHorizontalHeaderLabels(headers)
         elif self.current_mode == 1:
             headers = get_content_name_async(
                 "lottery_history_table", "HeaderLabels_time_weight"
             )
-            self.table.setColumnCount(len(headers))
-            self.table.setHorizontalHeaderLabels(headers)
         else:
             headers = get_content_name_async(
                 "lottery_history_table", "HeaderLabels_Individual_weight"
             )
-            self.table.setColumnCount(len(headers))
-            self.table.setHorizontalHeaderLabels(headers)
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
