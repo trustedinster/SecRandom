@@ -21,7 +21,7 @@ from app.Language.obtain_language import (
     update_settings,
 )
 from app.common.safety.verify_ops import require_and_run
-from app.common.display.result_display import ResultDisplayUtils
+from app.view.main.quick_draw_animation import QuickDrawAnimation
 from app.page_building.main_window_page import (
     roll_call_page,
     lottery_page,
@@ -434,129 +434,21 @@ class MainWindow(FluentWindow):
                 ),
             }
 
-            # 保存当前的设置
-            original_half_repeat = readme_settings_async(
-                "roll_call_settings", "half_repeat"
-            )
-            original_animation = readme_settings_async(
-                "roll_call_settings", "animation"
-            )
-            original_animation_interval = readme_settings_async(
-                "roll_call_settings", "animation_interval"
-            )
-            original_autoplay_count = readme_settings_async(
-                "roll_call_settings", "autoplay_count"
-            )
+            # 创建闪抽动画实例
+            quick_draw_animation = QuickDrawAnimation(roll_call_widget)
 
-            try:
-                # 设置闪抽专用的设置
-                update_settings(
-                    "roll_call_settings",
-                    "half_repeat",
-                    quick_draw_settings["half_repeat"],
-                )
-                update_settings(
-                    "roll_call_settings",
-                    "animation",
-                    quick_draw_settings["animation"],
-                )
-                update_settings(
-                    "roll_call_settings",
-                    "animation_interval",
-                    quick_draw_settings["animation_interval"],
-                )
-                # 使用闪抽的自动播放次数设置
-                update_settings(
-                    "roll_call_settings",
-                    "autoplay_count",
-                    quick_draw_settings["autoplay_count"],
-                )
+            # 连接动画完成信号
+            def on_animation_finished():
+                """动画完成后的处理"""
+                logger.debug("_handle_quick_draw: 闪抽动画完成")
 
-                # 调用抽取逻辑
-                roll_call_widget.draw_random()
-            finally:
-                # 恢复原始的设置
-                update_settings(
-                    "roll_call_settings", "half_repeat", original_half_repeat
-                )
-                update_settings("roll_call_settings", "animation", original_animation)
-                update_settings(
-                    "roll_call_settings",
-                    "animation_interval",
-                    original_animation_interval,
-                )
-                update_settings(
-                    "roll_call_settings", "autoplay_count", original_autoplay_count
-                )
+                # 显示最终结果
+                quick_draw_animation.display_final_result(quick_draw_settings)
 
-            # 处理抽取结果
-            if hasattr(roll_call_widget, "final_selected_students") and hasattr(
-                roll_call_widget, "final_class_name"
-            ):
-                # 使用闪抽设置重新显示结果
-                student_labels = ResultDisplayUtils.create_student_label(
-                    class_name=roll_call_widget.final_class_name,
-                    selected_students=roll_call_widget.final_selected_students,
-                    draw_count=1,
-                    font_size=quick_draw_settings["font_size"],
-                    animation_color=quick_draw_settings["animation_color_theme"],
-                    display_format=quick_draw_settings["display_format"],
-                    show_student_image=quick_draw_settings["student_image"],
-                    group_index=0,
-                    show_random=quick_draw_settings["show_random"],
-                    settings_group="quick_draw_settings",
-                )
-                ResultDisplayUtils.display_results_in_grid(
-                    roll_call_widget.result_grid, student_labels
-                )
+            quick_draw_animation.animation_finished.connect(on_animation_finished)
 
-                # 播放语音
-                roll_call_widget.play_voice_result()
-
-                # 使用闪抽通知设置显示通知
-                call_notification_service = readme_settings_async(
-                    "quick_draw_notification_settings", "call_notification_service"
-                )
-                if call_notification_service:
-                    # 准备通知设置
-                    settings = {
-                        "animation": readme_settings_async(
-                            "quick_draw_notification_settings", "animation"
-                        ),
-                        "window_position": readme_settings_async(
-                            "quick_draw_notification_settings",
-                            "floating_window_position",
-                        ),
-                        "horizontal_offset": readme_settings_async(
-                            "quick_draw_notification_settings",
-                            "floating_window_horizontal_offset",
-                        ),
-                        "vertical_offset": readme_settings_async(
-                            "quick_draw_notification_settings",
-                            "floating_window_vertical_offset",
-                        ),
-                        "transparency": readme_settings_async(
-                            "quick_draw_notification_settings",
-                            "floating_window_transparency",
-                        ),
-                        "auto_close_time": readme_settings_async(
-                            "quick_draw_notification_settings",
-                            "floating_window_auto_close_time",
-                        ),
-                        "enabled_monitor": readme_settings_async(
-                            "quick_draw_notification_settings",
-                            "floating_window_enabled_monitor",
-                        ),
-                    }
-
-                    # 使用ResultDisplayUtils显示通知
-                    ResultDisplayUtils.show_notification_if_enabled(
-                        roll_call_widget.final_class_name,
-                        roll_call_widget.final_selected_students,
-                        1,
-                        settings,
-                        settings_group="quick_draw_notification_settings",
-                    )
+            # 执行闪抽动画
+            quick_draw_animation.execute_quick_draw(quick_draw_settings)
 
         finally:
             # 恢复原始设置

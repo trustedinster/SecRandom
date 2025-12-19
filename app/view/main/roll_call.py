@@ -528,6 +528,9 @@ class roll_call(QWidget):
 
     def stop_animation(self):
         """停止动画"""
+        # 检查是否是闪抽模式
+        is_quick_draw = hasattr(self, "is_quick_draw") and self.is_quick_draw
+
         if hasattr(self, "animation_timer") and self.animation_timer.isActive():
             self.animation_timer.stop()
         self.start_button.setText(
@@ -575,24 +578,26 @@ class roll_call(QWidget):
             )
 
         if hasattr(self, "final_selected_students"):
-            self.display_result(self.final_selected_students, self.final_class_name)
+            # 如果是闪抽模式，不调用display_result，避免覆盖闪抽结果
+            if not is_quick_draw:
+                self.display_result(self.final_selected_students, self.final_class_name)
 
-            # 检查是否启用了通知服务
-            call_notification_service = readme_settings_async(
-                "roll_call_notification_settings", "call_notification_service"
-            )
-            if call_notification_service:
-                # 准备通知设置
-                settings = RollCallUtils.prepare_notification_settings()
-
-                # 使用ResultDisplayUtils显示通知
-                ResultDisplayUtils.show_notification_if_enabled(
-                    self.final_class_name,
-                    self.final_selected_students,
-                    self.current_count,
-                    settings,
-                    settings_group="roll_call_notification_settings",
+                # 检查是否启用了通知服务
+                call_notification_service = readme_settings_async(
+                    "roll_call_notification_settings", "call_notification_service"
                 )
+                if call_notification_service:
+                    # 准备通知设置
+                    settings = RollCallUtils.prepare_notification_settings()
+
+                    # 使用ResultDisplayUtils显示通知
+                    ResultDisplayUtils.show_notification_if_enabled(
+                        self.final_class_name,
+                        self.final_selected_students,
+                        self.current_count,
+                        settings,
+                        settings_group="roll_call_notification_settings",
+                    )
 
             # 播放语音
             self.play_voice_result()
@@ -693,26 +698,63 @@ class roll_call(QWidget):
                 settings_group="roll_call_notification_settings",
             )
 
-    def display_result(self, selected_students, class_name):
-        """显示抽取结果"""
+    def display_result(self, selected_students, class_name, display_settings=None):
+        """显示抽取结果
+
+        Args:
+            selected_students: 选中的学生列表
+            class_name: 班级名称
+            display_settings: 显示设置字典，如果提供则使用这些设置，否则使用默认的点名设置
+        """
         group_index = self.range_combobox.currentIndex()
+
+        # 如果提供了显示设置，则使用这些设置，否则使用默认的点名设置
+        if display_settings:
+            font_size = display_settings.get(
+                "font_size", get_safe_font_size("roll_call_settings", "font_size")
+            )
+            animation_color = display_settings.get(
+                "animation_color_theme",
+                readme_settings_async("roll_call_settings", "animation_color_theme"),
+            )
+            display_format = display_settings.get(
+                "display_format",
+                readme_settings_async("roll_call_settings", "display_format"),
+            )
+            show_student_image = display_settings.get(
+                "student_image",
+                readme_settings_async("roll_call_settings", "student_image"),
+            )
+            show_random = display_settings.get(
+                "show_random",
+                readme_settings_async("roll_call_settings", "show_random"),
+            )
+            settings_group = "quick_draw_settings"
+        else:
+            font_size = get_safe_font_size("roll_call_settings", "font_size")
+            animation_color = readme_settings_async(
+                "roll_call_settings", "animation_color_theme"
+            )
+            display_format = readme_settings_async(
+                "roll_call_settings", "display_format"
+            )
+            show_student_image = readme_settings_async(
+                "roll_call_settings", "student_image"
+            )
+            show_random = readme_settings_async("roll_call_settings", "show_random")
+            settings_group = "roll_call_settings"
+
         student_labels = ResultDisplayUtils.create_student_label(
             class_name=class_name,
             selected_students=selected_students,
             draw_count=self.current_count,
-            font_size=get_safe_font_size("roll_call_settings", "font_size"),
-            animation_color=readme_settings_async(
-                "roll_call_settings", "animation_color_theme"
-            ),
-            display_format=readme_settings_async(
-                "roll_call_settings", "display_format"
-            ),
-            show_student_image=readme_settings_async(
-                "roll_call_settings", "student_image"
-            ),
+            font_size=font_size,
+            animation_color=animation_color,
+            display_format=display_format,
+            show_student_image=show_student_image,
             group_index=group_index,
-            show_random=readme_settings_async("roll_call_settings", "show_random"),
-            settings_group="roll_call_settings",
+            show_random=show_random,
+            settings_group=settings_group,
         )
         ResultDisplayUtils.display_results_in_grid(self.result_grid, student_labels)
 
