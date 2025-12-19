@@ -9,7 +9,7 @@ from datetime import datetime
 # -------------------- 软件基本信息 --------------------
 APPLY_NAME = "SecRandom"  # 软件名称
 VERSION = "v0.0.0"  # 软件当前版本
-NEXT_VERSION = "v1.3.2-alpha.3"  # 软件下一个版本
+NEXT_VERSION = "v1.3.2-alpha.5"  # 软件下一个版本
 CODENAME = "Koharu"  # 软件代号
 SPECIAL_VERSION = VERSION if VERSION != "v0.0.0" else NEXT_VERSION
 SYSTEM = "windows" if os.name == "nt" else "linux"  # 软件系统

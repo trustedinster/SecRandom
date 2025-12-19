@@ -463,6 +463,7 @@ class Lottery(QWidget):
                         group_index,
                         gender_index,
                         emit_signal=False,
+                        source="lottery",
                     )
                 else:
                     if hasattr(self.remaining_list_page, "pool_name"):
@@ -841,6 +842,7 @@ class Lottery(QWidget):
                         group_index,
                         gender_index,
                         emit_signal=False,  # 不发出信号，避免循环更新
+                        source="lottery",
                     )
             except Exception as e:
                 logger.error(f"更新剩余名单窗口内容失败: {e}")
@@ -881,6 +883,7 @@ class Lottery(QWidget):
             half_repeat,
             group_index,
             gender_index,
+            "lottery",
         )
 
         def on_page_ready(page):

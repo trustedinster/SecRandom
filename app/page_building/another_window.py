@@ -325,6 +325,15 @@ class remaining_list_window_template(PageTemplate):
 
     def __init__(self, parent=None):
         super().__init__(content_widget_class=RemainingListPage, parent=parent)
+        self._source = "roll_call"
+
+    def set_source(self, source: str) -> None:
+        """设置source参数"""
+        self._source = source
+
+    def create_content_widget(self):
+        """创建内容控件时传递source参数"""
+        return RemainingListPage(parent=self, source=self._source)
 
 
 def create_remaining_list_window(
@@ -334,6 +343,7 @@ def create_remaining_list_window(
     half_repeat: int = 0,
     group_index: int = 0,
     gender_index: int = 0,
+    source: str = "roll_call",
 ):
     """
     创建剩余名单窗口
@@ -345,6 +355,7 @@ def create_remaining_list_window(
         half_repeat: 重复抽取次数
         group_index: 分组索引
         gender_index: 性别索引
+        source: 来源页面，"roll_call"或"lottery"
 
     Returns:
         创建的窗口实例和页面实例
@@ -380,6 +391,7 @@ def create_remaining_list_window(
                         half_repeat,
                         group_index,
                         gender_index,
+                        source=source,
                     )
 
             # 使用延迟调用确保内容控件已创建
@@ -402,9 +414,15 @@ def create_remaining_list_window(
             _window_instances.pop("remaining_list", None)
 
     # 创建新窗口
-    title = "剩余名单"
+    title = get_content_name_async("remaining_list", "windows_title")
     window = SimpleWindowTemplate(title, width=800, height=600)
+    # 添加剩余名单页面
     window.add_page_from_template("remaining_list", remaining_list_window_template)
+    # 获取页面模板并设置source
+    page_template = window.get_page("remaining_list")
+    if hasattr(page_template, "set_source"):
+        page_template.set_source(source)
+    # 切换到剩余名单页面
     window.switch_to_page("remaining_list")
 
     # 获取页面实例并更新数据
@@ -430,6 +448,7 @@ def create_remaining_list_window(
                 half_repeat,
                 group_index,
                 gender_index,
+                source=source,
             )
         try:
             window.windowClosed.connect(

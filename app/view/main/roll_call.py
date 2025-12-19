@@ -449,6 +449,7 @@ class roll_call(QWidget):
                         group_index,
                         gender_index,
                         emit_signal=False,
+                        source="roll_call",
                     )
                 else:
                     if hasattr(self.remaining_list_page, "class_name"):
@@ -817,6 +818,7 @@ class roll_call(QWidget):
                         group_index,
                         gender_index,
                         emit_signal=False,  # 不发出信号，避免循环更新
+                        source="roll_call",
                     )
             except Exception as e:
                 logger.error(f"更新剩余名单窗口内容失败: {e}")
@@ -857,6 +859,7 @@ class roll_call(QWidget):
             half_repeat,
             group_index,
             gender_index,
+            "roll_call",
         )
 
         def on_page_ready(page):

@@ -19,11 +19,10 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QGridLayout,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import BodyLabel, CardWidget, SubtitleLabel
+from qfluentwidgets import BodyLabel, CardWidget, SubtitleLabel, ScrollArea
 
 from app.Language.obtain_language import (
     get_any_position_value_async,
@@ -55,6 +54,7 @@ class StudentLoader(QThread):
         group_filter: str,
         gender_filter: str,
         half_repeat: int,
+        source: str,
         info_template: Optional[str],
     ) -> None:
         super().__init__()
@@ -66,7 +66,7 @@ class StudentLoader(QThread):
         self._gender_filter = gender_filter or ""
         self._half_repeat = max(0, int(half_repeat or 0))
         self._info_template = info_template or "{id} {gender} {group}"
-        self._is_lottery = "lottery_list" in self._students_file.as_posix()
+        self._is_lottery = source == "lottery"
 
     def run(self) -> None:
         """执行完整的数据准备流程。"""
@@ -168,9 +168,7 @@ class StudentLoader(QThread):
         if 0 <= target_index < len(genders):
             selected = genders[target_index]
             return [
-                student
-                for student in students
-                if student.get("gender", "") == selected
+                student for student in students if student.get("gender", "") == selected
             ]
         return []
 
@@ -219,12 +217,12 @@ class StudentLoader(QThread):
         return prepared
 
     def _format_members_text(self, members: List[Dict[str, Any]]) -> str:
-        names = [
-            member.get("name", "") for member in members[:5] if member.get("name")
-        ]
+        names = [member.get("name", "") for member in members[:5] if member.get("name")]
         summary = "、".join(names)
         if len(members) > 5:
-            summary += f" 等{len(members) - 5}名成员"
+            summary += get_content_name_async("remaining_list", "group_summary").format(
+                members=len(members) - 5
+            )
         return summary
 
     def _format_info_text(self, student: Dict[str, Any]) -> str:
@@ -252,7 +250,9 @@ class RemainingListPage(QWidget):
 
     count_changed = Signal(int)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self, parent: Optional[QWidget] = None, source: str = "roll_call"
+    ) -> None:
         super().__init__(parent)
         self.class_name = ""
         self.group_filter = ""
@@ -260,9 +260,12 @@ class RemainingListPage(QWidget):
         self.half_repeat = 0
         self.group_index = 0
         self.gender_index = 0
+        self.source = source
         self.students: List[Dict[str, Any]] = []
         self.cards: List[CardWidget] = []
         self._loading_thread: Optional[StudentLoader] = None
+
+        QTimer.singleShot(APP_INIT_DELAY, self.load_data)
 
         # 布局状态
         self._last_layout_width = 0
@@ -282,7 +285,6 @@ class RemainingListPage(QWidget):
         self._count_label_template: Optional[str] = None
 
         self.init_ui()
-        QTimer.singleShot(APP_INIT_DELAY, self.load_student_data)
 
     # ------------------------------------------------------------------
     # 生命周期管理
@@ -297,6 +299,7 @@ class RemainingListPage(QWidget):
         except Exception as exc:
             logger.warning("Failed to stop loader thread cleanly: {}", exc)
         finally:
+            # 确保线程对象被正确清理
             self._loading_thread = None
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
@@ -312,16 +315,19 @@ class RemainingListPage(QWidget):
         self.main_layout.setSpacing(10)
 
         title_text = get_content_name_async("remaining_list", "title")
-        count_text = get_any_position_value_async(
-            "remaining_list", "count_label", "name"
-        )
-        try:
-            self._title_with_class_template = get_any_position_value_async(
-                "remaining_list", "title_with_class", "name"
+        # 根据来源选择不同的计数标签
+        if self.source == "lottery":
+            self._count_label_template = get_content_name_async(
+                "remaining_list", "prizes_count_label"
             )
-        except Exception:
-            self._title_with_class_template = "{class_name}"
-        self._count_label_template = count_text or "剩余人数: {count}"
+        else:
+            self._count_label_template = get_content_name_async(
+                "remaining_list", "count_label"
+            )
+
+        self._title_with_class_template = get_content_name_async(
+            "remaining_list", "title_with_class"
+        )
 
         self.title_label = SubtitleLabel(title_text)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -334,7 +340,7 @@ class RemainingListPage(QWidget):
         self.main_layout.addWidget(self.count_label)
 
         # 滚动区域
-        self.scroll_area = QScrollArea(self)
+        self.scroll_area = ScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
@@ -367,39 +373,52 @@ class RemainingListPage(QWidget):
 
         roll_call_list_dir = get_data_path("list", "roll_call_list")
         lottery_list_dir = get_data_path("list/lottery_list")
-        roll_file = roll_call_list_dir / f"{class_name}.json"
-        if roll_file.exists():
-            return roll_file
-        lottery_file = lottery_list_dir / f"{class_name}.json"
-        if lottery_file.exists():
-            return lottery_file
+
+        # 根据source优先查找对应的文件
+        if self.source == "lottery":
+            lottery_file = lottery_list_dir / f"{class_name}.json"
+            if lottery_file.exists():
+                return lottery_file
+            roll_file = roll_call_list_dir / f"{class_name}.json"
+            if roll_file.exists():
+                return roll_file
+        else:
+            roll_file = roll_call_list_dir / f"{class_name}.json"
+            if roll_file.exists():
+                return roll_file
+            lottery_file = lottery_list_dir / f"{class_name}.json"
+            if lottery_file.exists():
+                return lottery_file
+
         logger.warning("未找到班级/奖池对应的名单文件: {}", class_name)
         return None
 
-    def load_student_data(self) -> None:
+    def load_data(self) -> None:
         if not self.class_name:
             logger.debug("跳过剩余名单加载：class_name 为空")
             return
 
         self.stop_loader()
-        students_file = self.get_students_file()
-        if not students_file:
+        data_file = self.get_students_file()
+        if not data_file:
             self.students = []
             self._clear_cards()
             self.count_label.setText(self._count_label_template.format(count=0))
             return
 
         loader = StudentLoader(
-            str(students_file),
+            str(data_file),
             self.class_name,
             self.group_index,
             self.gender_index,
             self.group_filter,
             self.gender_filter,
             self.half_repeat,
+            self.source,
             self._student_info_text,
         )
         loader.finished.connect(self._on_students_loaded)
+        loader.finished.connect(loader.deleteLater)
         self._loading_thread = loader
         loader.start()
 
@@ -415,18 +434,20 @@ class RemainingListPage(QWidget):
     def _ensure_templates(self) -> None:
         if not self._title_with_class_template:
             try:
-                self._title_with_class_template = get_any_position_value_async(
-                    "remaining_list", "title_with_class", "name"
+                self._title_with_class_template = get_content_name_async(
+                    "remaining_list", "title_with_class"
                 )
             except Exception:
                 self._title_with_class_template = "{class_name}"
-        if not self._count_label_template:
-            try:
-                self._count_label_template = get_any_position_value_async(
-                    "remaining_list", "count_label", "name"
-                )
-            except Exception:
-                self._count_label_template = "剩余人数: {count}"
+        # 总是根据source更新计数标签模板
+        if self.source == "lottery":
+            self._count_label_template = get_content_name_async(
+                "remaining_list", "prizes_count_label"
+            )
+        else:
+            self._count_label_template = get_content_name_async(
+                "remaining_list", "count_label"
+            )
 
     def _calculate_remaining_count(self) -> int:
         if not self.students:
@@ -639,6 +660,7 @@ class RemainingListPage(QWidget):
         group_index: int = 0,
         gender_index: int = 0,
         emit_signal: bool = True,
+        source: str = "roll_call",
     ) -> None:
         self.class_name = class_name
         self.group_filter = group_filter
@@ -646,16 +668,26 @@ class RemainingListPage(QWidget):
         self.half_repeat = half_repeat
         self.group_index = group_index
         self.gender_index = gender_index
+        self.source = source
         self._last_layout_width = 0
         self._last_card_count = 0
-        self.load_student_data()
+        self.load_data()
 
     def refresh(self) -> None:
         if self.class_name:
             self._last_layout_width = 0
             self._last_card_count = 0
-            self.load_student_data()
+            self.load_data()
 
     def on_count_changed(self, count: int) -> None:  # noqa: ARG002
         if self.class_name:
-            self.load_student_data()
+            self.load_data()
+
+    def set_source(self, source: str) -> None:
+        """全局设置source参数"""
+        self.source = source
+        # 更新模板以匹配新的source
+        self._ensure_templates()
+        # 重新加载数据
+        if self.class_name:
+            self.load_data()

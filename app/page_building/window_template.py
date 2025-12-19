@@ -110,20 +110,63 @@ class SimpleWindowTemplate(FramelessWindow):
         self.setTitleBar(StandardTitleBar(self))
         self.setMinimumSize(MINIMUM_WINDOW_SIZE[0], MINIMUM_WINDOW_SIZE[1])
         self.resize(width, height)
-        self.setWindowIcon(
-            QIcon(str(get_data_path("assets/icon", "secrandom-icon-paper.png")))
+        window_icon = QIcon(
+            str(get_data_path("assets/icon", "secrandom-icon-paper.png"))
         )
+        self.setWindowIcon(window_icon)
         self.setWindowTitle(title)
         self.titleBar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
-        # 设置标题栏字体
+
+        # 获取自定义字体
         custom_font = load_custom_font()
-        if custom_font:
-            title_font = QFont(custom_font, 9)
-            self.titleBar.setFont(title_font)
-            self.setFont(title_font)
+
+        # 保存原始标题文本
+        original_title = title
+
+        # 遍历标题栏的子控件，找到标题标签并替换为BodyLabel
+        # 计数，只处理第一个标题标签
+        count = 0
+        for child in self.titleBar.children():
+            if isinstance(child, QLabel):
+                # 获取原始标签的属性
+                old_label = child
+                old_parent = old_label.parent()
+
+                # 移除父控件并删除
+                old_label.setParent(None)
+                old_label.deleteLater()
+
+                # 创建新的BodyLabel
+                body_label = BodyLabel(original_title)
+
+                # 设置新标签的属性
+                body_label.setObjectName("titleLabel")
+                body_label.setAlignment(Qt.AlignCenter)
+                body_label.setContentsMargins(5, 0, 5, 0)
+
+                # 设置字体
+                if custom_font:
+                    title_font = QFont(custom_font, 9)
+                    body_label.setFont(title_font)
+
+                # 添加到父控件
+                if old_parent and old_parent.layout():
+                    layout = old_parent.layout()
+                    count += 1
+                    if count == 0:
+                        continue
+                    elif count == 1:
+                        icon_label = BodyLabel()
+                        icon_label.setPixmap(window_icon.pixmap(16, 16))
+                        icon_label.setContentsMargins(10, 0, 5, 0)
+                        layout.insertWidget(0, icon_label)
+                        layout.insertWidget(1, body_label)
+                    else:
+                        # 退出循环
+                        break
 
         # 确保在设置标题栏后应用当前主题和自定义字体
-        self._apply_current_theme()
+        # self._apply_current_theme()
 
         if self.parent_window is None:
             screen = QApplication.primaryScreen().availableGeometry()
@@ -142,6 +185,7 @@ class SimpleWindowTemplate(FramelessWindow):
         try:
             # 强制刷新窗口背景
             self._apply_current_theme()
+            pass
         except Exception as e:
             logger.error(f"主题变化时更新窗口背景失败: {e}")
 
@@ -185,7 +229,7 @@ class SimpleWindowTemplate(FramelessWindow):
                 self.default_page.setStyleSheet("background-color: transparent;")
 
             # 应用标题栏自定义字体和颜色
-            self._set_titlebar_colors()
+            # self._set_titlebar_colors()
 
             logger.debug(f"窗口主题已更新为: {current_theme}")
         except Exception as e:
