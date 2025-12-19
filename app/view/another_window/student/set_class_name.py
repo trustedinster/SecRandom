@@ -185,17 +185,6 @@ class SetClassNameWindow(QWidget):
         try:
             # 获取输入的班级名称
             class_names_text = self.text_edit.toPlainText().strip()
-            if not class_names_text:
-                # 显示错误消息
-                config = NotificationConfig(
-                    title=get_content_name_async("set_class_name", "error_title"),
-                    content=get_content_name_async(
-                        "set_class_name", "no_class_names_error"
-                    ),
-                    duration=3000,
-                )
-                show_notification(NotificationType.ERROR, config, parent=self)
-                return
 
             # 分割班级名称
             class_names = [

@@ -16,10 +16,6 @@ set_prize_name = {
         "error_title": {"name": "错误", "description": "错误消息标题"},
         "success_title": {"name": "成功", "description": "成功消息标题"},
         "info_title": {"name": "提示", "description": "信息消息标题"},
-        "no_prize_names_error": {
-            "name": "请至少输入一个奖池名称",
-            "description": "未输入奖池名称时的错误提示",
-        },
         "invalid_names_error": {
             "name": "以下奖池名称包含非法字符或为保留字: {names}",
             "description": "奖池名称验证失败时的错误提示",

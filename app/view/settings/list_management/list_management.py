@@ -55,23 +55,6 @@ class roll_call_list(GroupHeaderCardWidget):
 
         # 选择班级下拉框
         self.class_name_combo = ComboBox()
-        self.refresh_class_list()  # 初始化班级列表
-        if not get_class_name_list():
-            self.class_name_combo.setCurrentIndex(-1)
-            self.class_name_combo.setPlaceholderText(
-                get_content_name_async("roll_call_list", "select_class_name")
-            )
-        else:
-            self.class_name_combo.setCurrentText(
-                readme_settings_async("roll_call_list", "select_class_name")
-            )
-        self.class_name_combo.currentIndexChanged.connect(
-            lambda: update_settings(
-                "roll_call_list",
-                "select_class_name",
-                self.class_name_combo.currentText(),
-            )
-        )
 
         # 导入学生名单按钮
         self.import_student_button = PushButton(
@@ -147,8 +130,30 @@ class roll_call_list(GroupHeaderCardWidget):
             self.export_student_button,
         )
 
+        # 初始化班级列表（在所有按钮都创建后）
+        self.refresh_class_list()
+        if not get_class_name_list():
+            self.class_name_combo.setCurrentIndex(-1)
+            self.class_name_combo.setPlaceholderText(
+                get_content_name_async("roll_call_list", "select_class_name")
+            )
+        else:
+            self.class_name_combo.setCurrentText(
+                readme_settings_async("roll_call_list", "select_class_name")
+            )
+        self.class_name_combo.currentIndexChanged.connect(
+            lambda: update_settings(
+                "roll_call_list",
+                "select_class_name",
+                self.class_name_combo.currentText(),
+            )
+        )
+
         # 设置文件系统监视器
         self.setup_file_watcher()
+
+        # 初始化按钮状态
+        self.update_button_states()
 
     # 班级名称设置
     def set_class_name(self):
@@ -376,6 +381,18 @@ class roll_call_list(GroupHeaderCardWidget):
         # 延迟刷新，避免文件操作未完成
         QTimer.singleShot(500, self.refresh_class_list)
 
+    def update_button_states(self):
+        """根据班级列表状态更新按钮禁用状态"""
+        class_list = get_class_name_list()
+        has_class = len(class_list) > 0
+
+        # 禁用/启用相关按钮
+        self.import_student_button.setEnabled(has_class)
+        self.name_setting_button.setEnabled(has_class)
+        self.gender_setting_button.setEnabled(has_class)
+        self.group_setting_button.setEnabled(has_class)
+        self.export_student_button.setEnabled(has_class)
+
     def refresh_class_list(self):
         """刷新班级下拉框列表"""
         # 保存当前选中的班级名称
@@ -398,6 +415,9 @@ class roll_call_list(GroupHeaderCardWidget):
                 get_content_name_async("roll_call_list", "select_class_name")
             )
 
+        # 更新按钮状态
+        self.update_button_states()
+
         # logger.debug(f"班级列表已刷新，共 {len(class_list)} 个班级")
 
 
@@ -415,26 +435,6 @@ class lottery_list(GroupHeaderCardWidget):
 
         # 选择奖池下拉框
         self.pool_name_combo = ComboBox()
-        self.refresh_pool_list()  # 初始化奖池列表
-        saved_pool = readme_settings_async("lottery_list", "select_pool_name")
-        try:
-            if isinstance(saved_pool, int):
-                if 0 <= saved_pool < self.pool_name_combo.count():
-                    self.pool_name_combo.setCurrentIndex(saved_pool)
-            elif isinstance(saved_pool, str) and saved_pool:
-                self.pool_name_combo.setCurrentText(saved_pool)
-        except Exception:
-            pass
-        if not get_pool_name_list():
-            self.pool_name_combo.setCurrentIndex(-1)
-            self.pool_name_combo.setPlaceholderText(
-                get_content_name_async("lottery_list", "select_pool_name")
-            )
-        self.pool_name_combo.currentIndexChanged.connect(
-            lambda: update_settings(
-                "lottery_list", "select_pool_name", self.pool_name_combo.currentText()
-            )
-        )
 
         # 导入奖品名单按钮
         self.import_prize_button = PushButton(
@@ -500,8 +500,33 @@ class lottery_list(GroupHeaderCardWidget):
             self.export_prize_button,
         )
 
+        # 初始化奖池列表（在所有按钮都创建后）
+        self.refresh_pool_list()
+        saved_pool = readme_settings_async("lottery_list", "select_pool_name")
+        try:
+            if isinstance(saved_pool, int):
+                if 0 <= saved_pool < self.pool_name_combo.count():
+                    self.pool_name_combo.setCurrentIndex(saved_pool)
+            elif isinstance(saved_pool, str) and saved_pool:
+                self.pool_name_combo.setCurrentText(saved_pool)
+        except Exception:
+            pass
+        if not get_pool_name_list():
+            self.pool_name_combo.setCurrentIndex(-1)
+            self.pool_name_combo.setPlaceholderText(
+                get_content_name_async("lottery_list", "select_pool_name")
+            )
+        self.pool_name_combo.currentIndexChanged.connect(
+            lambda: update_settings(
+                "lottery_list", "select_pool_name", self.pool_name_combo.currentText()
+            )
+        )
+
         # 设置文件系统监视器
         self.setup_file_watcher()
+
+        # 初始化按钮状态
+        self.update_button_states()
 
     # 奖池名称设置
     def set_pool_name(self):
@@ -715,6 +740,17 @@ class lottery_list(GroupHeaderCardWidget):
         # 延迟刷新，避免文件操作未完成导致的错误
         QTimer.singleShot(500, self.refresh_pool_list)
 
+    def update_button_states(self):
+        """根据奖池列表状态更新按钮禁用状态"""
+        pool_list = get_pool_name_list()
+        has_pool = len(pool_list) > 0
+
+        # 禁用/启用相关按钮
+        self.import_prize_button.setEnabled(has_pool)
+        self.prize_setting_button.setEnabled(has_pool)
+        self.prize_weight_setting_button.setEnabled(has_pool)
+        self.export_prize_button.setEnabled(has_pool)
+
     def refresh_pool_list(self):
         """刷新奖池下拉框列表"""
         # 保存当前选中的奖池名称
@@ -736,5 +772,8 @@ class lottery_list(GroupHeaderCardWidget):
             self.pool_name_combo.setPlaceholderText(
                 get_content_name_async("lottery_list", "select_pool_name")
             )
+
+        # 更新按钮状态
+        self.update_button_states()
 
         # logger.debug(f"奖池列表已刷新，共 {len(pool_list)} 个奖池")
