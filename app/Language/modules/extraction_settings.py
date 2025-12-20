@@ -676,11 +676,6 @@ lottery_settings = {
             "name": "半重复抽取次数",
             "description": "设置每人被抽中多少次后清除抽取记录",
         },
-        "draw_type": {
-            "name": "抽取方式",
-            "description": "设置抽奖抽取方式",
-            "combo_items": ["随机抽取", "公平抽取"],
-        },
         "default_pool": {
             "name": "默认抽取名单",
             "description": "设置默认使用的抽取名单",

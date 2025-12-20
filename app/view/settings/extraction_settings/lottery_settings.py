@@ -77,13 +77,6 @@ class lottery_extraction_function(GroupHeaderCardWidget):
             )
         )
 
-        self.draw_type_combo = ComboBox()
-        self.draw_type_combo.currentIndexChanged.connect(
-            lambda: update_settings(
-                "lottery_settings", "draw_type", self.draw_type_combo.currentIndex()
-            )
-        )
-
         # 默认抽取奖池下拉框
         self.default_pool_combo = ComboBox()
         # 初始化奖池列表（在所有组件都创建后）
@@ -123,12 +116,6 @@ class lottery_extraction_function(GroupHeaderCardWidget):
             get_content_name_async("lottery_settings", "half_repeat"),
             get_content_description_async("lottery_settings", "half_repeat"),
             self.half_repeat_spin,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_drawer_add_20_filled"),
-            get_content_name_async("lottery_settings", "draw_type"),
-            get_content_description_async("lottery_settings", "draw_type"),
-            self.draw_type_combo,
         )
         self.addGroup(
             get_theme_icon("ic_fluent_class_20_filled"),
@@ -178,12 +165,6 @@ class lottery_extraction_function(GroupHeaderCardWidget):
                 data["half_repeat_value"] = readme_settings_async(
                     "lottery_settings", "half_repeat"
                 )
-                data["draw_type_items"] = get_content_combo_name_async(
-                    "lottery_settings", "draw_type"
-                )
-                data["draw_type_index"] = readme_settings_async(
-                    "lottery_settings", "draw_type"
-                )
             except Exception as e:
                 logger.error(f"收集 lottery_settings 初始数据失败: {e}")
             return data
@@ -205,9 +186,6 @@ class lottery_extraction_function(GroupHeaderCardWidget):
                 )
             if "half_repeat_value" in data:
                 self.half_repeat_spin.setValue(data.get("half_repeat_value", 0))
-            if "draw_type_items" in data:
-                self.draw_type_combo.addItems(data.get("draw_type_items", []))
-                self.draw_type_combo.setCurrentIndex(data.get("draw_type_index", 0))
 
             self.on_draw_mode_changed()
         except Exception as e:
