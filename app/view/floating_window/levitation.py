@@ -476,13 +476,18 @@ class LevitationWindow(QWidget):
                 "text": names[2],
                 "signal": self.instantDrawRequested,
             },
+            "lottery": {
+                "icon": get_theme_icon("ic_fluent_gift_20_filled"),
+                "text": names[3],
+                "signal": self.lotteryRequested,
+            },
         }
 
-        # 默认配置（抽奖按钮）
+        # 默认配置（点名按钮）
         default_config = {
-            "icon": get_theme_icon("ic_fluent_gift_20_filled"),
-            "text": names[4],
-            "signal": self.lotteryRequested,
+            "icon": get_theme_icon("ic_fluent_people_20_filled"),
+            "text": names[0],
+            "signal": self.rollCallRequested,
         }
 
         return button_configs.get(spec, default_config)
