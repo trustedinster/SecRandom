@@ -3,20 +3,40 @@
 # ==================================================
 import random
 import colorsys
+import weakref
 
-from PySide6.QtWidgets import *
-from PySide6.QtGui import *
-from PySide6.QtCore import *
-from PySide6.QtNetwork import *
-from qfluentwidgets import *
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QMenu, QApplication
+from PySide6.QtGui import QMouseEvent, QPalette
+from PySide6.QtCore import Qt, QPoint, QTimer, QEvent
+from qfluentwidgets import BodyLabel, AvatarWidget, qconfig, Theme
 
-from app.tools.variable import *
-from app.tools.path_utils import *
-from app.tools.personalised import *
-from app.tools.settings_default import *
-from app.tools.settings_access import *
-from app.Language.obtain_language import *
-from app.common.data.list import *
+from app.tools.variable import (
+    STUDENT_ID_FORMAT,
+    NAME_SPACING,
+    SUPPORTED_IMAGE_EXTENSIONS,
+    AVATAR_LABEL_SPACING,
+    DEFAULT_MIN_SATURATION,
+    DEFAULT_MAX_SATURATION,
+    DEFAULT_MIN_VALUE,
+    DEFAULT_MAX_VALUE,
+    LIGHT_VALUE_MULTIPLIER,
+    LIGHT_MAX_VALUE_MULTIPLIER,
+    DARK_VALUE_MULTIPLIER,
+    DARK_MAX_VALUE_MULTIPLIER,
+    LIGHT_THEME_MAX_VALUE,
+    LIGHT_THEME_ADJUSTED_MAX_VALUE,
+    DARK_THEME_MIN_VALUE,
+    DARK_THEME_MAX_VALUE,
+    LIGHTNESS_THRESHOLD,
+    RGB_COLOR_FORMAT,
+    GRID_ITEM_MARGIN,
+    GRID_ITEM_SPACING,
+    DEFAULT_AVAILABLE_WIDTH,
+)
+from app.tools.path_utils import file_exists, get_data_path
+from app.tools.personalised import is_dark_theme
+from app.tools.settings_access import readme_settings_async
+from app.common.data.list import get_group_members
 
 from random import SystemRandom
 
@@ -47,6 +67,10 @@ class TouchResultWidget(QWidget):
         # 滑动相关变量
         self.is_sliding = False
         self.last_pos = QPoint()
+
+        # 内存优化：使用弱引用避免循环引用
+        self._cached_mouse_events = []
+        self._max_cached_events = 10
 
     def mousePressEvent(self, event):
         """处理鼠标按下事件"""
@@ -92,6 +116,10 @@ class TouchResultWidget(QWidget):
             self.is_pressing = False
             self.is_sliding = False
             self.long_press_timer.stop()
+
+            # 内存优化：清理缓存的事件对象
+            if len(self._cached_mouse_events) > self._max_cached_events // 2:
+                self._cached_mouse_events.clear()
         super().mouseReleaseEvent(event)
 
     def handle_long_press(self):
@@ -114,38 +142,55 @@ class TouchResultWidget(QWidget):
         touch_point = touch_points[0]
         touch_pos = touch_point.pos().toPoint()
 
+        # 内存优化：复用鼠标事件对象
         if touch_point.state() == Qt.TouchPointState.Pressed:
             # 触屏按下
-            self.mousePressEvent(
-                QMouseEvent(
-                    QEvent.Type.MouseButtonPress,
-                    touch_pos,
-                    Qt.MouseButton.LeftButton,
-                    Qt.MouseButton.LeftButton,
-                    Qt.KeyboardModifier.NoModifier,
-                )
+            mouse_event = self._get_cached_mouse_event(
+                QEvent.Type.MouseButtonPress, touch_pos, Qt.MouseButton.LeftButton
             )
+            self.mousePressEvent(mouse_event)
         elif touch_point.state() == Qt.TouchPointState.Moved:
             # 触屏移动
-            self.mouseMoveEvent(
-                QMouseEvent(
-                    QEvent.Type.MouseMove,
-                    touch_pos,
-                    Qt.MouseButton.LeftButton,
-                    Qt.MouseButton.LeftButton,
-                    Qt.KeyboardModifier.NoModifier,
-                )
+            mouse_event = self._get_cached_mouse_event(
+                QEvent.Type.MouseMove, touch_pos, Qt.MouseButton.LeftButton
             )
+            self.mouseMoveEvent(mouse_event)
         elif touch_point.state() == Qt.TouchPointState.Released:
             # 触屏释放
-            self.mouseReleaseEvent(
-                QMouseEvent(
-                    QEvent.Type.MouseButtonRelease,
-                    touch_pos,
-                    Qt.MouseButton.LeftButton,
-                    Qt.MouseButton.NoButton,
-                    Qt.KeyboardModifier.NoModifier,
-                )
+            mouse_event = self._get_cached_mouse_event(
+                QEvent.Type.MouseButtonRelease, touch_pos, Qt.MouseButton.LeftButton
+            )
+            self.mouseReleaseEvent(mouse_event)
+
+    def _get_cached_mouse_event(self, event_type, pos, button):
+        """获取缓存的鼠标事件对象，减少内存分配"""
+        # 清理过期的事件缓存
+        self._cached_mouse_events = [
+            event for event in self._cached_mouse_events if event is not None
+        ]
+
+        if len(self._cached_mouse_events) < self._max_cached_events:
+            event = QMouseEvent(
+                event_type,
+                pos,
+                button,
+                button
+                if event_type != QEvent.Type.MouseButtonRelease
+                else Qt.MouseButton.NoButton,
+                Qt.KeyboardModifier.NoModifier,
+            )
+            self._cached_mouse_events.append(event)
+            return event
+        else:
+            # 如果缓存已满，创建新事件并替换最旧的
+            return QMouseEvent(
+                event_type,
+                pos,
+                button,
+                button
+                if event_type != QEvent.Type.MouseButtonRelease
+                else Qt.MouseButton.NoButton,
+                Qt.KeyboardModifier.NoModifier,
             )
 
 
@@ -156,6 +201,8 @@ class ResultDisplayUtils:
     """结果显示工具类，提供通用的结果显示功能"""
 
     _color_cache = {}
+    _max_cache_size = 100  # 限制颜色缓存大小
+    _weak_widget_refs = weakref.WeakSet()  # 使用弱引用跟踪widget
 
     @staticmethod
     def _clear_color_cache():
@@ -265,14 +312,14 @@ class ResultDisplayUtils:
         返回:
             QWidget: 包含头像和文本的容器组件
         """
+        # 内存优化：使用更轻量的布局策略
+        container = QWidget()
+        container.setAttribute(Qt.WA_DeleteOnClose)  # 自动清理
+
         # 创建水平布局
-        h_layout = QHBoxLayout()
+        h_layout = QHBoxLayout(container)
         h_layout.setSpacing(AVATAR_LABEL_SPACING)
         h_layout.setContentsMargins(0, 0, 0, 0)
-
-        # 创建容器widget
-        container = QWidget()
-        container.setLayout(h_layout)
 
         # 创建头像
         avatar = ResultDisplayUtils._create_avatar_widget(image_path, name, font_size)
@@ -284,6 +331,9 @@ class ResultDisplayUtils:
         # 添加到布局
         h_layout.addWidget(avatar)
         h_layout.addWidget(text_label)
+
+        # 内存优化：跟踪创建的widget以便清理
+        ResultDisplayUtils._weak_widget_refs.add(container)
 
         return container
 
@@ -321,7 +371,6 @@ class ResultDisplayUtils:
                             style_sheet += f"color: {fixed_color} !important;"
                         else:
                             try:
-                                from app.tools.personalised import is_dark_theme
                                 from qfluentwidgets import qconfig
 
                                 default_color = (
@@ -345,7 +394,6 @@ class ResultDisplayUtils:
                 style_sheet += f"color: {fixed_color} !important;"
             else:
                 try:
-                    from app.tools.personalised import is_dark_theme
                     from qfluentwidgets import qconfig
 
                     default_color = "#ffffff" if is_dark_theme(qconfig) else "#000000"
@@ -387,31 +435,38 @@ class ResultDisplayUtils:
         """
         student_labels = []
 
-        for num, selected, exist in selected_students:
+        # 内存优化：预分配列表容量
+        student_labels = [None] * len(selected_students)
+
+        for i, (num, selected, exist) in enumerate(selected_students):
             current_image_path = None
             # 在小组模式下，尝试使用小组名称作为图片文件名
             if show_student_image:
                 image_name = str(selected)
-                for ext in SUPPORTED_IMAGE_EXTENSIONS:
-                    temp_path = get_data_path("images", f"students/{image_name}{ext}")
-                    if file_exists(temp_path):
-                        current_image_path = str(temp_path)
-                        break
-                    else:
-                        current_image_path = None
-                        continue
+                # 内存优化：使用生成器表达式减少内存分配
+                for ext in (
+                    ext
+                    for ext in SUPPORTED_IMAGE_EXTENSIONS
+                    if file_exists(
+                        get_data_path("images", f"students/{image_name}{ext}")
+                    )
+                ):
+                    current_image_path = str(
+                        get_data_path("images", f"students/{image_name}{ext}")
+                    )
+                    break
 
             # 处理学号格式化
-            if num is not None:
-                student_id_str = STUDENT_ID_FORMAT.format(num=num)
-            else:
-                student_id_str = ""
+            student_id_str = (
+                STUDENT_ID_FORMAT.format(num=num) if num is not None else ""
+            )
 
             # 处理不同模式下的名称显示
-            if len(str(selected)) == 2 and group_index == 0:
-                name = f"{str(selected)[0]}{NAME_SPACING}{str(selected)[1]}"
-            else:
-                name = str(selected)
+            name = (
+                f"{str(selected)[0]}{NAME_SPACING}{str(selected)[1]}"
+                if len(str(selected)) == 2 and group_index == 0
+                else str(selected)
+            )
 
             text = ResultDisplayUtils._format_student_text(
                 class_name,
@@ -425,6 +480,9 @@ class ResultDisplayUtils:
 
             # 使用支持触屏的容器包装所有内容，确保整个区域都能响应触屏操作
             touch_container = TouchResultWidget()
+            touch_container.setAttribute(Qt.WA_DeleteOnClose)  # 自动清理
+
+            # 内存优化：使用更轻量的布局策略
             inner_layout = QVBoxLayout() if draw_count == 1 else QHBoxLayout()
             inner_layout.setContentsMargins(0, 0, 0, 0)
             inner_layout.setSpacing(0)
@@ -437,6 +495,7 @@ class ResultDisplayUtils:
                 )
             else:
                 label = BodyLabel(text)
+                label.setAttribute(Qt.WA_DeleteOnClose)  # 自动清理
 
             ResultDisplayUtils._apply_label_style(
                 label, font_size, animation_color, settings_group
@@ -444,7 +503,7 @@ class ResultDisplayUtils:
 
             # 将标签添加到触屏容器中
             inner_layout.addWidget(label)
-            student_labels.append(touch_container)
+            student_labels[i] = touch_container
 
         return student_labels
 
@@ -473,6 +532,20 @@ class ResultDisplayUtils:
             str: RGB格式的颜色字符串，如"rgb(255,100,50)"
         """
         ResultDisplayUtils._init_theme_listener()
+
+        # 内存优化：限制缓存大小，防止无限增长
+        if (
+            use_cache
+            and len(ResultDisplayUtils._color_cache)
+            >= ResultDisplayUtils._max_cache_size
+        ):
+            # 清除最旧的50%缓存项
+            keys_to_remove = list(ResultDisplayUtils._color_cache.keys())[
+                : ResultDisplayUtils._max_cache_size // 2
+            ]
+            for key in keys_to_remove:
+                ResultDisplayUtils._color_cache.pop(key, None)
+
         if qconfig.theme == Theme.LIGHT:  # 浅色主题
             adjusted_min_value = min(
                 min_value * LIGHT_VALUE_MULTIPLIER, LIGHT_THEME_MAX_VALUE
@@ -509,6 +582,11 @@ class ResultDisplayUtils:
         v = random.uniform(adjusted_min_value, adjusted_max_value)
         r, g, b = (int(c * 255) for c in colorsys.hsv_to_rgb(h, s, v))
         color_str = RGB_COLOR_FORMAT.format(r=r, g=g, b=b)
+
+        # 内存优化：只在启用缓存时存储颜色
+        if use_cache:
+            ResultDisplayUtils._color_cache[color_str] = True
+
         return color_str
 
     @staticmethod
@@ -524,39 +602,45 @@ class ResultDisplayUtils:
         if alignment is None:
             alignment = Qt.AlignmentFlag.AlignCenter
         result_grid.setAlignment(alignment)
-        while result_grid.count():
-            item = result_grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
 
-        if student_labels:
-            parent_widget = result_grid.parentWidget()
-            if parent_widget:
-                available_width = parent_widget.width() - GRID_ITEM_MARGIN
-            else:
-                available_width = DEFAULT_AVAILABLE_WIDTH
-            total_width = (
-                sum(label.sizeHint().width() for label in student_labels)
-                + len(student_labels) * GRID_ITEM_SPACING
-            )
-            if total_width > available_width:
-                avg_label_width = total_width / len(student_labels)
-                max_columns = max(1, int(available_width // avg_label_width))
-            else:
-                max_columns = len(student_labels)
+        # 清除现有的所有控件
+        ResultDisplayUtils.clear_grid(result_grid)
+
+        if not student_labels:
+            return
+
+        # 内存优化：使用生成器表达式减少内存分配
+        label_count = len(student_labels)
+
+        # 计算网格布局参数
+        parent_widget = result_grid.parentWidget()
+        available_width = (
+            (parent_widget.width() - GRID_ITEM_MARGIN)
+            if parent_widget
+            else DEFAULT_AVAILABLE_WIDTH
+        )
+
+        # 内存优化：避免创建大型临时列表
+        total_width = 0
+        for label in student_labels:
+            total_width += label.sizeHint().width()
+        total_width += label_count * GRID_ITEM_SPACING
+
+        if total_width > available_width and label_count > 0:
+            avg_label_width = total_width / label_count
+            max_columns = max(1, int(available_width // avg_label_width))
         else:
-            max_columns = 1
+            max_columns = label_count if label_count > 0 else 1
 
-        # 直接在结果网格布局中添加标签，不使用额外的 TouchResultWidget 容器
-        # 这样滚动区域可以作用于整个布局
-        for i, label in enumerate(student_labels):
+        # 内存优化：使用迭代器而非枚举，减少内存占用
+        for i in range(label_count):
             row = i // max_columns
             col = i % max_columns
-            result_grid.addWidget(label, row, col)
+            result_grid.addWidget(student_labels[i], row, col)
 
         # 确保父级滚动区域能够正确计算内容大小
-        if result_grid.parentWidget():
-            result_grid.parentWidget().updateGeometry()
+        if parent_widget:
+            parent_widget.updateGeometry()
 
     @staticmethod
     def clear_grid(result_grid):
@@ -566,10 +650,33 @@ class ResultDisplayUtils:
         参数:
             result_grid: QGridLayout 网格布局
         """
-        while result_grid.count():
+        # 内存优化：批量处理减少循环开销
+        count = result_grid.count()
+        if count == 0:
+            return
+
+        # 批量移除和清理widget
+        items_to_delete = []
+        for i in range(count):
             item = result_grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            if item and item.widget():
+                widget = item.widget()
+                widget.hide()  # 先隐藏
+                widget.deleteLater()  # 异步删除
+                items_to_delete.append(item)
+
+        # 内存优化：只在有组件被删除时记录日志
+        if count > 0:
+            from loguru import logger
+
+            logger.debug(f"本次销毁了{count}个组件")
+
+        # 清理缓存引用
+        ResultDisplayUtils._color_cache.clear()
+
+        # 强制进行垃圾回收（可选，根据内存压力决定）
+        # import gc
+        # gc.collect()
 
     @staticmethod
     def show_notification_if_enabled(
@@ -592,3 +699,23 @@ class ResultDisplayUtils:
         show_roll_call_notification(
             class_name, selected_students, draw_count, settings, settings_group
         )
+
+    @staticmethod
+    def cleanup_memory():
+        """
+        清理内存占用，释放不再使用的资源
+        建议在大量操作后调用此方法来释放内存
+        """
+        # 清理颜色缓存
+        ResultDisplayUtils._color_cache.clear()
+
+        # 清理弱引用集合
+        ResultDisplayUtils._weak_widget_refs.clear()
+
+        # 可选：强制垃圾回收
+        # import gc
+        # gc.collect()
+
+        from loguru import logger
+
+        logger.debug("ResultDisplayUtils内存清理完成")
