@@ -132,6 +132,18 @@ class QuickDrawAnimation(QObject):
                 lambda: self.display_final_result(quick_draw_settings)
             )
 
+            # 应用默认抽取名单设置
+            default_class = quick_draw_settings.get("default_class", "")
+            if default_class and hasattr(self.roll_call_widget, "list_combobox"):
+                # 保存当前选中的班级，用于恢复
+                original_class = self.roll_call_widget.list_combobox.currentText()
+
+                # 设置默认抽取名单
+                index = self.roll_call_widget.list_combobox.findText(default_class)
+                if index >= 0:
+                    self.roll_call_widget.list_combobox.setCurrentIndex(index)
+                    logger.debug(f"应用默认抽取名单: {default_class}")
+
             # 根据动画模式执行不同逻辑
             animation_mode = quick_draw_settings["animation"]
 

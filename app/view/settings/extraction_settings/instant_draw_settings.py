@@ -17,6 +17,7 @@ from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.tools.settings_access import get_safe_font_size
 from app.Language.obtain_language import *
+from app.common.data.list import *
 
 
 # ==================================================
@@ -89,6 +90,16 @@ class instant_draw_extraction_function(GroupHeaderCardWidget):
             )
         )
 
+        # 默认抽取名单下拉框
+        self.default_class_combo = ComboBox()
+        self.default_class_combo.currentIndexChanged.connect(
+            lambda: update_settings(
+                "instant_draw_settings",
+                "default_class",
+                self.default_class_combo.currentText(),
+            )
+        )
+
         # 添加设置项到分组
         self.addGroup(
             get_theme_icon("ic_fluent_document_bullet_list_cube_20_filled"),
@@ -113,6 +124,12 @@ class instant_draw_extraction_function(GroupHeaderCardWidget):
             get_content_name_async("instant_draw_settings", "draw_type"),
             get_content_description_async("instant_draw_settings", "draw_type"),
             self.draw_type_combo,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_class_20_filled"),
+            get_content_name_async("instant_draw_settings", "default_class"),
+            get_content_description_async("instant_draw_settings", "default_class"),
+            self.default_class_combo,
         )
 
         # 初始化时先启动后台加载选项并在加载完成后触发 on_draw_mode_changed
@@ -161,6 +178,11 @@ class instant_draw_extraction_function(GroupHeaderCardWidget):
                 data["draw_type_index"] = readme_settings_async(
                     "instant_draw_settings", "draw_type"
                 )
+                # 获取班级列表和默认选择的班级
+                data["class_list"] = get_class_name_list()
+                data["default_class"] = readme_settings_async(
+                    "instant_draw_settings", "default_class"
+                )
             except Exception as e:
                 logger.error(f"收集 instant_draw_settings 初始数据失败: {e}")
             return data
@@ -185,6 +207,18 @@ class instant_draw_extraction_function(GroupHeaderCardWidget):
             if "draw_type_items" in data:
                 self.draw_type_combo.addItems(data.get("draw_type_items", []))
                 self.draw_type_combo.setCurrentIndex(data.get("draw_type_index", 0))
+            if "class_list" in data:
+                class_list = data.get("class_list", [])
+                self.default_class_combo.clear()
+                self.default_class_combo.addItems(class_list)
+                default_class = data.get("default_class", "")
+                if default_class:
+                    self.default_class_combo.setCurrentText(default_class)
+                elif not class_list:
+                    self.default_class_combo.setCurrentIndex(-1)
+                    self.default_class_combo.setPlaceholderText(
+                        get_content_name_async("instant_draw_settings", "default_class")
+                    )
 
             # 数据填充后再触发一次模式更新以保证 UI 状态一致
             self.on_draw_mode_changed()

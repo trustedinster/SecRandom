@@ -17,6 +17,7 @@ from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.tools.settings_access import get_safe_font_size
 from app.Language.obtain_language import *
+from app.common.data.list import *
 
 
 # ==================================================
@@ -105,6 +106,27 @@ class roll_call_extraction_function(GroupHeaderCardWidget):
             )
         )
 
+        # 默认抽取名单下拉框
+        self.default_class_combo = ComboBox()
+        # 初始化班级列表（在所有组件都创建后）
+        self.refresh_class_list()
+        if not get_class_name_list():
+            self.default_class_combo.setCurrentIndex(-1)
+            self.default_class_combo.setPlaceholderText(
+                get_content_name_async("roll_call_settings", "default_class")
+            )
+        else:
+            self.default_class_combo.setCurrentText(
+                readme_settings_async("roll_call_settings", "default_class")
+            )
+        self.default_class_combo.currentIndexChanged.connect(
+            lambda: update_settings(
+                "roll_call_settings",
+                "default_class",
+                self.default_class_combo.currentText(),
+            )
+        )
+
         # 添加设置项到分组
         self.addGroup(
             get_theme_icon("ic_fluent_document_bullet_list_cube_20_filled"),
@@ -130,9 +152,62 @@ class roll_call_extraction_function(GroupHeaderCardWidget):
             get_content_description_async("roll_call_settings", "draw_type"),
             self.draw_type_combo,
         )
+        self.addGroup(
+            get_theme_icon("ic_fluent_class_20_filled"),
+            get_content_name_async("roll_call_settings", "default_class"),
+            get_content_description_async("roll_call_settings", "default_class"),
+            self.default_class_combo,
+        )
+
+        # 设置文件系统监视器，监控班级名单文件夹的变化
+        self.setup_file_watcher()
 
         # 初始化时调用一次，确保界面状态与设置一致
         self.on_draw_mode_changed()
+
+    def setup_file_watcher(self):
+        """设置文件系统监视器，监控班级名单文件夹的变化"""
+        # 获取班级名单文件夹路径
+        roll_call_list_dir = get_data_path("list", "roll_call_list")
+
+        # 确保目录存在
+        if not roll_call_list_dir.exists():
+            roll_call_list_dir.mkdir(parents=True, exist_ok=True)
+
+        # 创建文件系统监视器
+        self.file_watcher = QFileSystemWatcher()
+
+        # 监视目录
+        self.file_watcher.addPath(str(roll_call_list_dir))
+
+        # 连接信号
+        self.file_watcher.directoryChanged.connect(self.on_directory_changed)
+
+    def on_directory_changed(self, path):
+        """当目录内容发生变化时调用此方法"""
+        # 延迟刷新，避免文件操作未完成
+        QTimer.singleShot(500, self.refresh_class_list)
+
+    def refresh_class_list(self):
+        """刷新班级下拉框列表"""
+        # 从设置文件中读取默认班级
+        default_class = readme_settings_async("roll_call_settings", "default_class")
+
+        # 获取最新的班级列表
+        class_list = get_class_name_list()
+
+        # 清空并重新添加班级列表
+        self.default_class_combo.clear()
+        self.default_class_combo.addItems(class_list)
+
+        # 尝试恢复设置文件中的默认班级
+        if default_class:
+            self.default_class_combo.setCurrentText(default_class)
+        elif not class_list:
+            self.default_class_combo.setCurrentIndex(-1)
+            self.default_class_combo.setPlaceholderText(
+                get_content_name_async("roll_call_settings", "default_class")
+            )
 
     def on_draw_mode_changed(self):
         """当抽取模式改变时的处理逻辑"""

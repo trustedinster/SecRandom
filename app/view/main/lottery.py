@@ -1095,7 +1095,15 @@ class Lottery(QWidget):
             self.pool_list_combobox.clear()
             if pool_list:
                 self.pool_list_combobox.addItems(pool_list)
-                self.pool_list_combobox.setCurrentIndex(0)
+                # 应用默认抽取奖池设置
+                default_pool = readme_settings_async("lottery_settings", "default_pool")
+                if default_pool and default_pool in pool_list:
+                    # 设置默认抽取奖池
+                    index = pool_list.index(default_pool)
+                    self.pool_list_combobox.setCurrentIndex(index)
+                    logger.debug(f"应用默认抽取奖池: {default_pool}")
+                else:
+                    self.list_combobox.setCurrentIndex(0)
             self.pool_list_combobox.blockSignals(False)
 
             # 填充班级列表，避免空字符串导致读取学生列表警告

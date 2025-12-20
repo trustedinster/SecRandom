@@ -17,6 +17,7 @@ from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.tools.settings_access import get_safe_font_size
 from app.Language.obtain_language import *
+from app.common.data.list import *
 
 
 # ==================================================
@@ -83,6 +84,27 @@ class lottery_extraction_function(GroupHeaderCardWidget):
             )
         )
 
+        # 默认抽取奖池下拉框
+        self.default_pool_combo = ComboBox()
+        # 初始化奖池列表（在所有组件都创建后）
+        self.refresh_pool_list()
+        if not get_pool_name_list():
+            self.default_pool_combo.setCurrentIndex(-1)
+            self.default_pool_combo.setPlaceholderText(
+                get_content_name_async("lottery_settings", "default_pool")
+            )
+        else:
+            self.default_pool_combo.setCurrentText(
+                readme_settings_async("lottery_settings", "default_pool")
+            )
+        self.default_pool_combo.currentIndexChanged.connect(
+            lambda: update_settings(
+                "lottery_settings",
+                "default_pool",
+                self.default_pool_combo.currentText(),
+            )
+        )
+
         # 添加设置项到分组
         self.addGroup(
             get_theme_icon("ic_fluent_document_bullet_list_cube_20_filled"),
@@ -108,6 +130,15 @@ class lottery_extraction_function(GroupHeaderCardWidget):
             get_content_description_async("lottery_settings", "draw_type"),
             self.draw_type_combo,
         )
+        self.addGroup(
+            get_theme_icon("ic_fluent_class_20_filled"),
+            get_content_name_async("lottery_settings", "default_pool"),
+            get_content_description_async("lottery_settings", "default_pool"),
+            self.default_pool_combo,
+        )
+
+        # 设置文件系统监视器，监控奖池名单文件夹的变化
+        self.setup_file_watcher()
 
         # 初始化时在后台加载选项并回填
         QTimer.singleShot(0, self._start_background_load)
@@ -181,6 +212,52 @@ class lottery_extraction_function(GroupHeaderCardWidget):
             self.on_draw_mode_changed()
         except Exception as e:
             logger.error(f"回填 lottery_settings 数据失败: {e}")
+
+    def setup_file_watcher(self):
+        """设置文件系统监视器，监控奖池名单文件夹的变化"""
+        # 获取奖池名单文件夹路径
+        lottery_list_dir = get_data_path("list", "lottery_list")
+
+        # 确保目录存在
+        if not lottery_list_dir.exists():
+            lottery_list_dir.mkdir(parents=True, exist_ok=True)
+
+        # 创建文件系统监视器
+        self.file_watcher = QFileSystemWatcher()
+
+        # 监视目录
+        self.file_watcher.addPath(str(lottery_list_dir))
+
+        # 连接信号
+        self.file_watcher.directoryChanged.connect(self.on_directory_changed)
+
+    def on_directory_changed(self, path):
+        """当目录内容发生变化时调用此方法"""
+        # 延迟刷新，避免文件操作未完成
+        QTimer.singleShot(500, self.refresh_pool_list)
+
+    def refresh_pool_list(self):
+        """刷新奖池下拉框列表"""
+        from app.common.data.list import get_pool_name_list
+
+        # 从设置文件中读取默认奖池
+        default_pool = readme_settings_async("lottery_settings", "default_pool")
+
+        # 获取最新的奖池列表
+        pool_list = get_pool_name_list()
+
+        # 清空并重新添加奖池列表
+        self.default_pool_combo.clear()
+        self.default_pool_combo.addItems(pool_list)
+
+        # 尝试恢复设置文件中的默认奖池
+        if default_pool:
+            self.default_pool_combo.setCurrentText(default_pool)
+        elif not pool_list:
+            self.default_pool_combo.setCurrentIndex(-1)
+            self.default_pool_combo.setPlaceholderText(
+                get_content_name_async("lottery_settings", "default_pool")
+            )
 
     def on_draw_mode_changed(self):
         """当抽取模式改变时的处理逻辑"""

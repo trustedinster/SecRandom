@@ -432,6 +432,9 @@ class MainWindow(FluentWindow):
                 "show_random": readme_settings_async(
                     "quick_draw_settings", "show_random"
                 ),
+                "default_class": readme_settings_async(
+                    "quick_draw_settings", "default_class"
+                ),
             }
 
             # 创建闪抽动画实例

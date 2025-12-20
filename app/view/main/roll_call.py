@@ -1076,7 +1076,16 @@ class roll_call(QWidget):
             self.list_combobox.clear()
             if class_list:
                 self.list_combobox.addItems(class_list)
-                self.list_combobox.setCurrentIndex(0)
+                # 应用默认抽取名单设置
+                default_class = readme_settings_async(
+                    "roll_call_settings", "default_class"
+                )
+                if default_class and default_class in class_list:
+                    index = class_list.index(default_class)
+                    self.list_combobox.setCurrentIndex(index)
+                    logger.debug(f"应用默认抽取名单: {default_class}")
+                else:
+                    self.list_combobox.setCurrentIndex(0)
             self.list_combobox.blockSignals(False)
 
             # 填充范围和性别选项
