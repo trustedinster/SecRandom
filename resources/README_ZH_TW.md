@@ -112,7 +112,7 @@
 <img src="ScreenShots/zh-cn/pick.png" alt="點名界面" height="400px"/> <br/> <sub> 點名界面 </sub> <br/>
 <img src="ScreenShots/zh-cn/lottery.png" alt="抽獎界面" height="400px"/> <br/> <sub> 抽獎界面 </sub> <br/>
 <img src="ScreenShots/zh-cn/history.png" alt="歷史記錄" height="400px"/> <br/> <sub> 歷史記錄 </sub> <br/>
-<img src="ScreenShots/zh-cn/pick_settings.png" alt="抽取設置" height="400px"/> <br/> <sub> 抽取設置 </sub> <br/> 
+<img src="ScreenShots/zh-cn/pick_settings.png" alt="抽取設置" height="400px"/> <br/> <sub> 抽取設置 </sub> <br/>
 
 </div>
 </details>
