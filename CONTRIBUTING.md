@@ -1,6 +1,8 @@
-# 向 SecRandom 贡献代码
+# 贡献指南
 
 ❤️感谢您向 SecRandom 做出贡献，您可以为 SecRandom 项目做出包括但不限于反馈 Bug、提出功能请求、贡献代码等贡献。在进行贡献前，请务必阅读以下指南。
+
+**语言选择** [ **✔简体中文** | [English](resources/CONTRIBUTING_EN.md) | [繁體中文](resources/CONTRIBUTING_ZH_TW.md) ]
 
 ## 反馈 Bug
 
@@ -24,7 +26,7 @@
 |------|-----------|------|
 | 编程语言 | Python 3.13.5 | 项目的主要开发语言 |
 | 包管理器 | uv | 依赖管理和虚拟环境创建 |
-| UI 框架 | PySide6 + Fluent Design | 现代化桌面应用界面开发 |
+| UI 框架 | PySide6 + PyQt-Fluent-Widgets | 现代化桌面应用界面开发 |
 | 日志管理 | loguru | 高效的日志记录 |
 | 数据处理 | numpy & pandas | 数据处理和分析 |
 | 语音合成 | edge-tts | 文本转语音功能 |
@@ -48,12 +50,14 @@
    - 点击右上角的 "Fork" 按钮，创建您自己的仓库副本
 
 2. **克隆仓库**
+
    ```bash
    git clone https://github.com/您的用户名/SecRandom.git
    cd SecRandom
    ```
 
 3. **添加上游仓库**
+
    ```bash
    git remote add upstream https://github.com/SECTL/SecRandom.git
    ```
@@ -136,14 +140,6 @@ SecRandom 项目使用 GitHub Actions 进行自动构建和发布，配置文件
 1. **提交消息触发**：
    - 在 commit 消息中包含 `开始打包` 关键词
    - 示例：`git commit -m "新增功能 开始打包"`
-
-## 📞 联系方式
-
-如果您在贡献过程中遇到任何问题或需要帮助，可以通过以下方式联系我们：
-
-- 🔗 GitHub Issues：[提交问题](https://github.com/SECTL/SecRandom/issues)
-- 💬 QQ 群：833875216
-- 📧 邮箱：lzy.12@foxmail.com
 
 ---
 

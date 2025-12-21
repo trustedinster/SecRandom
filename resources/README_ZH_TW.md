@@ -22,7 +22,7 @@
 [![bilibili](https://img.shields.io/badge/-UP%E4%B8%BB%EF%BD%9C黎泽懿-%23FB7299?style=for-the-badge&logo=bilibili)](https://space.bilibili.com/520571577)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](https://opensource.org/licenses/GPL-3.0)
 
-[简体中文](../README.md) | [English](./README_EN.md) | **✔繁體中文**
+**語言選擇** [ [简体中文](../README.md) | [English](./README_EN.md) | **✔繁體中文** ]
 
 ![Code Contribution Statistics](https://repobeats.axiom.co/api/embed/7d42538bcd781370672c00b6b6ecd5282802ee3d.svg "Code Contribution Statistics Chart")
 
@@ -44,9 +44,7 @@
 
 - [🎯 為何選擇公平選擇](#-為何選擇公平選擇)
 - [🌟 核心亮點](#-核心亮點)
-- [🛠️ 技術棧](#%EF%B8%8F-技術棧)
 - [📥 下載](#-下載)
-- [🚀 快速開始](#-快速開始)
 - [📸 軟體截圖](#-軟體截圖)
 - [🙏 貢獻者與特別感謝](#-貢獻者與特別感謝)
 - [💝 支持我們](#-支持我們)
@@ -162,8 +160,6 @@
 
 查看我們的貢獻指南了解更多資訊：
 
-- [简体中文貢獻指南](../CONTRIBUTING.md)
-- [English貢獻指南](./CONTRIBUTING_EN.md)
 - [繁體中文貢獻指南](./CONTRIBUTING_ZH_TW.md)
 
 ## ✨ Star 歷程
