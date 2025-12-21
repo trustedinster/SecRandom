@@ -47,51 +47,56 @@
 
 - [🎯 Why Choose Fair Selection](#-why-choose-fair-selection)
 - [🌟 Core Features](#-core-features)
+- [🛠️ Technology Stack](#%EF%B8%8F-technology-stack)
 - [📥 Download](#-download)
+- [🚀 Quick Start](#-quick-start)
 - [📸 Software Screenshots](#-software-screenshots)
 - [🙏 Contributors and Special Thanks](#-contributors-and-special-thanks)
 - [💝 Support Us](#-support-us)
 - [📞 Contact](#-contact)
 - [📄 Official Documentation](#-official-documentation)
 - [✨ Star History](#-star-history)
-- [📖 GitHub Contribution Tutorial](#-github-contribution-tutorial)
-- [📖 Usage Tutorial](#-usage-tutorial)
 
 ## 🎯 Why Choose Fair Selection
 
-Traditional random selection often has the problem of "repeatedly selecting certain people while others are rarely selected". SecRandom uses an **intelligent dynamic weight algorithm** to ensure every member gets a fair chance of being selected:
+Traditional random selection often has the problem of "repeatedly selecting certain people while others are rarely selected". SecRandom uses an **intelligent dynamic weight algorithm** combined with **average gap protection mechanism** to ensure every member gets a fair chance of being selected:
 
 - **Avoid Repeated Selection**: The more times someone is selected, the lower their probability of being selected again
 - **Balance Group Opportunities**: Ensure members from different groups have equal selection opportunities
 - **Gender Balance Consideration**: Balance selection frequency of different genders during the selection process
 - **Cold Start Protection**: New members or those who haven't been selected for a long time won't lose opportunities due to low weight
+- **Average Filtering**: Only allow members with selection count ≤ average to enter the candidate pool, avoiding over-selection
+- **Maximum Gap Protection**: When the gap between max and min selection counts exceeds the threshold, exclude extremes and recalculate to ensure fairness
+- **Candidate Pool Size Guarantee**: Ensure the candidate pool is not smaller than the set minimum size, avoiding single-person dead loops
 - **Probability Visualization**: Real-time display of each member's selection probability, making the process transparent and trustworthy
 
 ## 🌟 Core Features
 
 ### 🎯 Intelligent Fair Selection System
 
-- ✅ **Dynamic Weighting Algorithm**: Calculates based on multiple dimensions including selection count, group, and gender to ensure true fairness
-- ✅ **Cold Start Protection**: Prevents new members from having too low weight, ensuring everyone has equal opportunities
-- ✅ **Probability Visualization**: Intuitively displays each member's probability of being selected, making the selection process transparent
+- ✅ **Dynamic Weighting Algorithm**: Intelligently calculates weights based on multiple dimensions including selection count, group, and gender, ensuring every member gets a truly fair chance
+- ✅ **Cold Start Protection Mechanism**: Provides weight protection for new members or those who haven't been selected for a long time, avoiding missed opportunities due to low initial weight
+- ✅ **Average Gap Protection**: Combines dual mechanisms of average filtering and maximum gap protection to effectively avoid extremely uneven selection results
+- ✅ **Flexible Configuration Options**: Supports customizing core parameters like gap threshold and minimum candidate pool size to meet different scenario needs
+- ✅ **Real-time Probability Visualization**: Intuitively displays probability changes for each member being selected, making the selection process completely transparent and trustworthy
 
 ### 🎨 Modern User Experience
 
-- ✅ **Elegant UI Design**: Modern interface based on Fluent Design, supporting light/dark themes
-- ✅ **Floating Window Mode**: Perform selections anytime without affecting other work
-- ✅ **Voice Announcements**: Automatic voice announcement of selection results, supporting custom voice engines
+- ✅ **Fluent Design Elegant Interface**: Adopts Microsoft Fluent Design language, supporting automatic light/dark theme switching
+- ✅ **Convenient Floating Window Mode**: Can call up a small floating window for quick selection at any time, without affecting current workflow
+- ✅ **Smart Voice Announcement**: Automatically voice broadcasts selection results, supporting multiple voice engines and custom voice settings
 
 ### 🚀 Powerful Feature Set
 
-- ✅ **Multiple Selection Modes**: Individual/multiple/group/gender selection to meet different scenario needs
-- ✅ **Smart History Records**: Detailed records with timestamps, supporting automatic cleanup
-- ✅ **Multi-list Management**: Support for importing/exporting lists, easily managing different classes/teams
+- ✅ **Diverse Selection Modes**: Supports single selection, multiple selection, group selection, gender selection, etc., meeting different scenario needs
+- ✅ **Smart History Records**: Automatically records detailed information such as selection time and results, supporting conditional filtering and automatic cleanup of expired records
+- ✅ **Multi-list Management System**: Supports importing/exporting Excel lists, easily managing member information for multiple classes or teams
 
 ### 💻 System Compatibility
 
-- ✅ **Full Platform Support**: Perfectly compatible with Windows 7/10/11 systems and Linux systems
-- ✅ **Multi-architecture Support**: Native support for x64 and x86 architectures
-- ✅ **Startup on Boot**: Supports automatic startup on boot, always available (Windows)
+- ✅ **Cross-platform Support**: Perfectly compatible with Windows 7/10/11 systems and mainstream Linux distributions
+- ✅ **Multi-architecture Adaptation**: Natively supports x64 and x86 architectures, adapting to different hardware environments
+- ✅ **Startup on Boot Function**: Supports setting automatic startup on boot, always available (Windows only)
 
 ## 📥 Download
 
@@ -156,9 +161,13 @@ If you find SecRandom helpful, you're welcome to support our development work!
 - 📄 **[SecRandom Official Documentation](https://secrandom.netlify.app)**
 - [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SECTL/SecRandom)
 
-## 📖 GitHub Contribution Tutorial
+## Contributing Guidelines and Actions Build Workflow
 
-Translation of the Contribution Tutorial for English (US) is still in progress, you can first read the Simplified Chinese version of the Contribution Tutorial: [Contribution Tutorial](../CONTRIBUTING.md)
+Check out our Contributing Guidelines to learn more:
+
+- [English Contributing Guidelines](./CONTRIBUTING_EN.md)
+- [简体中文 Contributing Guidelines](../CONTRIBUTING.md)
+- [繁體中文 Contributing Guidelines](./CONTRIBUTING_ZH_TW.md)
 
 ## ✨ Star History
 

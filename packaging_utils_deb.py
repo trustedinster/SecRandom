@@ -31,7 +31,7 @@ class DebBuilder:
             website: 网站地址
         """
         self.project_root = project_root
-        self.app_name = app_name.lower()
+        self.app_name = app_name
         self.version = version
         self.description = description
         self.author = author

@@ -6,6 +6,7 @@ from random import SystemRandom
 
 from app.common.data.list import get_group_list, get_student_list, filter_students_data
 from app.common.history.history import calculate_weight
+from app.common.fair_draw.avg_gap_protection import apply_avg_gap_protection
 from app.tools.config import (
     calculate_remaining_count,
     read_drawn_record,
@@ -193,6 +194,11 @@ class RollCallUtils:
         if not students_dict_list:
             # 注意：这里我们返回一个特殊的标记，让调用者处理
             return {"reset_required": True}
+
+        # 应用平均值差值保护
+        students_dict_list = apply_avg_gap_protection(
+            students_dict_list, current_count, class_name, "roll_call"
+        )
 
         draw_type = readme_settings_async("roll_call_settings", "draw_type")
         if draw_type == 1:

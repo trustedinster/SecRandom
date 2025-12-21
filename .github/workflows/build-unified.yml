@@ -294,9 +294,9 @@ jobs:
           echo "| 镜像源 | 平台 | 支持架构 | 完整版 |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| --- | --- | --- | --- |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| ghfast.top | Windows | x64 | [下载 ${{ github.ref_name }}](https://ghfast.top/https://github.com/SECTL/SecRandom/releases/download/${{ github.ref_name }}/SecRandom-windows-${{ github.ref_name }}-x64-dir.zip) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "| ghfast.top | Linux | x64 | [下载 ${{ github.ref_name }}](https://ghfast.top/https://github.com/SECTL/SecRandom/releases/download/${{ github.ref_name }}/SecRandom-linux-${{ github.ref_name }}-x64-dir.zip) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
+          echo "| ghfast.top | Linux | x64 | [下载 ${{ github.ref_name }}](https://ghfast.top/https://github.com/SECTL/SecRandom/releases/download/${{ github.ref_name }}/SecRandom-linux-${{ replace(replace(github.ref_name, 'v', ''), '.', '-') }}-amd64-deb.deb) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| gh-proxy.com | Windows | x64 | [下载 ${{ github.ref_name }}](https://gh-proxy.com/https://github.com/SECTL/SecRandom/releases/download/${{ github.ref_name }}/SecRandom-windows-${{ github.ref_name }}-x64-dir.zip) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "| gh-proxy.com | Linux | x64 | [下载 ${{ github.ref_name }}](https://gh-proxy.com/https://github.com/SECTL/SecRandom/releases/download/${{ github.ref_name }}/SecRandom-linux-${{ github.ref_name }}-x64-dir.zip) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
+          echo "| gh-proxy.com | Linux | x64 | [下载 ${{ github.ref_name }}](https://gh-proxy.com/https://github.com/SECTL/SecRandom/releases/download/${{ github.ref_name }}/SecRandom-linux-${{ replace(replace(github.ref_name, 'v', ''), '.', '-') }}-amd64-deb.deb) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "**SHA256 校验值-请核对下载的文件的SHA256值是否正确**" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| 文件名 | SHA256 值 |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md

@@ -1,178 +1,150 @@
-# 📖 SecRandom 贡献指南
+# 向 SecRandom 贡献代码
 
-SecRandom 欢迎**任何人**向我们的仓库提交代码。您可以帮助我们做很多工作，包括但不限于：
+❤️感谢您向 SecRandom 做出贡献，您可以为 SecRandom 项目做出包括但不限于反馈 Bug、提出功能请求、贡献代码等贡献。在进行贡献前，请务必阅读以下指南。
 
-- 提交补丁来修复bug
-- 添加新功能
-- 优化现有的功能
-- 优化代码的性能
-- 完善文档与翻译
-- 更多......
+## 反馈 Bug
 
-通过阅读本指南，您将会了解为 SecRandom 贡献代码的各个流程。您还会了解使用 commit 信息进行二进制构建的方式。现在就开始吧！
+如果在使用 SecRandom 的过程中遇到 Bug，可以在 GitHub Issues 中提交 Bug 反馈。
 
-## 🚀 快速开始
+**请务必准确地按照 Issues 模板中的要求和示例填写相关字段**，否则开发者可能难以诊断您遇到的问题。
 
-在向 SecRandom 项目贡献代码之前，请确保您已完成以下准备工作：
+## 提交功能请求
 
-> [!NOTE]
-> 除了使用命令行，您还可以使用 GitHub Desktop 或您 IDE 中的内置功能/插件进行操作。
+如果您有关于 SecRandom 新功能的想法，欢迎在 GitHub Issues 提交功能请求。
+
+## 贡献代码
+
+在为 SecRandom 贡献代码之前，请务必阅读以下指南。
+
+### 技术栈
+
+在开始贡献之前，了解项目的技术栈将有助于您更快地上手：
+
+| 类别 | 技术/工具 | 用途 |
+|------|-----------|------|
+| 编程语言 | Python 3.13.5 | 项目的主要开发语言 |
+| 包管理器 | uv | 依赖管理和虚拟环境创建 |
+| UI 框架 | PySide6 + Fluent Design | 现代化桌面应用界面开发 |
+| 日志管理 | loguru | 高效的日志记录 |
+| 数据处理 | numpy & pandas | 数据处理和分析 |
+| 语音合成 | edge-tts | 文本转语音功能 |
+| Excel 处理 | openpyxl | Excel 文件导入导出 |
+| 安全认证 | pyotp | 双因素认证 |
+
+### 开发环境搭建
+
+#### 1. 前置条件
+
+确保您的系统已安装以下软件：
+
+- Python 3.13.5
+- Git
+- uv 包管理器 ([安装指南](https://docs.astral.sh/uv/getting-started/))
+
+#### 2. 准备工作
 
 1. **Fork 项目**
-
-    - 访问 [SecRandom GitHub 仓库](https://github.com/SECTL/SecRandom)
-    - 点击右上角的 "Fork" 按钮创建您自己的仓库副本
+   - 访问 [SecRandom GitHub 仓库](https://github.com/SECTL/SecRandom)
+   - 点击右上角的 "Fork" 按钮，创建您自己的仓库副本
 
 2. **克隆仓库**
-
-> [!WARNING]
-> 确保在这一步之前，您已经将终端的工作目录切换到您想保存/修改 SecRandom 源代码的地方。
-
-    ```bash
-    git clone https://github.com/您的用户名/SecRandom.git
-    cd SecRandom
-    ```
+   ```bash
+   git clone https://github.com/您的用户名/SecRandom.git
+   cd SecRandom
+   ```
 
 3. **添加上游仓库**
+   ```bash
+   git remote add upstream https://github.com/SECTL/SecRandom.git
+   ```
 
-    ```bash
-    git remote add upstream https://github.com/SECTL/SecRandom.git
-    ```
+#### 3. 安装依赖
 
-4. **安装虚拟环境** (可选)
+使用 uv 安装项目依赖：
 
-> [!TIP]
-> 若您不需要运行代码以测试效果，您可以跳过这个部分。
+```bash
+uv sync
+```
 
-    SecRandom 使用 `uv` 管理虚拟环境。您需要先获取它再执行以下命令。您可以在 [uv官方文档](https://docs.astral.sh/uv/getting-started/) 中获取关于 `uv` 的信息。
+#### 4. 运行项目
 
-    ```bash
-    uv venv
-    uv sync
-    ```
+安装依赖后，您可以直接运行项目：
 
-    随后您可以这样运行代码（在虚拟环境中）：
+```bash
+uv run main.py
+```
 
-    ```bash
-    uv run ./main.py
-    ```
+### 贡献准则
 
-## 📤 提交您的贡献
+**您为 SecRandom 贡献的功能须遵循以下准则：**
 
-1. **创建分支**
+- **稳定**：您贡献的功能需要能尽可能稳定工作。
+- **具有泛用性**：您贡献的功能需要面向大部分用户。
+- **激进功能需添加开关**：如果您贡献的功能比较激进，请添加功能开关，并默认禁用此功能。
+- **能用**：在提交补丁前，请在本地测试您实现的功能是否能正常使用。
+- 尽量不要提交仅包含文案修复的补丁。
 
-    ```bash
-    git checkout -b feature/功能名称
-    ```
+### 补丁质量
 
-2. **进行修改**
+随着本项目的规模逐渐扩大，有些用户提交了一些低质量的补丁。这些补丁有的完全不能实现预期的功能，有的甚至根本不能通过编译，浪费了开发者的时间和精力对这些补丁进行代码审阅和问题排查。我们接受有瑕疵的补丁， **但我们希望您在提交补丁前，您的补丁至少应该满足以下的要求：**
 
-    - 编写您的代码
-    - 添加必要的注释（请使用中文）
-    - 确保遵循项目代码规范
+- 实现的功能能够工作，在提交补丁前请至少在本地机器测试一次补丁的功能是否可以正常工作。
+- 我们不建议在没有人为干预的情况下完全地使用生成式人工智能实现您要贡献的功能。
 
-3. **提交更改**
+如果您持续提交低质量的补丁，我们可能会限制您继续向本项目/组织提交补丁。
 
-    ```bash
-    git add .
-    git commit -m "描述您的更改内容"
-    ```
+### 分支与开发周期
 
-4. **同步上游更改**
+SecRandom 代码仓库目前具有以下分支：
 
-    ```bash
-    git fetch upstream
-    git rebase upstream/master
-    ```
+- `master`：SecRandom 主要开发分支。
 
-5. **推送并创建拉取请求 (Pull request, PR)**
+当开始下个版本的 SecRandom 时，会将当前的主分支分叉到对应的维护分支。在开发下一个版本的 SecRandom 过程中，也会在维护分支上并行维护当前稳定版本的功能。
 
-    ```bash
-    git push origin feature/您的功能名称
-    ```
+由于不同开发分支上的代码接口可能存在差异。因此，**根据您做出的贡献类型，您需要选择不同的基础分支。**
 
-    - 访问您的 GitHub Fork 仓库
-    - 点击 "Compare & pull request" (比较/拉取请求) 按钮
-    - 填写 PR 描述并提交
+**以下类型的贡献建议以当前的维护分支为基础分支：**
 
-## 📋 贡献指南
+- 修复稳定版中的 Bug
+- 对稳定版中的功能进行小幅度的优化
 
-### 代码规范
+**以下类型的贡献建议以 `master` 为基础分支：**
 
-- 使用中文编写代码注释，别忘记撰写 Docstring
-- 遵循 PEP8 倡导的风格指南，若有意异议可以查看现有的代码
-- 确保导入所有您已使用的类/函数/变量，不要使用 `from module import *`
-- 验证第三方 UI 组件与其他库中的类/函数/变量是否存在
+- 添加新的功能
+- 对代码进行重构
+- 其它对 SecRandom 进行较大改动的贡献
+- 修改README等文档
 
-> [!TIP]
-> 您可以使用 **PyRight**， **Ruff** 等工具检查代码是否有缺陷/代码是否符合规范。
+### 提交
 
-### 提交 (commit) 信息规范
+在本代码仓库提交时，请尽量遵守 [约定式提交](https://www.conventionalcommits.org/zh-hans/v1.0.0/) 规范。
 
-- 使用清晰、简洁的提交信息
-- 以 fix, feat 等约定俗成的单词开头
-- 避免过于简单的描述（如："修复bug"）
+### 合并更改
 
-> [!TIP]
-> 我们推荐使用[约定式提交](https://www.conventionalcommits.org/zh-hans/v1.0.0/)撰写提交信息。
+在进行合并之前，请先测试您贡献的代码，确保您贡献的代码能稳定运作。
 
-### PR 要求
+您可以向本项目发起 [Pull Request](https://github.com/SECTL/SecRandom/pulls) 来合并您的更改。在发起 Pull Request 时，请简要地描述您做的更改，并最好附上您实现的功能的演示截图/视频。
 
-- PR 标题应简洁明了地描述更改内容（若只有一个提交，也可以直接使用这个提交的标题）
-- 提供详细的更改说明，包括：
-    - 新增/修改/删除的功能
-    - 新增/修改版本/删除的依赖库 和 更改 Python 版本
-    - 其他破坏性更改也请一并告知
-- 确保所有测试通过
-- 确保您修改的代码至少在您的计算机上运行正常
-- 关联相关的 Issue（如有）
+### Actions 构建工作流
 
-### 最后一步......
+SecRandom 项目使用 GitHub Actions 进行自动构建和发布，配置文件位于 `.github/workflows/build-unified.yml`。
 
-当 SecRandom 的维护者审查了您的 PR，确保没有任何问题之后，就会将您的所贡献的代码合并到主分支。
+#### 触发构建
 
-现在我们 **恭喜您成为 SecRandom 贡献者的一员！**
+您可以通过以下方式触发构建：
 
-如果您的 PR 没有通过，也没有关系。请仔细阅读我们的维护者给出的建议并且继续努力，早有一日，您会成为 SecRandom 贡献者的一员。加油😃👍！
+1. **提交消息触发**：
+   - 在 commit 消息中包含 `开始打包` 关键词
+   - 示例：`git commit -m "新增功能 开始打包"`
 
-## 📖 Actions 构建工作流
+## 📞 联系方式
 
-若您需要测试自动构建的二进制程序，您可以阅读以下文字来获取更多信息。
+如果您在贡献过程中遇到任何问题或需要帮助，可以通过以下方式联系我们：
 
-### 🚀 GitHub Actions 统一构建工作流使用指南
+- 🔗 GitHub Issues：[提交问题](https://github.com/SECTL/SecRandom/issues)
+- 💬 QQ 群：833875216
+- 📧 邮箱：lzy.12@foxmail.com
 
-SecRandom 项目使用统一的 GitHub Actions 工作流进行构建和发布，配置文件位于 `.github/workflows/build-unified.yml`。该工作流支持多种触发方式和配置选项。
+---
 
-#### 通过提交消息触发特定构建
-
-您可以通过在 git commit 消息中包含特定关键词来触发不同的构建行为：
-
-1. **触发打包构建**
-   - 在 commit 消息中包含 `打包` 关键词
-   - 例如：`git commit -m "新增功能 打包"`
-
-2. **指定构建平台**
-   - `win` - Windows 平台
-   - `linux` - Linux 平台
-   - `all` - 所有平台
-   - 例如：`git commit -m "修复bug 打包 linux"`
-
-3. **触发所有平台构建**
-   - 创建符合版本号规范的 tag（格式：`v数字.数字.数字.数字`）
-   - 例如：`git tag v1.2.3.4 && git push origin v1.2.3.4`
-
-#### 构建参数关键词说明
-
-提交消息中可以包含以下关键词来控制构建行为：
-
-| 关键词 | 含义 | 示例 |
-|--------|------|------|
-| `打包` | 通用打包触发 | `git commit -m "新增功能 打包"` |
-| `win` | Windows 平台 | `git commit -m "修复UI 打包 win"` |
-| `linux` | Linux 平台 | `git commit -m "优化性能 打包 linux"` |
-| `all` | 所有平台 | `git commit -m "大更新 打包 all"` |
-
-**组合使用示例：**
-
-- `git commit -m "优化性能 打包 pi"` - 使用 PyInstaller 构建 Windows 平台
-- `git commit -m "修复bug 打包 pi"` - 使用 PyInstaller 构建 Linux 平台
+感谢您对 SecRandom 项目的支持和贡献！让我们一起打造更好的公平随机抽取系统！ 🚀

@@ -491,7 +491,7 @@ DEFAULT_SETTINGS = {
         "fair_draw": {"default_value": True},
         "fair_draw_group": {"default_value": True},
         "fair_draw_gender": {"default_value": True},
-        "fair_draw_time": {"default_value": True},
+        "fair_draw_time": {"default_value": False},
         "base_weight": {"default_value": 1.00},
         "min_weight": {"default_value": 0.50},
         "max_weight": {"default_value": 5.00},
@@ -505,6 +505,9 @@ DEFAULT_SETTINGS = {
         "shield_enabled": {"default_value": False},
         "shield_time": {"default_value": 5.00},
         "shield_time_unit": {"default_value": 0},
+        "enable_avg_gap_protection": {"default_value": True},
+        "gap_threshold": {"default_value": 1},
+        "min_pool_size": {"default_value": 5},
     },
     "debug": {"title": {"default_value": None}},
     "update": {

@@ -27,29 +27,25 @@ class fair_draw(QWidget):
         self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
         self.vBoxLayout.setSpacing(10)
 
-        # 添加基础公平设置组件
+        # 1. 基础开关设置 - 控制哪些因素参与公平计算
         self.basic_fair_settings_widget = basic_fair_settings(self)
         self.vBoxLayout.addWidget(self.basic_fair_settings_widget)
 
-        # 添加权重范围设置组件
-        self.weight_range_settings_widget = weight_range_settings(self)
-        self.vBoxLayout.addWidget(self.weight_range_settings_widget)
+        # 2. 核心公平机制 - 包括频率函数、平均值差值保护等核心算法
+        self.core_fair_mechanism_widget = core_fair_mechanism(self)
+        self.vBoxLayout.addWidget(self.core_fair_mechanism_widget)
 
-        # 添加抽取后屏蔽设置组件
-        self.shield_settings_widget = shield_settings(self)
-        self.vBoxLayout.addWidget(self.shield_settings_widget)
+        # 3. 抽取保护设置 - 包括抽取后屏蔽等保护机制
+        self.draw_protection_widget = draw_protection(self)
+        self.vBoxLayout.addWidget(self.draw_protection_widget)
 
-        # 添加频率函数设置组件
-        self.frequency_settings_widget = frequency_settings(self)
-        self.vBoxLayout.addWidget(self.frequency_settings_widget)
+        # 4. 初始阶段设置 - 冷启动相关设置
+        self.initial_stage_widget = cold_start_settings(self)
+        self.vBoxLayout.addWidget(self.initial_stage_widget)
 
-        # 添加平衡权重设置组件
-        self.balance_weight_settings_widget = balance_weight_settings(self)
-        self.vBoxLayout.addWidget(self.balance_weight_settings_widget)
-
-        # 添加冷启动设置组件
-        self.cold_start_settings_widget = cold_start_settings(self)
-        self.vBoxLayout.addWidget(self.cold_start_settings_widget)
+        # 5. 权重调整选项 - 包括权重范围、平衡权重等高级调整
+        self.advanced_weight_widget = advanced_weight_settings(self)
+        self.vBoxLayout.addWidget(self.advanced_weight_widget)
 
 
 class basic_fair_settings(GroupHeaderCardWidget):
@@ -177,78 +173,206 @@ class basic_fair_settings(GroupHeaderCardWidget):
         )
 
 
-class weight_range_settings(GroupHeaderCardWidget):
+class cold_start_settings(GroupHeaderCardWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle(
-            get_content_name_async("fair_draw_settings", "weight_range_settings")
+            get_content_name_async("fair_draw_settings", "cold_start_settings")
         )
         self.setBorderRadius(8)
 
-        # 设置基础权重
-        self.base_weight_spinbox = DoubleSpinBox()
-        self.base_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
-        self.base_weight_spinbox.setMinimum(0.01)
-        self.base_weight_spinbox.setValue(
-            readme_settings_async("fair_draw_settings", "base_weight")
+        # 冷启动模式开关
+        self.cold_start_enabled_switch = SwitchButton()
+        self.cold_start_enabled_switch.setOffText(
+            get_content_switchbutton_name_async(
+                "fair_draw_settings", "cold_start_enabled", "disable"
+            )
         )
-        self.base_weight_spinbox.valueChanged.connect(
+        self.cold_start_enabled_switch.setOnText(
+            get_content_switchbutton_name_async(
+                "fair_draw_settings", "cold_start_enabled", "enable"
+            )
+        )
+        self.cold_start_enabled_switch.setChecked(
+            readme_settings_async("fair_draw_settings", "cold_start_enabled")
+        )
+        self.cold_start_enabled_switch.checkedChanged.connect(
             lambda: update_settings(
-                "fair_draw_settings", "base_weight", self.base_weight_spinbox.value()
+                "fair_draw_settings",
+                "cold_start_enabled",
+                self.cold_start_enabled_switch.isChecked(),
             )
         )
 
-        # 设置权重范围最小值
-        self.min_weight_spinbox = DoubleSpinBox()
-        self.min_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
-        self.min_weight_spinbox.setMinimum(0.01)
-        self.min_weight_spinbox.setValue(
-            readme_settings_async("fair_draw_settings", "min_weight")
+        # 冷启动轮次
+        self.cold_start_rounds_spinbox = SpinBox()
+        self.cold_start_rounds_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.cold_start_rounds_spinbox.setMinimum(1)
+        self.cold_start_rounds_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "cold_start_rounds")
         )
-        self.min_weight_spinbox.valueChanged.connect(
+        self.cold_start_rounds_spinbox.valueChanged.connect(
             lambda: update_settings(
-                "fair_draw_settings", "min_weight", self.min_weight_spinbox.value()
-            )
-        )
-
-        # 设置权重范围最大值
-        self.max_weight_spinbox = DoubleSpinBox()
-        self.max_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
-        self.max_weight_spinbox.setMinimum(0.01)
-        self.max_weight_spinbox.setValue(
-            readme_settings_async("fair_draw_settings", "max_weight")
-        )
-        self.max_weight_spinbox.valueChanged.connect(
-            lambda: update_settings(
-                "fair_draw_settings", "max_weight", self.max_weight_spinbox.value()
+                "fair_draw_settings",
+                "cold_start_rounds",
+                self.cold_start_rounds_spinbox.value(),
             )
         )
 
         # 添加设置项到分组
         self.addGroup(
-            get_theme_icon("ic_fluent_scale_fit_20_filled"),
-            get_content_name_async("fair_draw_settings", "base_weight"),
-            get_content_description_async("fair_draw_settings", "base_weight"),
-            self.base_weight_spinbox,
+            get_theme_icon("ic_fluent_arrow_rotate_clockwise_20_filled"),
+            get_content_name_async("fair_draw_settings", "cold_start_enabled"),
+            get_content_description_async("fair_draw_settings", "cold_start_enabled"),
+            self.cold_start_enabled_switch,
         )
         self.addGroup(
-            get_theme_icon("ic_fluent_scale_fit_20_filled"),
-            get_content_name_async("fair_draw_settings", "min_weight"),
-            get_content_description_async("fair_draw_settings", "min_weight"),
-            self.min_weight_spinbox,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_scale_fit_20_filled"),
-            get_content_name_async("fair_draw_settings", "max_weight"),
-            get_content_description_async("fair_draw_settings", "max_weight"),
-            self.max_weight_spinbox,
+            get_theme_icon("ic_fluent_arrow_rotate_clockwise_20_filled"),
+            get_content_name_async("fair_draw_settings", "cold_start_rounds"),
+            get_content_description_async("fair_draw_settings", "cold_start_rounds"),
+            self.cold_start_rounds_spinbox,
         )
 
 
-class shield_settings(GroupHeaderCardWidget):
+# 核心公平机制设置
+class core_fair_mechanism(GroupHeaderCardWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitle(get_content_name_async("fair_draw_settings", "shield_settings"))
+        self.setTitle(
+            get_content_name_async("fair_draw_settings", "core_fair_mechanism")
+        )
+        self.setBorderRadius(8)
+
+        # 1. 频率函数设置
+        # 频率惩罚函数类型
+        self.frequency_function_combobox = ComboBox()
+        self.frequency_function_combobox.setFixedWidth(WIDTH_SPINBOX)
+        self.frequency_function_combobox.addItems(
+            get_content_combo_name_async("fair_draw_settings", "frequency_function")
+        )
+        self.frequency_function_combobox.setCurrentIndex(
+            readme_settings_async("fair_draw_settings", "frequency_function")
+        )
+        self.frequency_function_combobox.currentIndexChanged.connect(
+            lambda: update_settings(
+                "fair_draw_settings",
+                "frequency_function",
+                self.frequency_function_combobox.currentIndex(),
+            )
+        )
+
+        # 频率惩罚权重
+        self.frequency_weight_spinbox = DoubleSpinBox()
+        self.frequency_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.frequency_weight_spinbox.setMinimum(0.01)
+        self.frequency_weight_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "frequency_weight")
+        )
+        self.frequency_weight_spinbox.valueChanged.connect(
+            lambda: update_settings(
+                "fair_draw_settings",
+                "frequency_weight",
+                self.frequency_weight_spinbox.value(),
+            )
+        )
+
+        # 2. 平均值差值保护
+        # 平均值差值保护开关
+        self.avg_gap_protection_switch = SwitchButton()
+        self.avg_gap_protection_switch.setOffText(
+            get_content_switchbutton_name_async(
+                "fair_draw_settings", "enable_avg_gap_protection", "disable"
+            )
+        )
+        self.avg_gap_protection_switch.setOnText(
+            get_content_switchbutton_name_async(
+                "fair_draw_settings", "enable_avg_gap_protection", "enable"
+            )
+        )
+        self.avg_gap_protection_switch.setChecked(
+            readme_settings_async("fair_draw_settings", "enable_avg_gap_protection")
+        )
+        self.avg_gap_protection_switch.checkedChanged.connect(
+            lambda: update_settings(
+                "fair_draw_settings",
+                "enable_avg_gap_protection",
+                self.avg_gap_protection_switch.isChecked(),
+            )
+        )
+
+        # 差距阈值
+        self.gap_threshold_spinbox = SpinBox()
+        self.gap_threshold_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.gap_threshold_spinbox.setMinimum(1)
+        self.gap_threshold_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "gap_threshold")
+        )
+        self.gap_threshold_spinbox.valueChanged.connect(
+            lambda: update_settings(
+                "fair_draw_settings",
+                "gap_threshold",
+                self.gap_threshold_spinbox.value(),
+            )
+        )
+
+        # 候选池最少人数
+        self.min_pool_size_spinbox = SpinBox()
+        self.min_pool_size_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.min_pool_size_spinbox.setMinimum(1)
+        self.min_pool_size_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "min_pool_size")
+        )
+        self.min_pool_size_spinbox.valueChanged.connect(
+            lambda: update_settings(
+                "fair_draw_settings",
+                "min_pool_size",
+                self.min_pool_size_spinbox.value(),
+            )
+        )
+
+        # 添加设置项到分组
+        # 频率函数相关
+        self.addGroup(
+            get_theme_icon("ic_fluent_arrow_clockwise_20_filled"),
+            get_content_name_async("fair_draw_settings", "frequency_function"),
+            get_content_description_async("fair_draw_settings", "frequency_function"),
+            self.frequency_function_combobox,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_arrow_clockwise_20_filled"),
+            get_content_name_async("fair_draw_settings", "frequency_weight"),
+            get_content_description_async("fair_draw_settings", "frequency_weight"),
+            self.frequency_weight_spinbox,
+        )
+
+        # 平均值差值保护相关
+        self.addGroup(
+            get_theme_icon("ic_fluent_lottery_20_filled"),
+            get_content_name_async("fair_draw_settings", "enable_avg_gap_protection"),
+            get_content_description_async(
+                "fair_draw_settings", "enable_avg_gap_protection"
+            ),
+            self.avg_gap_protection_switch,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_lottery_20_filled"),
+            get_content_name_async("fair_draw_settings", "gap_threshold"),
+            get_content_description_async("fair_draw_settings", "gap_threshold"),
+            self.gap_threshold_spinbox,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_lottery_20_filled"),
+            get_content_name_async("fair_draw_settings", "min_pool_size"),
+            get_content_description_async("fair_draw_settings", "min_pool_size"),
+            self.min_pool_size_spinbox,
+        )
+
+
+# 抽取保护设置
+class draw_protection(GroupHeaderCardWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle(get_content_name_async("fair_draw_settings", "draw_protection"))
         self.setBorderRadius(8)
 
         # 启用抽取后屏蔽
@@ -325,69 +449,56 @@ class shield_settings(GroupHeaderCardWidget):
         )
 
 
-class frequency_settings(GroupHeaderCardWidget):
+# 高级权重设置
+class advanced_weight_settings(GroupHeaderCardWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle(
-            get_content_name_async("fair_draw_settings", "frequency_settings")
+            get_content_name_async("fair_draw_settings", "advanced_weight_settings")
         )
         self.setBorderRadius(8)
 
-        # 频率惩罚函数类型
-        self.frequency_function_combobox = ComboBox()
-        self.frequency_function_combobox.setFixedWidth(WIDTH_SPINBOX)
-        self.frequency_function_combobox.addItems(
-            get_content_combo_name_async("fair_draw_settings", "frequency_function")
+        # 1. 权重范围设置
+        # 设置基础权重
+        self.base_weight_spinbox = DoubleSpinBox()
+        self.base_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.base_weight_spinbox.setMinimum(0.01)
+        self.base_weight_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "base_weight")
         )
-        self.frequency_function_combobox.setCurrentIndex(
-            readme_settings_async("fair_draw_settings", "frequency_function")
-        )
-        self.frequency_function_combobox.currentIndexChanged.connect(
+        self.base_weight_spinbox.valueChanged.connect(
             lambda: update_settings(
-                "fair_draw_settings",
-                "frequency_function",
-                self.frequency_function_combobox.currentIndex(),
+                "fair_draw_settings", "base_weight", self.base_weight_spinbox.value()
             )
         )
 
-        # 频率惩罚权重
-        self.frequency_weight_spinbox = DoubleSpinBox()
-        self.frequency_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
-        self.frequency_weight_spinbox.setMinimum(0.01)
-        self.frequency_weight_spinbox.setValue(
-            readme_settings_async("fair_draw_settings", "frequency_weight")
+        # 设置权重范围最小值
+        self.min_weight_spinbox = DoubleSpinBox()
+        self.min_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.min_weight_spinbox.setMinimum(0.01)
+        self.min_weight_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "min_weight")
         )
-        self.frequency_weight_spinbox.valueChanged.connect(
+        self.min_weight_spinbox.valueChanged.connect(
             lambda: update_settings(
-                "fair_draw_settings",
-                "frequency_weight",
-                self.frequency_weight_spinbox.value(),
+                "fair_draw_settings", "min_weight", self.min_weight_spinbox.value()
             )
         )
 
-        # 添加设置项到分组
-        self.addGroup(
-            get_theme_icon("ic_fluent_arrow_clockwise_20_filled"),
-            get_content_name_async("fair_draw_settings", "frequency_function"),
-            get_content_description_async("fair_draw_settings", "frequency_function"),
-            self.frequency_function_combobox,
+        # 设置权重范围最大值
+        self.max_weight_spinbox = DoubleSpinBox()
+        self.max_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.max_weight_spinbox.setMinimum(0.01)
+        self.max_weight_spinbox.setValue(
+            readme_settings_async("fair_draw_settings", "max_weight")
         )
-        self.addGroup(
-            get_theme_icon("ic_fluent_arrow_clockwise_20_filled"),
-            get_content_name_async("fair_draw_settings", "frequency_weight"),
-            get_content_description_async("fair_draw_settings", "frequency_weight"),
-            self.frequency_weight_spinbox,
+        self.max_weight_spinbox.valueChanged.connect(
+            lambda: update_settings(
+                "fair_draw_settings", "max_weight", self.max_weight_spinbox.value()
+            )
         )
 
-
-class balance_weight_settings(GroupHeaderCardWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setTitle(
-            get_content_name_async("fair_draw_settings", "balance_weight_settings")
-        )
-        self.setBorderRadius(8)
-
+        # 2. 平衡权重设置
         # 小组平衡权重
         self.group_weight_spinbox = DoubleSpinBox()
         self.group_weight_spinbox.setFixedWidth(WIDTH_SPINBOX)
@@ -430,6 +541,27 @@ class balance_weight_settings(GroupHeaderCardWidget):
         )
 
         # 添加设置项到分组
+        # 权重范围相关
+        self.addGroup(
+            get_theme_icon("ic_fluent_scale_fit_20_filled"),
+            get_content_name_async("fair_draw_settings", "base_weight"),
+            get_content_description_async("fair_draw_settings", "base_weight"),
+            self.base_weight_spinbox,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_scale_fit_20_filled"),
+            get_content_name_async("fair_draw_settings", "min_weight"),
+            get_content_description_async("fair_draw_settings", "min_weight"),
+            self.min_weight_spinbox,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_scale_fit_20_filled"),
+            get_content_name_async("fair_draw_settings", "max_weight"),
+            get_content_description_async("fair_draw_settings", "max_weight"),
+            self.max_weight_spinbox,
+        )
+
+        # 平衡权重相关
         self.addGroup(
             get_theme_icon("ic_fluent_scales_20_filled"),
             get_content_name_async("fair_draw_settings", "group_weight"),
@@ -447,65 +579,4 @@ class balance_weight_settings(GroupHeaderCardWidget):
             get_content_name_async("fair_draw_settings", "time_weight"),
             get_content_description_async("fair_draw_settings", "time_weight"),
             self.time_weight_spinbox,
-        )
-
-
-class cold_start_settings(GroupHeaderCardWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setTitle(
-            get_content_name_async("fair_draw_settings", "cold_start_settings")
-        )
-        self.setBorderRadius(8)
-
-        # 冷启动模式开关
-        self.cold_start_enabled_switch = SwitchButton()
-        self.cold_start_enabled_switch.setOffText(
-            get_content_switchbutton_name_async(
-                "fair_draw_settings", "cold_start_enabled", "disable"
-            )
-        )
-        self.cold_start_enabled_switch.setOnText(
-            get_content_switchbutton_name_async(
-                "fair_draw_settings", "cold_start_enabled", "enable"
-            )
-        )
-        self.cold_start_enabled_switch.setChecked(
-            readme_settings_async("fair_draw_settings", "cold_start_enabled")
-        )
-        self.cold_start_enabled_switch.checkedChanged.connect(
-            lambda: update_settings(
-                "fair_draw_settings",
-                "cold_start_enabled",
-                self.cold_start_enabled_switch.isChecked(),
-            )
-        )
-
-        # 冷启动轮次
-        self.cold_start_rounds_spinbox = SpinBox()
-        self.cold_start_rounds_spinbox.setFixedWidth(WIDTH_SPINBOX)
-        self.cold_start_rounds_spinbox.setMinimum(1)
-        self.cold_start_rounds_spinbox.setValue(
-            readme_settings_async("fair_draw_settings", "cold_start_rounds")
-        )
-        self.cold_start_rounds_spinbox.valueChanged.connect(
-            lambda: update_settings(
-                "fair_draw_settings",
-                "cold_start_rounds",
-                self.cold_start_rounds_spinbox.value(),
-            )
-        )
-
-        # 添加设置项到分组
-        self.addGroup(
-            get_theme_icon("ic_fluent_arrow_rotate_clockwise_20_filled"),
-            get_content_name_async("fair_draw_settings", "cold_start_enabled"),
-            get_content_description_async("fair_draw_settings", "cold_start_enabled"),
-            self.cold_start_enabled_switch,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_arrow_rotate_clockwise_20_filled"),
-            get_content_name_async("fair_draw_settings", "cold_start_rounds"),
-            get_content_description_async("fair_draw_settings", "cold_start_rounds"),
-            self.cold_start_rounds_spinbox,
         )
