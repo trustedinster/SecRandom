@@ -22,7 +22,7 @@
 [![bilibili](https://img.shields.io/badge/-Bilibili%7C%E9%BB%8E%E6%B3%BD%E6%87%BF-%23FB7299?style=for-the-badge&logo=bilibili)](https://space.bilibili.com/520571577)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](https://opensource.org/licenses/GPL-3.0)
 
-[简体中文](../README.md) | **✔English** | [繁體中文](./README_ZH_TW.md)
+**Language** [ [简体中文](../README.md) | **✔English** | [繁體中文](./README_ZH_TW.md) ]
 </div>
 
 <div align="center">
@@ -47,9 +47,7 @@
 
 - [🎯 Why Choose Fair Selection](#-why-choose-fair-selection)
 - [🌟 Core Features](#-core-features)
-- [🛠️ Technology Stack](#%EF%B8%8F-technology-stack)
 - [📥 Download](#-download)
-- [🚀 Quick Start](#-quick-start)
 - [📸 Software Screenshots](#-software-screenshots)
 - [🙏 Contributors and Special Thanks](#-contributors-and-special-thanks)
 - [💝 Support Us](#-support-us)
@@ -109,11 +107,14 @@ Traditional random selection often has the problem of "repeatedly selecting cert
 <details>
 <summary>📸 Software Screenshots Display ✨</summary>
 
-![Selection Interface](./ScreenShots/主界面_抽人_浅色.png)
-![Lottery Interface](./ScreenShots/主界面_抽奖_浅色.png)
-![History Records](./ScreenShots/主界面_抽人历史记录_浅色.png)
-![Settings Interface](./ScreenShots/设置_抽人设置_浅色.png)
+<div align="center">
 
+<img src="ScreenShots/en_us/pick.png" alt="Pick Interface" height="400px"/> <br/> <sub> Pick Interface </sub> <br/>
+<img src="ScreenShots/en_us/lottery.png" alt="Lottery Interface" height="400px"/> <br/> <sub> Lottery Interface </sub> <br/>
+<img src="ScreenShots/en_us/history.png" alt="History Records" height="400px"/> <br/> <sub> History Records </sub> <br/>
+<img src="ScreenShots/en_us/pick_settings.png" alt="Pick Settings" height="400px"/> <br/> <sub> Pick Settings </sub> <br/>
+
+</div>
 </details>
 
 ## 🙏 Contributors and Special Thanks
@@ -166,8 +167,6 @@ If you find SecRandom helpful, you're welcome to support our development work!
 Check out our Contributing Guidelines to learn more:
 
 - [English Contributing Guidelines](./CONTRIBUTING_EN.md)
-- [简体中文 Contributing Guidelines](../CONTRIBUTING.md)
-- [繁體中文 Contributing Guidelines](./CONTRIBUTING_ZH_TW.md)
 
 ## ✨ Star History
 

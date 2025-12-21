@@ -1,6 +1,10 @@
-# 向 SecRandom 貢獻代碼
+# 貢獻指南
 
 ❤️感謝您向 SecRandom 做出貢獻，您可以為 SecRandom 專案做出包括但不限於反饋 Bug、提出功能請求、貢獻代碼等貢獻。在進行貢獻前，請務必閱讀以下指南。
+
+**語言選擇** [ [简体中文](../CONTRIBUTING.md) | [English](./CONTRIBUTING_EN.md) | **✔繁體中文** ]
+
+> 本 Readme **由 AI 翻譯**，並由我們的開發人員審核。如果您發現任何錯誤，請向我們報告。
 
 ## 反饋 Bug
 
@@ -24,7 +28,7 @@
 |------|-----------|------|
 | 程式設計語言 | Python 3.13.5 | 專案的主要開發語言 |
 | 包管理器 | uv | 依賴管理和虛擬環境建立 |
-| UI 框架 | PySide6 + Fluent Design | 現代化桌面應用介面開發 |
+| UI 框架 | PySide6 + PyQt-Fluent-Widgets | 現代化桌面應用介面開發 |
 | 日誌管理 | loguru | 高效的日誌記錄 |
 | 數據處理 | numpy & pandas | 數據處理和分析 |
 | 語音合成 | edge-tts | 文本轉語音功能 |
@@ -48,12 +52,14 @@
    - 點擊右上角的 "Fork" 按鈕，建立您自己的倉庫副本
 
 2. **克隆倉庫**
+
    ```bash
    git clone https://github.com/您的使用者名/SecRandom.git
    cd SecRandom
    ```
 
 3. **添加上游倉庫**
+
    ```bash
    git remote add upstream https://github.com/SECTL/SecRandom.git
    ```
@@ -134,16 +140,8 @@ SecRandom 專案使用 GitHub Actions 進行自動構建和發布，配置文件
 您可以通過以下方式觸發構建：
 
 1. **提交消息觸發**：
-   - 在 commit 消息中包含 `開始打包` 關鍵詞
-   - 示例：`git commit -m "新增功能 開始打包"`
-
-## 📞 聯繫方式
-
-如果您在貢獻過程中遇到任何問題或需要幫助，可以通過以下方式聯繫我們：
-
-- 🔗 GitHub Issues：[提交問題](https://github.com/SECTL/SecRandom/issues)
-- 💬 QQ 群：833875216
-- 📧 郵箱：lzy.12@foxmail.com
+   - 在 commit 消息中包含 `开始打包` 關鍵詞
+   - 示例：`git commit -m "新增功能 开始打包"`
 
 ---
 

@@ -22,7 +22,7 @@
 [![bilibili](https://img.shields.io/badge/-UP%E4%B8%BB%EF%BD%9C黎泽懿-%23FB7299?style=for-the-badge&logo=bilibili)](https://space.bilibili.com/520571577)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](https://opensource.org/licenses/GPL-3.0)
 
-[简体中文](../README.md) | [English](./README_EN.md) | **✔繁體中文**
+**語言選擇** [ [简体中文](../README.md) | [English](./README_EN.md) | **✔繁體中文** ]
 
 ![Code Contribution Statistics](https://repobeats.axiom.co/api/embed/7d42538bcd781370672c00b6b6ecd5282802ee3d.svg "Code Contribution Statistics Chart")
 
@@ -34,7 +34,7 @@
 >
 > GNU GPLv3 具有 Copyleft 特性，這意味著您可以修改 SecRandom 的原始碼，但**必須也以 GNU GPLv3 許可證開源修改後的版本**
 ---------
-> [!note]
+> [!NOTE]
 >
 > **SecRandom v2** 將會在 2026/01/01 (GMT +8:00 中國標準時間) 左右 發布！
 >
@@ -44,9 +44,7 @@
 
 - [🎯 為何選擇公平選擇](#-為何選擇公平選擇)
 - [🌟 核心亮點](#-核心亮點)
-- [🛠️ 技術棧](#%EF%B8%8F-技術棧)
 - [📥 下載](#-下載)
-- [🚀 快速開始](#-快速開始)
 - [📸 軟體截圖](#-軟體截圖)
 - [🙏 貢獻者與特別感謝](#-貢獻者與特別感謝)
 - [💝 支持我們](#-支持我們)
@@ -106,11 +104,17 @@
 <details>
 <summary>📸 軟體截圖展示 ✨</summary>
 
-![點名介面](./ScreenShots/主界面_抽人_浅色.png)
-![抽獎介面](./ScreenShots/主界面_抽奖_浅色.png)
-![歷史記錄](./ScreenShots/主界面_抽人历史记录_浅色.png)
-![設定介面](./ScreenShots/设置_抽人设置_浅色.png)
+> [!WARNING]
+> 目前SecRandom暫不支援繁體中文，您所看到的界面以簡體中文顯示。
 
+<div align="center">
+
+<img src="ScreenShots/zh-cn/pick.png" alt="點名界面" height="400px"/> <br/> <sub> 點名界面 </sub> <br/>
+<img src="ScreenShots/zh-cn/lottery.png" alt="抽獎界面" height="400px"/> <br/> <sub> 抽獎界面 </sub> <br/>
+<img src="ScreenShots/zh-cn/history.png" alt="歷史記錄" height="400px"/> <br/> <sub> 歷史記錄 </sub> <br/>
+<img src="ScreenShots/zh-cn/pick_settings.png" alt="抽取設置" height="400px"/> <br/> <sub> 抽取設置 </sub> <br/> 
+
+</div>
 </details>
 
 ## 🙏 貢獻者與特別感謝
@@ -162,8 +166,6 @@
 
 查看我們的貢獻指南了解更多資訊：
 
-- [简体中文貢獻指南](../CONTRIBUTING.md)
-- [English貢獻指南](./CONTRIBUTING_EN.md)
 - [繁體中文貢獻指南](./CONTRIBUTING_ZH_TW.md)
 
 ## ✨ Star 歷程

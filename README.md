@@ -42,9 +42,7 @@
 
 - [🎯 为什么选择公平抽取](#-为什么选择公平抽取)
 - [🌟 核心亮点](#-核心亮点)
-- [🛠️ 技术栈](#%EF%B8%8F-技术栈)
 - [📥 下载](#-下载)
-- [🚀 快速开始](#-快速开始)
 - [📸 软件截图](#-软件截图)
 - [🙏 贡献者](#-贡献者和特别感谢)
 - [💝 捐献支持](#-捐献支持)
@@ -104,10 +102,14 @@
 <details>
 <summary>📸 软件截图展示 ✨</summary>
 
-![点名界面](./resources/ScreenShots/主界面_抽人_浅色.png)
-![抽奖界面](./resources/ScreenShots/主界面_抽奖_浅色.png)
-![历史记录](./resources/ScreenShots/主界面_抽人历史记录_浅色.png)
-![设置界面](./resources/ScreenShots/设置_抽人设置_浅色.png)
+<div align="center">
+
+<img src="resources/ScreenShots/zh-cn/pick.png" alt="点名界面" height="400px"/> <br/> <sub> 点名界面 </sub> <br/>
+<img src="resources/ScreenShots/zh-cn/lottery.png" alt="抽奖界面" height="400px"/> <br/> <sub> 抽奖界面 </sub> <br/>
+<img src="resources/ScreenShots/zh-cn/history.png" alt="历史记录" height="400px"/> <br/> <sub> 历史记录 </sub> <br/>
+<img src="resources/ScreenShots/zh-cn/pick_settings.png" alt="抽取设置" height="400px"/> <br/> <sub> 抽取设置 </sub> <br/>
+
+</div>
 
 </details>
 
@@ -162,9 +164,7 @@
 
 查看我们的贡献指南来了解更多内容：
 
-- [简体中文](./CONTRIBUTING.md)
-- [English](./resources/CONTRIBUTING_EN.md)
-- [繁體中文](./resources/CONTRIBUTING_ZH_TW.md)
+- [简体中文贡献指南](./CONTRIBUTING.md)
 
 ## ✨ Star历程
 

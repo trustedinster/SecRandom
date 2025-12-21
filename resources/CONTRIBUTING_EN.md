@@ -1,6 +1,10 @@
-# Contributing to SecRandom
+# Contributing Guidelines
 
 ❤️ Thank you for contributing to SecRandom! You can contribute to the SecRandom project in various ways, including but not limited to reporting bugs, submitting feature requests, and contributing code. Please read the following guidelines before contributing.
+
+**Language** [ [简体中文](../CONTRIBUTING.md) | **✔English** | [繁體中文](./CONTRIBUTING_ZH_TW.md) ]
+
+> The Readme you are currently reading is **translated by AI** and reviewed by our developers. If you find any errors, please report it.
 
 ## Reporting Bugs
 
@@ -24,7 +28,7 @@ Understanding the project's technology stack will help you get started faster:
 |----------|----------------|---------|
 | Programming Language | Python 3.13.5 | Main development language of the project |
 | Package Manager | uv | Dependency management and virtual environment creation |
-| UI Framework | PySide6 + Fluent Design | Modern desktop application interface development |
+| UI Framework | PySide6 + PyQt-Fluent-Widgets | Modern desktop application interface development |
 | Log Management | loguru | Efficient logging |
 | Data Processing | numpy & pandas | Data processing and analysis |
 | Text-to-Speech | edge-tts | Text-to-speech functionality |
@@ -48,12 +52,14 @@ Ensure your system has the following software installed:
    - Click the "Fork" button in the upper right corner to create your own copy of the repository
 
 2. **Clone the Repository**
+
    ```bash
    git clone https://github.com/your-username/SecRandom.git
    cd SecRandom
    ```
 
 3. **Add Upstream Repository**
+
    ```bash
    git remote add upstream https://github.com/SECTL/SecRandom.git
    ```
@@ -134,16 +140,8 @@ The SecRandom project uses GitHub Actions for automated building and publishing,
 You can trigger builds in the following ways:
 
 1. **Commit Message Trigger**:
-   - Include the keyword `開始打包` (Start Packaging) in the commit message
-   - Example: `git commit -m "Add new feature 開始打包"`
-
-## 📞 Contact Information
-
-If you encounter any issues or need help during the contribution process, you can contact us through the following channels:
-
-- 🔗 GitHub Issues: [Submit an Issue](https://github.com/SECTL/SecRandom/issues)
-- 💬 QQ Group: 833875216
-- 📧 Email: lzy.12@foxmail.com
+   - Include the keyword `开始打包` (Start Packaging) in the commit message
+   - Example: `git commit -m "Add new feature 开始打包"`
 
 ---
 
