@@ -31,8 +31,6 @@ class LevitationWindow(QWidget):
     # ==================== 信号定义 ====================
     rollCallRequested = Signal()
     quickDrawRequested = Signal()
-    instantDrawRequested = Signal()
-    customDrawRequested = Signal()
     lotteryRequested = Signal()
     visibilityChanged = Signal(bool)
     positionChanged = Signal(int, int)
@@ -511,14 +509,9 @@ class LevitationWindow(QWidget):
                 "text": names[1],
                 "signal": self.quickDrawRequested,
             },
-            "instant_draw": {
-                "icon": get_theme_icon("ic_fluent_play_20_filled"),
-                "text": names[2],
-                "signal": self.instantDrawRequested,
-            },
             "lottery": {
                 "icon": get_theme_icon("ic_fluent_gift_20_filled"),
-                "text": names[3],
+                "text": names[2],
                 "signal": self.lotteryRequested,
             },
         }
@@ -1573,7 +1566,6 @@ class LevitationWindow(QWidget):
         combos = [
             ["roll_call"],
             ["quick_draw"],
-            ["instant_draw"],
             ["lottery"],
             ["roll_call", "quick_draw"],
             ["roll_call", "lottery"],

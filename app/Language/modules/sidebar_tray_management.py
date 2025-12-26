@@ -28,7 +28,6 @@ floating_window_management = {
             "combo_items": [
                 "点名",
                 "闪抽",
-                "即抽",
                 "抽奖",
                 "点名+闪抽",
                 "点名+抽奖",

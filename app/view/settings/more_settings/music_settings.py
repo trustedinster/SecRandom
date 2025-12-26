@@ -276,10 +276,6 @@ class music_settings_table(GroupHeaderCardWidget):
                 "config_key": "quick_draw_settings",
             },
             {
-                "name": get_content_name_async("music_settings", "instant_draw"),
-                "config_key": "instant_draw_settings",
-            },
-            {
                 "name": get_content_name_async("music_settings", "lottery"),
                 "config_key": "lottery_settings",
             },

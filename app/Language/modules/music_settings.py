@@ -28,7 +28,6 @@ music_settings = {
         "volume": {"name": "音量(%)", "description": "音乐音量"},
         "roll_call": {"name": "点名", "description": "点名功能"},
         "quick_draw": {"name": "闪抽", "description": "闪抽功能"},
-        "instant_draw": {"name": "即抽", "description": "即抽功能"},
         "lottery": {"name": "抽奖", "description": "抽奖功能"},
         "no_music": {"name": "无音乐", "description": "不使用音乐"},
     },
@@ -83,10 +82,6 @@ music_settings = {
         },
         "roll_call": {"name": "Roll Call", "description": "Roll call function"},
         "quick_draw": {"name": "Quick Draw", "description": "Quick draw function"},
-        "instant_draw": {
-            "name": "Instant Draw",
-            "description": "Instant draw function",
-        },
         "lottery": {"name": "Lottery", "description": "Lottery function"},
         "no_music": {"name": "No Music", "description": "Do not use music"},
     },
