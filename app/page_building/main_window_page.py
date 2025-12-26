@@ -46,7 +46,6 @@ class roll_call_page(PageTemplate):
             item = self.inner_layout_personal.takeAt(0)
             if item and item.widget():
                 widget = item.widget()
-                widget.setParent(None)
                 widget.deleteLater()
         self.content_created = False
         self.contentWidget = None
@@ -84,7 +83,6 @@ class lottery_page(PageTemplate):
             item = self.inner_layout_personal.takeAt(0)
             if item and item.widget():
                 widget = item.widget()
-                widget.setParent(None)
                 widget.deleteLater()
         self.content_created = False
         self.contentWidget = None

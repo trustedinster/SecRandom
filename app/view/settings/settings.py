@@ -522,7 +522,6 @@ class SettingsWindow(FluentWindow):
                 container.layout().removeWidget(real_page)
 
             # 安全删除widget
-            real_page.setParent(None)
             real_page.deleteLater()
 
             # 重新添加工厂以便下次访问时可以重新创建

@@ -490,7 +490,6 @@ class RemainingListPage(QWidget):
         for card in self.cards:
             try:
                 card.hide()
-                card.setParent(None)
                 card.deleteLater()
             except Exception:
                 pass

@@ -493,10 +493,6 @@ class PivotPageTemplate(QFrame):
             inner_layout = info.get("layout")
 
             if widget and inner_layout:
-                # 从布局中移除
-                inner_layout.removeWidget(widget)
-                # 安全删除widget
-                widget.setParent(None)
                 widget.deleteLater()
 
                 # 清除引用

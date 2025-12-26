@@ -132,8 +132,7 @@ class SimpleWindowTemplate(FramelessWindow):
                 old_label = child
                 old_parent = old_label.parent()
 
-                # 移除父控件并删除
-                old_label.setParent(None)
+                # 删除控件
                 old_label.deleteLater()
 
                 # 创建新的BodyLabel

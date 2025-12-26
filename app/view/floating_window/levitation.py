@@ -334,7 +334,6 @@ class LevitationWindow(QWidget):
                 item = lay.takeAt(0)
                 w = item.widget()
                 if w:
-                    w.setParent(None)
                     w.deleteLater()
             lay.deleteLater()
         if not self._layout:

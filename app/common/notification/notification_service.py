@@ -733,7 +733,6 @@ class FloatingNotificationWindow(CardWidget):
             item = self.content_layout.takeAt(0)
             widget = item.widget()
             if widget:
-                widget.setParent(None)  # 重要：先设置父控件为None
                 widget.deleteLater()
 
         # 添加新内容
