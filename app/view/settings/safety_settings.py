@@ -486,6 +486,10 @@ class basic_safety_verification_process(GroupHeaderCardWidget):
                 "verification_process",
                 desired,
             )
+            # 验证通过后刷新下拉框显示
+            self.verification_process_combo.blockSignals(True)
+            self.verification_process_combo.setCurrentIndex(desired)
+            self.verification_process_combo.blockSignals(False)
 
         require_and_run("change_verification_process", self, apply)
 
