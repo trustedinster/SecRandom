@@ -88,11 +88,15 @@ class name_setting_window_template(PageTemplate):
     """姓名设置窗口类
     使用PageTemplate创建姓名设置页面"""
 
-    def __init__(self, parent=None):
-        super().__init__(content_widget_class=NameSettingWindow, parent=parent)
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return NameSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "NameSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
 
 
-def create_name_setting_window():
+def create_name_setting_window(list_name=None):
     """
     创建姓名设置窗口
 
@@ -101,7 +105,10 @@ def create_name_setting_window():
     """
     title = get_content_name_async("name_setting", "title")
     window = SimpleWindowTemplate(title, width=800, height=600)
-    window.add_page_from_template("name_setting", name_setting_window_template)
+    window.add_page_from_template(
+        "name_setting",
+        lambda parent: name_setting_window_template(parent=parent, list_name=list_name),
+    )
     window.switch_to_page("name_setting")
     _window_instances["name_setting"] = window
     window.windowClosed.connect(lambda: _window_instances.pop("name_setting", None))
@@ -116,11 +123,15 @@ class gender_setting_window_template(PageTemplate):
     """性别设置窗口类
     使用PageTemplate创建性别设置页面"""
 
-    def __init__(self, parent=None):
-        super().__init__(content_widget_class=GenderSettingWindow, parent=parent)
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return GenderSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "GenderSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
 
 
-def create_gender_setting_window():
+def create_gender_setting_window(list_name=None):
     """
     创建性别设置窗口
 
@@ -129,7 +140,12 @@ def create_gender_setting_window():
     """
     title = get_content_name_async("gender_setting", "title")
     window = SimpleWindowTemplate(title, width=800, height=600)
-    window.add_page_from_template("gender_setting", gender_setting_window_template)
+    window.add_page_from_template(
+        "gender_setting",
+        lambda parent: gender_setting_window_template(
+            parent=parent, list_name=list_name
+        ),
+    )
     window.switch_to_page("gender_setting")
     _window_instances["gender_setting"] = window
     window.windowClosed.connect(lambda: _window_instances.pop("gender_setting", None))
@@ -144,11 +160,15 @@ class group_setting_window_template(PageTemplate):
     """小组设置窗口类
     使用PageTemplate创建小组设置页面"""
 
-    def __init__(self, parent=None):
-        super().__init__(content_widget_class=GroupSettingWindow, parent=parent)
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return GroupSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "GroupSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
 
 
-def create_group_setting_window():
+def create_group_setting_window(list_name=None):
     """
     创建小组设置窗口
 
@@ -157,7 +177,12 @@ def create_group_setting_window():
     """
     title = get_content_name_async("group_setting", "title")
     window = SimpleWindowTemplate(title, width=800, height=600)
-    window.add_page_from_template("group_setting", group_setting_window_template)
+    window.add_page_from_template(
+        "group_setting",
+        lambda parent: group_setting_window_template(
+            parent=parent, list_name=list_name
+        ),
+    )
     window.switch_to_page("group_setting")
     _window_instances["group_setting"] = window
     window.windowClosed.connect(lambda: _window_instances.pop("group_setting", None))
@@ -232,11 +257,15 @@ class prize_name_setting_window_template(PageTemplate):
     """奖品名称设置窗口类
     使用PageTemplate创建奖品名称设置页面"""
 
-    def __init__(self, parent=None):
-        super().__init__(content_widget_class=PrizeNameSettingWindow, parent=parent)
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return PrizeNameSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "PrizeNameSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
 
 
-def create_prize_setting_window():
+def create_prize_setting_window(list_name=None):
     """
     创建奖品名称设置窗口
 
@@ -246,7 +275,10 @@ def create_prize_setting_window():
     title = get_content_name_async("prize_name_setting", "title")
     window = SimpleWindowTemplate(title, width=800, height=600)
     window.add_page_from_template(
-        "prize_name_setting", prize_name_setting_window_template
+        "prize_name_setting",
+        lambda parent: prize_name_setting_window_template(
+            parent=parent, list_name=list_name
+        ),
     )
     window.switch_to_page("prize_name_setting")
     _window_instances["prize_name_setting"] = window
@@ -264,11 +296,15 @@ class prize_weight_setting_window_template(PageTemplate):
     """奖品权重设置窗口类
     使用PageTemplate创建奖品权重设置页面"""
 
-    def __init__(self, parent=None):
-        super().__init__(content_widget_class=PrizeWeightSettingWindow, parent=parent)
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return PrizeWeightSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "PrizeWeightSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
 
 
-def create_prize_weight_setting_window():
+def create_prize_weight_setting_window(list_name=None):
     """
     创建奖品权重设置窗口
 
@@ -278,7 +314,10 @@ def create_prize_weight_setting_window():
     title = get_content_name_async("prize_weight_setting", "title")
     window = SimpleWindowTemplate(title, width=800, height=600)
     window.add_page_from_template(
-        "prize_weight_setting", prize_weight_setting_window_template
+        "prize_weight_setting",
+        lambda parent: prize_weight_setting_window_template(
+            parent=parent, list_name=list_name
+        ),
     )
     window.switch_to_page("prize_weight_setting")
     _window_instances["prize_weight_setting"] = window

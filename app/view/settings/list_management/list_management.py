@@ -204,7 +204,7 @@ class roll_call_list(GroupHeaderCardWidget):
 
     # 姓名设置
     def name_setting(self):
-        create_name_setting_window()
+        create_name_setting_window(list_name=self.class_name_combo.currentText())
         # 显示通知
         config = NotificationConfig(
             title=get_any_position_value_async(
@@ -223,7 +223,7 @@ class roll_call_list(GroupHeaderCardWidget):
 
     # 性别设置
     def gender_setting(self):
-        create_gender_setting_window()
+        create_gender_setting_window(list_name=self.class_name_combo.currentText())
         # 显示通知
         config = NotificationConfig(
             title=get_any_position_value_async(
@@ -246,7 +246,7 @@ class roll_call_list(GroupHeaderCardWidget):
 
     # 小组设置
     def group_setting(self):
-        create_group_setting_window()
+        create_group_setting_window(list_name=self.class_name_combo.currentText())
         # 显示通知
         config = NotificationConfig(
             title=get_any_position_value_async(
@@ -584,7 +584,7 @@ class lottery_list(GroupHeaderCardWidget):
 
     # 奖品设置
     def prize_setting(self):
-        create_prize_setting_window()
+        create_prize_setting_window(list_name=self.pool_name_combo.currentText())
         # 显示通知
         config = NotificationConfig(
             title=get_any_position_value_async(
@@ -603,7 +603,7 @@ class lottery_list(GroupHeaderCardWidget):
 
     # 奖品权重设置
     def prize_weight_setting(self):
-        create_prize_weight_setting_window()
+        create_prize_weight_setting_window(list_name=self.pool_name_combo.currentText())
         # 显示通知
         config = NotificationConfig(
             title=get_any_position_value_async(

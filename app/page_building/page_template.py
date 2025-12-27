@@ -21,11 +21,11 @@ from app.tools.personalised import *
 class PageTemplate(QFrame):
     # 暂时禁用实例缓存以解决初始化问题
     # _instances = {}
-    def __new__(cls, content_widget_class=None, parent: QFrame = None):
+    def __new__(cls, content_widget_class=None, parent: QFrame = None, **kwargs):
         # 直接创建新实例，不使用缓存
         return super(PageTemplate, cls).__new__(cls)
 
-    def __init__(self, content_widget_class=None, parent: QFrame = None):
+    def __init__(self, content_widget_class=None, parent: QFrame = None, **kwargs):
         super().__init__(parent=parent)
 
         self.ui_created = False

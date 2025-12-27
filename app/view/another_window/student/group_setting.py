@@ -23,11 +23,12 @@ from app.common.data.list import *
 class GroupSettingWindow(QWidget):
     """小组设置窗口"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, list_name=None):
         """初始化小组设置窗口"""
         super().__init__(parent)
 
         # 初始化变量
+        self.list_name = list_name
         self.saved = False
         self.initial_groups = []  # 保存初始加载的小组列表
 
@@ -102,7 +103,12 @@ class GroupSettingWindow(QWidget):
             roll_call_list_dir = get_data_path("list", "roll_call_list")
 
             # 从设置中获取班级名称
-            class_name = readme_settings_async("roll_call_list", "select_class_name")
+            if self.list_name:
+                class_name = self.list_name
+            else:
+                class_name = readme_settings_async(
+                    "roll_call_list", "select_class_name"
+                )
             list_file = roll_call_list_dir / f"{class_name}.json"
 
             # 如果文件不存在，返回空列表

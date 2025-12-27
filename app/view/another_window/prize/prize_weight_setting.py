@@ -23,11 +23,12 @@ from app.common.data.list import *
 class PrizeWeightSettingWindow(QWidget):
     """奖品权重设置窗口"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, list_name=None):
         """初始化奖品权重设置窗口"""
         super().__init__(parent)
 
         # 初始化变量
+        self.list_name = list_name
         self.saved = False
         self.initial_weights = []  # 保存初始加载的奖品权重列表
 
@@ -101,7 +102,10 @@ class PrizeWeightSettingWindow(QWidget):
             lottery_list_dir = get_data_path("lottery_list")
 
             # 从设置中获取奖池名称
-            pool_name = readme_settings_async("lottery_list", "select_pool_name")
+            if self.list_name:
+                pool_name = self.list_name
+            else:
+                pool_name = readme_settings_async("lottery_list", "select_pool_name")
             list_file = lottery_list_dir / f"{pool_name}.json"
 
             # 如果文件不存在，返回空列表
