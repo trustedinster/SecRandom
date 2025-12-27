@@ -88,13 +88,13 @@ roll_call_notification_settings = {
             "description": "设置浮窗自动关闭时间（秒），设为0表示不自动关闭",
         },
         "use_main_window_when_exceed_threshold": {
-            "name": "超过阈值时使用主窗口",
-            "description": "当抽取人数超过设定阈值时，只在主窗口显示结果，不显示浮窗通知",
+            "name": "超过阈值时不显示浮窗通知",
+            "description": "当抽取人数超过设定阈值时，不显示浮窗通知，只在主窗口显示结果",
             "switchbutton_name": {"enable": "", "disable": ""},
         },
         "main_window_display_threshold": {
-            "name": "主窗口显示阈值",
-            "description": "设置触发主窗口显示结果的人数阈值，最小值为1",
+            "name": "浮窗通知阈值",
+            "description": "设置触发浮窗通知的人数阈值，超过此数值则不显示浮窗通知，最小值为1",
         },
     },
     "EN_US": {
@@ -352,13 +352,13 @@ lottery_notification_settings = {
             "description": "设置浮窗自动关闭时间（秒），设为0表示不自动关闭",
         },
         "use_main_window_when_exceed_threshold": {
-            "name": "超过阈值时使用主窗口",
-            "description": "当抽取奖数超过设定阈值时，只在主窗口显示结果，不显示浮窗通知",
+            "name": "超过阈值时不显示浮窗通知",
+            "description": "当抽取奖数超过设定阈值时，不显示浮窗通知，只在主窗口显示结果",
             "switchbutton_name": {"enable": "", "disable": ""},
         },
         "main_window_display_threshold": {
-            "name": "主窗口显示阈值",
-            "description": "设置触发主窗口显示结果的奖数阈值，最小值为1",
+            "name": "浮窗通知阈值",
+            "description": "设置触发浮窗通知的奖数阈值，超过此数值则不显示浮窗通知，最小值为1",
         },
     },
     "EN_US": {
