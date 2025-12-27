@@ -28,10 +28,11 @@ class SettingsWindow(FluentWindow):
     showSettingsRequestedAbout = Signal()
     showMainPageRequested = Signal(str)  # 请求显示主页面
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, is_preview=False):
         super().__init__()
         self.setObjectName("settingWindow")
         self.parent = parent
+        self._is_preview = is_preview
 
         # 初始化变量
         self._init_interface_variables()
@@ -69,6 +70,37 @@ class SettingsWindow(FluentWindow):
 
         # 初始化子界面
         QTimer.singleShot(APP_INIT_DELAY, lambda: (self.createSubInterface()))
+
+    @property
+    def is_preview(self):
+        """获取是否为预览模式"""
+        return self._is_preview
+
+    @is_preview.setter
+    def is_preview(self, value):
+        """设置是否为预览模式，并在值改变时锁定所有已创建的页面
+
+        Args:
+            value: 是否为预览模式
+        """
+        self._is_preview = value
+        # 锁定所有已创建的页面
+        if hasattr(self, "_created_pages"):
+            for page_name, real_page in self._created_pages.items():
+                if real_page and hasattr(real_page, "is_preview_mode"):
+                    real_page.is_preview_mode = value
+                elif real_page:
+                    # 如果页面没有is_preview_mode属性，直接锁定所有组件
+                    def lock_all_widgets(widget):
+                        if widget is None:
+                            return
+                        if hasattr(widget, "setEnabled"):
+                            widget.setEnabled(False)
+                        for child in widget.children():
+                            if isinstance(child, QWidget):
+                                lock_all_widgets(child)
+
+                    lock_all_widgets(real_page)
 
     def _init_interface_variables(self):
         """初始化界面变量"""
@@ -380,29 +412,54 @@ class SettingsWindow(FluentWindow):
 
                 # 使用默认参数解决闭包问题
                 def make_factory(method_name=page_method, iface=interface):
-                    return lambda parent=iface: getattr(
-                        settings_window_page, method_name
-                    )(parent)
+                    def factory(parent=iface, is_preview=False):
+                        page_instance = getattr(settings_window_page, method_name)(
+                            parent, is_preview=is_preview
+                        )
+                        return page_instance
+
+                    return factory
 
                 self._deferred_factories[interface_attr] = make_factory()
-                self._deferred_factories_meta[interface_attr] = {"is_pivot": is_pivot}
+                self._deferred_factories_meta[interface_attr] = {
+                    "is_pivot": is_pivot,
+                    "is_preview": False,
+                }
 
         # 单独处理更新页面和关于页面
         self.updateInterface = make_placeholder("updateInterface")
 
         def make_update_factory(iface=self.updateInterface):
-            return lambda parent=iface: settings_window_page.update_page(parent)
+            def factory(parent=iface, is_preview=False):
+                page_instance = settings_window_page.update_page(
+                    parent, is_preview=is_preview
+                )
+                return page_instance
+
+            return factory
 
         self._deferred_factories["updateInterface"] = make_update_factory()
-        self._deferred_factories_meta["updateInterface"] = {"is_pivot": False}
+        self._deferred_factories_meta["updateInterface"] = {
+            "is_pivot": False,
+            "is_preview": False,
+        }
 
         self.aboutInterface = make_placeholder("aboutInterface")
 
         def make_about_factory(iface=self.aboutInterface):
-            return lambda parent=iface: settings_window_page.about_page(parent)
+            def factory(parent=iface, is_preview=False):
+                page_instance = settings_window_page.about_page(
+                    parent, is_preview=is_preview
+                )
+                return page_instance
+
+            return factory
 
         self._deferred_factories["aboutInterface"] = make_about_factory()
-        self._deferred_factories_meta["aboutInterface"] = {"is_pivot": False}
+        self._deferred_factories_meta["aboutInterface"] = {
+            "is_pivot": False,
+            "is_preview": False,
+        }
 
         # 把占位注册到导航，但不要在此刻实例化真实页面
         self.initNavigation()
@@ -444,7 +501,9 @@ class SettingsWindow(FluentWindow):
             ):
                 factory = self._deferred_factories.pop(name)
                 try:
-                    real_page = factory()
+                    logger.debug(f"正在创建页面 {name}，预览模式: {self.is_preview}")
+                    # 传递is_preview参数给工厂函数
+                    real_page = factory(is_preview=self.is_preview)
                     # real_page 会在其内部创建内容（PageTemplate 会在其内部事件循环中再创建内部内容），
                     # 我们把它作为子控件加入占位容器
                     widget.layout().addWidget(real_page)
@@ -456,7 +515,9 @@ class SettingsWindow(FluentWindow):
 
                     # 如果是 PivotPageTemplate，不再预加载所有子页面
                     # 子页面会在用户点击时按需加载
-                    logger.debug(f"设置页面已按需创建: {name}")
+                    logger.debug(
+                        f"设置页面已按需创建: {name}, 预览模式: {self.is_preview}"
+                    )
                 except Exception as e:
                     logger.error(f"延迟创建设置页面 {name} 失败: {e}")
         except Exception as e:
@@ -527,40 +588,51 @@ class SettingsWindow(FluentWindow):
             # 重新添加工厂以便下次访问时可以重新创建
             from app.page_building import settings_window_page
 
-            # 恢复工厂函数
+            # 恢复工厂函数，支持is_preview参数
             factory_mapping = {
-                "basicSettingsInterface": lambda p=container: settings_window_page.basic_settings_page(
-                    p
+                "basicSettingsInterface": lambda p=container,
+                is_preview=False: settings_window_page.basic_settings_page(
+                    p, is_preview=is_preview
                 ),
-                "listManagementInterface": lambda p=container: settings_window_page.list_management_page(
-                    p
+                "listManagementInterface": lambda p=container,
+                is_preview=False: settings_window_page.list_management_page(
+                    p, is_preview=is_preview
                 ),
-                "extractionSettingsInterface": lambda p=container: settings_window_page.extraction_settings_page(
-                    p
+                "extractionSettingsInterface": lambda p=container,
+                is_preview=False: settings_window_page.extraction_settings_page(
+                    p, is_preview=is_preview
                 ),
-                "floatingWindowManagementInterface": lambda p=container: settings_window_page.floating_window_management_page(
-                    p
+                "floatingWindowManagementInterface": lambda p=container,
+                is_preview=False: settings_window_page.floating_window_management_page(
+                    p, is_preview=is_preview
                 ),
-                "notificationSettingsInterface": lambda p=container: settings_window_page.notification_settings_page(
-                    p
+                "notificationSettingsInterface": lambda p=container,
+                is_preview=False: settings_window_page.notification_settings_page(
+                    p, is_preview=is_preview
                 ),
-                "safetySettingsInterface": lambda p=container: settings_window_page.safety_settings_page(
-                    p
+                "safetySettingsInterface": lambda p=container,
+                is_preview=False: settings_window_page.safety_settings_page(
+                    p, is_preview=is_preview
                 ),
-                "voiceSettingsInterface": lambda p=container: settings_window_page.voice_settings_page(
-                    p
+                "voiceSettingsInterface": lambda p=container,
+                is_preview=False: settings_window_page.voice_settings_page(
+                    p, is_preview=is_preview
                 ),
-                "historyInterface": lambda p=container: settings_window_page.history_page(
-                    p
+                "historyInterface": lambda p=container,
+                is_preview=False: settings_window_page.history_page(
+                    p, is_preview=is_preview
                 ),
-                "moreSettingsInterface": lambda p=container: settings_window_page.more_settings_page(
-                    p
+                "moreSettingsInterface": lambda p=container,
+                is_preview=False: settings_window_page.more_settings_page(
+                    p, is_preview=is_preview
                 ),
-                "updateInterface": lambda p=container: settings_window_page.update_page(
-                    p
+                "updateInterface": lambda p=container,
+                is_preview=False: settings_window_page.update_page(
+                    p, is_preview=is_preview
                 ),
-                "aboutInterface": lambda p=container: settings_window_page.about_page(
-                    p
+                "aboutInterface": lambda p=container,
+                is_preview=False: settings_window_page.about_page(
+                    p, is_preview=is_preview
                 ),
             }
 
@@ -650,7 +722,7 @@ class SettingsWindow(FluentWindow):
                 return
 
             try:
-                real_page = factory()
+                real_page = factory(is_preview=self.is_preview)
             except RuntimeError as e:
                 logger.error(f"创建延迟页面 {name} 失败（父容器可能已销毁）: {e}")
                 return

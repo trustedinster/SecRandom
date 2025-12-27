@@ -119,11 +119,17 @@ def create_unbind_usb_window():
 
 
 class verify_password_window_template(PageTemplate):
-    def __init__(self, parent=None):
-        super().__init__(content_widget_class=VerifyPasswordWindow, parent=parent)
+    def __init__(self, parent=None, operation_type=None):
+        super().__init__(
+            content_widget_class=VerifyPasswordWindow,
+            parent=parent,
+            operation_type=operation_type,
+        )
 
 
-def create_verify_password_window(on_verified=None):
+def create_verify_password_window(
+    on_verified=None, on_preview=None, operation_type=None
+):
     title = get_content_name_async("basic_safety_settings", "safety_switch")
     if "verify_password" in _security_window_instances:
         w = _security_window_instances["verify_password"]
@@ -136,16 +142,26 @@ def create_verify_password_window(on_verified=None):
             _security_window_instances.pop("verify_password", None)
     window = SimpleWindowTemplate(title, width=480, height=240)
     page = window.add_page_from_template(
-        "verify_password", verify_password_window_template
+        "verify_password",
+        verify_password_window_template,
+        operation_type=operation_type,
     )
     window.switch_to_page("verify_password")
+    content = getattr(page, "contentWidget", None)
     if on_verified:
         try:
-            content = getattr(page, "contentWidget", None)
             if content is not None and hasattr(content, "verified"):
                 content.verified.connect(on_verified)
             elif hasattr(page, "verified"):
                 page.verified.connect(on_verified)
+        except Exception:
+            pass
+    if on_preview:
+        try:
+            if content is not None and hasattr(content, "previewRequested"):
+                content.previewRequested.connect(on_preview)
+            elif hasattr(page, "previewRequested"):
+                page.previewRequested.connect(on_preview)
         except Exception:
             pass
     _security_window_instances["verify_password"] = window

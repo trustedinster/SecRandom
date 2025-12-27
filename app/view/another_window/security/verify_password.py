@@ -56,9 +56,11 @@ class VerifyWorker(QThread):
 
 class VerifyPasswordWindow(QWidget):
     verified = Signal()
+    previewRequested = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, operation_type=None):
         super().__init__(parent)
+        self.operation_type = operation_type
         self.init_ui()
         self.__connect_signals()
 
@@ -126,11 +128,23 @@ class VerifyPasswordWindow(QWidget):
         self.ok_button = PrimaryPushButton(
             get_content_name_async("basic_safety_settings", "dialog_yes_text")
         )
+        self.preview_button = PushButton(
+            get_content_name_async("basic_safety_settings", "preview_settings")
+        )
         self.cancel_button = PushButton(
             get_content_name_async("basic_safety_settings", "dialog_cancel_text")
         )
+
+        # 只在打开设置时显示预览按钮，并且预览设置开关已启用
+        is_open_settings = self.operation_type == "open_settings"
+        preview_enabled = bool(
+            readme_settings_async("basic_safety_settings", "preview_settings_switch")
+        )
+        self.preview_button.setVisible(is_open_settings and preview_enabled)
+
         btns.addWidget(self.progress_ring)
         btns.addWidget(self.ok_button)
+        btns.addWidget(self.preview_button)
         btns.addWidget(self.cancel_button)
         self.main_layout.addLayout(btns)
         self.main_layout.addStretch(1)
@@ -139,6 +153,7 @@ class VerifyPasswordWindow(QWidget):
 
     def __connect_signals(self):
         self.ok_button.clicked.connect(self.__on_ok)
+        self.preview_button.clicked.connect(self.__on_preview)
         self.cancel_button.clicked.connect(self.__cancel)
         try:
             self.usb_refresh_button.clicked.connect(self.__refresh_usb)
@@ -279,6 +294,13 @@ class VerifyPasswordWindow(QWidget):
                 self.progress_ring.hide()
             else:
                 self.progress_ring.show()
+
+        # 只在打开设置时显示预览按钮，并且预览设置开关已启用
+        is_open_settings = self.operation_type == "open_settings"
+        preview_enabled = bool(
+            readme_settings_async("basic_safety_settings", "preview_settings_switch")
+        )
+        self.preview_button.setVisible(is_open_settings and preview_enabled)
 
         try:
             if not hasattr(self, "usb_poll_timer"):
@@ -525,6 +547,11 @@ class VerifyPasswordWindow(QWidget):
             self._verify_thread.start()
         except Exception:
             self._verify_running = False
+
+    def __on_preview(self):
+        """预览设置"""
+        self.previewRequested.emit()
+        self.__cancel()
 
     def __on_verify_ready(self, ok_pwd: bool, ok_totp: bool):
         try:

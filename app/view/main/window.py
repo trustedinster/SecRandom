@@ -242,12 +242,9 @@ class MainWindow(FluentWindow):
             get_content_name_async("settings", "title"),
             position=settings_position,
         )
+        # 直接打开设置界面（预览模式），无需验证
         settings_item.clicked.connect(
-            lambda: require_and_run(
-                "open_settings",
-                self,
-                lambda: self.showSettingsRequested.emit("basicSettingsInterface"),
-            )
+            lambda: self.showSettingsRequested.emit("basicSettingsInterface")
         )
         settings_item.clicked.connect(lambda: self.switchTo(self.roll_call_page))
 
@@ -294,11 +291,8 @@ class MainWindow(FluentWindow):
         if action == "toggle_main_window":
             self.toggle_window()
         elif action == "settings":
-            require_and_run(
-                "open_settings",
-                self,
-                lambda: self.showSettingsRequested.emit("basicSettingsInterface"),
-            )
+            # 直接打开设置界面（预览模式），无需验证
+            self.showSettingsRequested.emit("basicSettingsInterface")
         elif action == "float":
             self._toggle_float_window()
         elif action == "restart":

@@ -55,9 +55,11 @@ def should_require_password(op: str) -> bool:
     return ok
 
 
-def require_and_run(op: str, parent, func):
+def require_and_run(op: str, parent, func, on_preview=None):
     if not should_require_password(op):
         func()
         return
     logger.debug(f"触发验证窗口：{op}")
-    create_verify_password_window(on_verified=func)
+    create_verify_password_window(
+        on_verified=func, on_preview=on_preview, operation_type=op
+    )

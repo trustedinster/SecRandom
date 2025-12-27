@@ -659,9 +659,40 @@ class basic_safety_security_operations(GroupHeaderCardWidget):
             self.__on_ops_import_version_mismatch_changed
         )
 
+        # 预览设置开关
+        self.preview_settings_switch = SwitchButton()
+        self.preview_settings_switch.setOffText(
+            get_content_switchbutton_name_async(
+                "basic_safety_settings", "preview_settings_switch", "disable"
+            )
+        )
+        self.preview_settings_switch.setOnText(
+            get_content_switchbutton_name_async(
+                "basic_safety_settings", "preview_settings_switch", "enable"
+            )
+        )
+        self.preview_settings_switch.setChecked(
+            bool(
+                readme_settings_async(
+                    "basic_safety_settings", "preview_settings_switch"
+                )
+            )
+        )
+        self.preview_settings_switch.checkedChanged.connect(
+            self.__on_ops_preview_settings_changed
+        )
+
         get_settings_signals().settingChanged.connect(self.__on_ops_setting_changed)
 
         # 添加设置项到分组
+        self.addGroup(
+            get_theme_icon("ic_fluent_eye_20_filled"),
+            get_content_name_async("basic_safety_settings", "preview_settings_switch"),
+            get_content_description_async(
+                "basic_safety_settings", "preview_settings_switch"
+            ),
+            self.preview_settings_switch,
+        )
         self.addGroup(
             get_theme_icon("ic_fluent_window_ad_20_filled"),
             get_content_name_async(
@@ -773,6 +804,11 @@ class basic_safety_security_operations(GroupHeaderCardWidget):
             and self.import_version_mismatch_switch.isChecked() != bool(value)
         ):
             self.import_version_mismatch_switch.setChecked(bool(value))
+        elif (
+            second_level_key == "preview_settings_switch"
+            and self.preview_settings_switch.isChecked() != bool(value)
+        ):
+            self.preview_settings_switch.setChecked(bool(value))
 
     def _ensure_ops_disabled_if_no_password(self):
         enabled = password_is_configured()
@@ -784,6 +820,7 @@ class basic_safety_security_operations(GroupHeaderCardWidget):
         self.data_export_switch.setEnabled(enabled)
         self.import_overwrite_switch.setEnabled(enabled)
         self.import_version_mismatch_switch.setEnabled(enabled)
+        self.preview_settings_switch.setEnabled(enabled)
         if not enabled:
             for key, sw in [
                 (
@@ -797,6 +834,7 @@ class basic_safety_security_operations(GroupHeaderCardWidget):
                 ("data_export_switch", self.data_export_switch),
                 ("import_overwrite_switch", self.import_overwrite_switch),
                 ("import_version_mismatch_switch", self.import_version_mismatch_switch),
+                ("preview_settings_switch", self.preview_settings_switch),
             ]:
                 try:
                     # 检查开关当前状态，如果已经是False，就不需要再次更新
@@ -1031,3 +1069,39 @@ class basic_safety_security_operations(GroupHeaderCardWidget):
             )
 
         require_and_run("toggle_import_version_mismatch_switch", self, apply)
+
+    def __on_ops_preview_settings_changed(self):
+        if not password_is_configured():
+            try:
+                self.preview_settings_switch.blockSignals(True)
+                self.preview_settings_switch.setChecked(False)
+                self.preview_settings_switch.blockSignals(False)
+                update_settings(
+                    "basic_safety_settings", "preview_settings_switch", False
+                )
+            except Exception:
+                pass
+            return
+
+        # 保存当前状态以备回滚
+        prev_state = bool(
+            readme_settings_async("basic_safety_settings", "preview_settings_switch")
+        )
+        desired = bool(self.preview_settings_switch.isChecked())
+
+        # 立即更新UI，如果验证失败将回滚
+        try:
+            self.preview_settings_switch.blockSignals(True)
+            self.preview_settings_switch.setChecked(desired)
+            self.preview_settings_switch.blockSignals(False)
+        except Exception:
+            pass
+
+        def apply():
+            update_settings(
+                "basic_safety_settings",
+                "preview_settings_switch",
+                desired,
+            )
+
+        require_and_run("toggle_preview_settings_switch", self, apply)

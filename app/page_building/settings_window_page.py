@@ -23,27 +23,31 @@ from app.Language.obtain_language import *
 class basic_settings_page(PageTemplate):
     """创建基础设置页面"""
 
-    def __init__(self, parent: QFrame = None):
-        super().__init__(content_widget_class=BASIC_SETTINGS_PATH, parent=parent)
+    def __init__(self, parent: QFrame = None, is_preview=False):
+        super().__init__(
+            content_widget_class=BASIC_SETTINGS_PATH,
+            parent=parent,
+            is_preview_mode=is_preview,
+        )
 
 
 class list_management_page(PivotPageTemplate):
     """创建名单管理页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         page_config = {
             "list_management": get_content_name_async("list_management", "title"),
             "roll_call_table": get_content_name_async("roll_call_table", "title"),
             "lottery_table": get_content_name_async("lottery_table", "title"),
         }
-        super().__init__(page_config, parent)
+        super().__init__(page_config, parent, is_preview_mode=is_preview)
         self.set_base_path("app.view.settings.list_management")
 
 
 class extraction_settings_page(PivotPageTemplate):
     """创建抽取设置页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         page_config = {
             "roll_call_settings": get_content_name_async("roll_call_settings", "title"),
             "quick_draw_settings": get_content_name_async(
@@ -51,23 +55,25 @@ class extraction_settings_page(PivotPageTemplate):
             ),
             "lottery_settings": get_content_name_async("lottery_settings", "title"),
         }
-        super().__init__(page_config, parent)
+        super().__init__(page_config, parent, is_preview_mode=is_preview)
         self.set_base_path("app.view.settings.extraction_settings")
 
 
 class floating_window_management_page(PageTemplate):
     """创建悬浮窗管理页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         super().__init__(
-            content_widget_class=FLOATING_WINDOW_MANAGEMENT_PATH, parent=parent
+            content_widget_class=FLOATING_WINDOW_MANAGEMENT_PATH,
+            parent=parent,
+            is_preview_mode=is_preview,
         )
 
 
 class notification_settings_page(PivotPageTemplate):
     """创建通知服务页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         page_config = {
             "roll_call_notification_settings": get_content_name_async(
                 "roll_call_notification_settings", "title"
@@ -80,21 +86,25 @@ class notification_settings_page(PivotPageTemplate):
             ),
             # "more_notification_settings": get_content_name_async("more_notification_settings", "title")
         }
-        super().__init__(page_config, parent)
+        super().__init__(page_config, parent, is_preview_mode=is_preview)
         self.set_base_path("app.view.settings.notification_settings")
 
 
 class safety_settings_page(PageTemplate):
     """创建安全设置页面"""
 
-    def __init__(self, parent: QFrame = None):
-        super().__init__(content_widget_class=SAFETY_SETTINGS_PATH, parent=parent)
+    def __init__(self, parent: QFrame = None, is_preview=False):
+        super().__init__(
+            content_widget_class=SAFETY_SETTINGS_PATH,
+            parent=parent,
+            is_preview_mode=is_preview,
+        )
 
 
 class voice_settings_page(PivotPageTemplate):
     """创建语音设置页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         page_config = {
             "basic_voice_settings": get_content_name_async(
                 "basic_voice_settings", "title"
@@ -103,14 +113,14 @@ class voice_settings_page(PivotPageTemplate):
                 "specific_announcements", "title"
             ),
         }
-        super().__init__(page_config, parent)
+        super().__init__(page_config, parent, is_preview_mode=is_preview)
         self.set_base_path("app.view.settings.voice_settings")
 
 
 class history_page(PivotPageTemplate):
     """创建历史记录页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         page_config = {
             "history_management": get_content_name_async("history_management", "title"),
             "roll_call_history_table": get_content_name_async(
@@ -120,14 +130,14 @@ class history_page(PivotPageTemplate):
                 "lottery_history_table", "title"
             ),
         }
-        super().__init__(page_config, parent)
+        super().__init__(page_config, parent, is_preview_mode=is_preview)
         self.set_base_path("app.view.settings.history")
 
 
 class more_settings_page(PivotPageTemplate):
     """创建更多设置页面"""
 
-    def __init__(self, parent: QFrame = None):
+    def __init__(self, parent: QFrame = None, is_preview=False):
         page_config = {
             "fair_draw": get_content_name_async("fair_draw_settings", "title"),
             "time_settings": get_content_name_async("time_settings", "title"),
@@ -138,19 +148,23 @@ class more_settings_page(PivotPageTemplate):
             ),
             # "debug": get_content_name_async("debug", "title"),
         }
-        super().__init__(page_config, parent)
+        super().__init__(page_config, parent, is_preview_mode=is_preview)
         self.set_base_path("app.view.settings.more_settings")
 
 
 class update_page(PageTemplate):
     """创建更新页面"""
 
-    def __init__(self, parent: QFrame = None):
-        super().__init__(content_widget_class=UPDATE_PATH, parent=parent)
+    def __init__(self, parent: QFrame = None, is_preview=False):
+        super().__init__(
+            content_widget_class=UPDATE_PATH, parent=parent, is_preview_mode=is_preview
+        )
 
 
 class about_page(PageTemplate):
     """创建关于页面"""
 
-    def __init__(self, parent: QFrame = None):
-        super().__init__(content_widget_class=ABOUT_PATH, parent=parent)
+    def __init__(self, parent: QFrame = None, is_preview=False):
+        super().__init__(
+            content_widget_class=ABOUT_PATH, parent=parent, is_preview_mode=is_preview
+        )

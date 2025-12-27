@@ -155,6 +155,12 @@ basic_safety_settings = {
             "description": "启用后导入版本不匹配时需验证",
             "switchbutton_name": {"enable": "", "disable": ""},
         },
+        "preview_settings": {"name": "预览设置"},
+        "preview_settings_switch": {
+            "name": "设置预览开关",
+            "description": "进入设置的验证时允许预览设置",
+            "switchbutton_name": {"enable": "", "disable": ""},
+        },
     },
     "EN_US": {
         "title": {
@@ -308,6 +314,12 @@ basic_safety_settings = {
         "import_version_mismatch_switch": {
             "name": "Version mismatch import validation",
             "description": "Authentication is required for importing versions when they do not match",
+        },
+        "preview_settings": {"name": "Preview settings"},
+        "preview_settings_switch": {
+            "name": "Preview settings switch",
+            "description": "Enable preview settings switch",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
     },
 }

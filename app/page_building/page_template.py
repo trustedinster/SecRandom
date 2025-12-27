@@ -25,15 +25,48 @@ class PageTemplate(QFrame):
         # 直接创建新实例，不使用缓存
         return super(PageTemplate, cls).__new__(cls)
 
-    def __init__(self, content_widget_class=None, parent: QFrame = None, **kwargs):
+    def __init__(
+        self,
+        content_widget_class=None,
+        parent: QFrame = None,
+        is_preview_mode=False,
+        **kwargs,
+    ):
         super().__init__(parent=parent)
 
         self.ui_created = False
         self.content_created = False
         self.content_widget_class = content_widget_class
+        self._is_preview_mode = is_preview_mode
 
         self.__connectSignalToSlot()
         self.create_ui_components()
+
+    @property
+    def is_preview_mode(self):
+        """获取是否为预览模式"""
+        return self._is_preview_mode
+
+    @is_preview_mode.setter
+    def is_preview_mode(self, value):
+        """设置是否为预览模式，并在值改变时触发锁定逻辑
+
+        Args:
+            value: 是否为预览模式
+        """
+        self._is_preview_mode = value
+        # 如果内容组件已经创建完成，立即执行锁定逻辑
+        if (
+            self.content_created
+            and hasattr(self, "contentWidget")
+            and self.contentWidget
+        ):
+            if value:
+                self._lock_all_widgets(self.contentWidget)
+            else:
+                # 如果不是预览模式，可以选择解锁所有组件
+                # 但通常情况下，预览模式是一次性的，所以这里可以不处理
+                pass
 
     def __connectSignalToSlot(self):
         qconfig.themeChanged.connect(setTheme)
@@ -86,7 +119,7 @@ class PageTemplate(QFrame):
 
     def create_content(self):
         """后台创建内容组件，避免堵塞进程 - 使用延迟创建的布局"""
-        if not self.ui_created or self.content_created or not self.content_widget_class:
+        if not self.ui_created or not self.content_widget_class:
             return
 
         # 确保滚动区域已创建
@@ -113,10 +146,25 @@ class PageTemplate(QFrame):
                 content_cls = self.content_widget_class
                 content_name = getattr(content_cls, "__name__", str(content_cls))
 
-            # 实例化并添加到延迟创建的布局
-            self.contentWidget = content_cls(self)
-            self._inner_layout_lazy.addWidget(self.contentWidget)
-            self.content_created = True
+            # 如果内容组件尚未创建，创建并添加到布局
+            if not self.content_created:
+                # 实例化并添加到延迟创建的布局
+                self.contentWidget = content_cls(self)
+                self._inner_layout_lazy.addWidget(self.contentWidget)
+                self.content_created = True
+
+                # 如果是预览模式，立即锁定所有组件
+                if self.is_preview_mode:
+                    self._lock_all_widgets(self.contentWidget)
+            else:
+                # 如果内容组件已经创建，检查是否需要更新锁定状态
+                if hasattr(self, "contentWidget") and self.contentWidget:
+                    if self.is_preview_mode:
+                        self._lock_all_widgets(self.contentWidget)
+                    else:
+                        # 如果不是预览模式，可以选择解锁所有组件
+                        # 但通常情况下，预览模式是一次性的，所以这里可以不处理
+                        pass
 
             elapsed = time.perf_counter() - start
             loguru.logger.debug(f"创建内容组件 {content_name} 耗时: {elapsed:.3f}s")
@@ -154,7 +202,51 @@ class PageTemplate(QFrame):
         self.inner_layout_personal.addWidget(self.contentWidget)
         self.content_created = True
 
-    @classmethod
+    def _lock_all_widgets(self, widget):
+        """递归锁定所有子组件，包括嵌套的组件和GroupHeaderCardWidget内部的控件
+
+        Args:
+            widget: 要锁定的根组件
+        """
+        if widget is None:
+            return
+
+        # 首先锁定当前组件
+        if hasattr(widget, "setEnabled"):
+            widget.setEnabled(False)
+
+        # 特殊处理GroupHeaderCardWidget，确保锁定所有addItem或addGroup添加的控件
+        try:
+            if hasattr(widget, "widgets"):
+                # 如果GroupHeaderCardWidget有widgets属性，锁定所有widgets
+                for w in widget.widgets:
+                    if isinstance(w, QWidget):
+                        self._lock_all_widgets(w)
+            elif hasattr(widget, "items"):
+                # 如果有items属性，锁定所有items
+                for item in widget.items:
+                    if hasattr(item, "widget") and isinstance(item.widget, QWidget):
+                        self._lock_all_widgets(item.widget)
+                    elif isinstance(item, QWidget):
+                        self._lock_all_widgets(item)
+        except Exception as e:
+            logger.debug(f"处理特殊组件时出错: {e}")
+
+        # 然后递归锁定所有直接子组件
+        for child in widget.children():
+            if isinstance(child, QWidget):
+                self._lock_all_widgets(child)
+
+        # 最后，检查是否有contentWidget或其他可能包含控件的属性
+        if hasattr(widget, "contentWidget") and isinstance(
+            widget.contentWidget, QWidget
+        ):
+            self._lock_all_widgets(widget.contentWidget)
+        if hasattr(widget, "centralWidget") and isinstance(
+            widget.centralWidget, QWidget
+        ):
+            self._lock_all_widgets(widget.centralWidget)
+
     def clear_instance_cache(cls):
         """清除实例缓存，用于强制重新创建页面"""
         cls._instances.clear()
@@ -186,13 +278,14 @@ class PivotPageTemplate(QFrame):
     - 支持按需重新加载
     """
 
-    def __init__(self, page_config: dict, parent: QFrame = None):
+    def __init__(self, page_config: dict, parent: QFrame = None, is_preview_mode=False):
         """
         初始化 Pivot 页面模板
 
         Args:
             page_config: 页面配置字典，格式为 {"page_name": "display_name", ...}
             parent: 父窗口
+            is_preview_mode: 是否为预览模式
         """
         super().__init__(parent=parent)
 
@@ -204,10 +297,32 @@ class PivotPageTemplate(QFrame):
         self.base_path = "app.view.settings.list_management"  # 默认基础路径
         self._page_load_order = []  # 页面加载顺序，用于LRU卸载
         self.MAX_CACHED_PAGES = MAX_CACHED_PAGES  # 最大同时保留在内存中的页面数量
+        self._is_preview_mode = is_preview_mode
 
         self.__connectSignalToSlot()
 
         QTimer.singleShot(0, self.create_ui_components)
+
+    @property
+    def is_preview_mode(self):
+        """获取是否为预览模式"""
+        return self._is_preview_mode
+
+    @is_preview_mode.setter
+    def is_preview_mode(self, value):
+        """设置是否为预览模式，并在值改变时触发锁定逻辑
+
+        Args:
+            value: 是否为预览模式
+        """
+        self._is_preview_mode = value
+        # 如果已经有加载的页面，立即执行锁定逻辑
+        if hasattr(self, "page_infos"):
+            for page_name, info in self.page_infos.items():
+                if info.get("loaded") and info.get("widget"):
+                    widget = info.get("widget")
+                    if widget:
+                        self._lock_all_widgets(widget)
 
     def __connectSignalToSlot(self):
         """连接信号与槽"""
@@ -347,6 +462,10 @@ class PivotPageTemplate(QFrame):
             # 创建页面组件
             widget = content_widget_class(self)
             widget.setObjectName(page_name)
+
+            # 如果是预览模式，锁定所有组件
+            if self.is_preview_mode:
+                self._lock_all_widgets(widget)
 
             # 清除加载提示（使用安全的 takeAt 循环以避免 Qt C++ 对象提前删除问题）
             try:
@@ -533,6 +652,51 @@ class PivotPageTemplate(QFrame):
     def get_current_page(self) -> str:
         """获取当前页面名称"""
         return self.current_page
+
+    def _lock_all_widgets(self, widget):
+        """递归锁定所有子组件，包括嵌套的组件和GroupHeaderCardWidget内部的控件
+
+        Args:
+            widget: 要锁定的根组件
+        """
+        if widget is None:
+            return
+
+        # 首先锁定当前组件
+        if hasattr(widget, "setEnabled"):
+            widget.setEnabled(False)
+
+        # 特殊处理GroupHeaderCardWidget，确保锁定所有addItem或addGroup添加的控件
+        try:
+            if hasattr(widget, "widgets"):
+                # 如果GroupHeaderCardWidget有widgets属性，锁定所有widgets
+                for w in widget.widgets:
+                    if isinstance(w, QWidget):
+                        self._lock_all_widgets(w)
+            elif hasattr(widget, "items"):
+                # 如果有items属性，锁定所有items
+                for item in widget.items:
+                    if hasattr(item, "widget") and isinstance(item.widget, QWidget):
+                        self._lock_all_widgets(item.widget)
+                    elif isinstance(item, QWidget):
+                        self._lock_all_widgets(item)
+        except Exception as e:
+            logger.debug(f"处理特殊组件时出错: {e}")
+
+        # 然后递归锁定所有直接子组件
+        for child in widget.children():
+            if isinstance(child, QWidget):
+                self._lock_all_widgets(child)
+
+        # 最后，检查是否有contentWidget或其他可能包含控件的属性
+        if hasattr(widget, "contentWidget") and isinstance(
+            widget.contentWidget, QWidget
+        ):
+            self._lock_all_widgets(widget.contentWidget)
+        if hasattr(widget, "centralWidget") and isinstance(
+            widget.centralWidget, QWidget
+        ):
+            self._lock_all_widgets(widget.centralWidget)
 
     def get_page(self, page_name: str):
         """根据页面名称获取页面组件"""

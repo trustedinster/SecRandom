@@ -268,9 +268,36 @@ def start_main_window():
 
         create_float_window()  # Ensure the global float window is created
         main_window = MainWindow(float_window=float_window)
-        main_window.showSettingsRequested.connect(
-            lambda page_name="basicSettingsInterface": show_settings_window(page_name)
+        # 连接显示设置请求信号，添加验证逻辑
+        from app.common.safety.verify_ops import (
+            should_require_password,
+            require_and_run,
         )
+
+        def handle_show_settings_requested(page_name="basicSettingsInterface"):
+            """处理显示设置请求，添加验证逻辑"""
+            # 检查是否需要验证
+            if should_require_password("open_settings"):
+                logger.debug(f"打开设置页面需要验证：{page_name}")
+
+                # 显示验证窗口，带有预览选项
+                def on_verified():
+                    """验证通过后，正常打开设置页面"""
+                    show_settings_window(page_name, is_preview=False)
+
+                def on_preview():
+                    """点击预览按钮后，以预览模式打开设置页面"""
+                    show_settings_window(page_name, is_preview=True)
+
+                require_and_run(
+                    "open_settings", main_window, on_verified, on_preview=on_preview
+                )
+            else:
+                # 不需要验证，直接打开设置页面
+                logger.debug(f"打开设置页面无需验证：{page_name}")
+                show_settings_window(page_name, is_preview=False)
+
+        main_window.showSettingsRequested.connect(handle_show_settings_requested)
         main_window.showSettingsRequestedAbout.connect(show_settings_window_about)
         main_window.showFloatWindowRequested.connect(show_float_window)
 
@@ -310,27 +337,50 @@ def start_main_window():
         logger.error(f"创建主窗口失败: {e}", exc_info=True)
 
 
-def create_settings_window():
-    """创建设置窗口实例"""
+def create_settings_window(is_preview=False):
+    """创建设置窗口实例
+
+    Args:
+        is_preview: 是否为预览模式，默认为 False
+    """
     global settings_window
     try:
         from app.view.settings.settings import SettingsWindow
 
-        settings_window = SettingsWindow()
+        settings_window = SettingsWindow(is_preview=is_preview)
     except Exception as e:
         logger.error(f"创建设置窗口失败: {e}", exc_info=True)
 
 
-def show_settings_window(page_name="basicSettingsInterface"):
+def show_settings_window(page_name="basicSettingsInterface", is_preview=False):
     """显示设置窗口
 
     Args:
         page_name: 设置页面名称，默认为 basicSettingsInterface
+        is_preview: 是否为预览模式，默认为 False
     """
     try:
         global settings_window
+        # 如果已经存在设置窗口，检查其is_preview属性是否与当前请求的一致
+        if settings_window is not None:
+            # 如果当前设置窗口的预览模式与请求的不一致，销毁并重新创建
+            if (
+                hasattr(settings_window, "is_preview")
+                and settings_window.is_preview != is_preview
+            ):
+                logger.debug(f"重新创建设置窗口，预览模式: {is_preview}")
+                # 关闭并销毁现有窗口
+                try:
+                    settings_window.close()
+                    settings_window.deleteLater()
+                except Exception as close_e:
+                    logger.error(f"关闭现有设置窗口失败: {close_e}")
+                settings_window = None
+
+        # 如果设置窗口不存在，创建新的
         if settings_window is None:
-            create_settings_window()
+            create_settings_window(is_preview=is_preview)
+
         if settings_window is not None:
             settings_window.show_settings_window()
             # 处理设置页面跳转
