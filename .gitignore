@@ -193,3 +193,4 @@ cython_debug/
 /data/audio
 /data/TEMP
 /data/CSES
+/typings

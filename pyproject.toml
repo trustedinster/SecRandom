@@ -59,6 +59,7 @@ dependencies = [
     "pyinstaller>=6.0.0",
     "nuitka>=2.8.6",
     "pre-commit>=4.4.0",
+    "pythonnet>=3.0.5",
 ]
 
 [project.optional-dependencies]
@@ -72,6 +73,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 py-modules = []
 
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
 [dependency-groups]
 dev = [
     "pytest>=6.0",
@@ -82,6 +87,7 @@ dev = [
     "ruff>=0.14.3",
     "tomlkit>=0.13.3",
     "mypy>=1.19.0",
+    "netstandard-stubs>=2.0.1",
 ]
 
 [tool.ruff]
