@@ -80,6 +80,17 @@ After installing dependencies, you can run the project directly:
 uv run main.py
 ```
 
+#### 5. C# IPC Development
+
+You need .NET 9.0 to generate Python stubs for .NET assemblies (for IDE hints). If you choose to forgo IDE hints, installing .NET 9.0 is unnecessary.
+The assemblies are located in the `data/dlls` directory. Below is the stub generation method:
+
+```bash
+powershell ./scripts/generate-stubs.ps1
+```
+
+If you are using a Linux distribution, please first install [PowerShell 7](https://github.com/PowerShell/PowerShell), and replace `powershell` with `pwsh` in the command above.
+
 ### Contribution Guidelines
 
 **Features you contribute to SecRandom must follow these guidelines:**

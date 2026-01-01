@@ -78,6 +78,17 @@ uv sync
 uv run main.py
 ```
 
+#### 5. C# IPC 相关开发
+
+您需要 .NET 9.0 来生成 .NET 程序集的 Python 存根（用于 IDE 提示）。如果您选择放弃 IDE 提示，无需安装 .NET 9.0。
+程序集存放在 `data/dlls` 目录。下面是存根生成方法：
+
+```bash
+powershell ./scripts/generate-stubs.ps1
+```
+
+如果您正在使用 Linux 发行版，请先安装 [PowerShell 7](https://github.com/PowerShell/PowerShell)，并将上方命令中的 `powershell` 替换为 `pwsh`。
+
 ### 贡献准则
 
 **您为 SecRandom 贡献的功能须遵循以下准则：**
