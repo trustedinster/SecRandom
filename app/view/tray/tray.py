@@ -130,10 +130,8 @@ class Tray(QSystemTrayIcon):
         if open_settings is not False:
             open_settings_action = Action(
                 get_content_name_async("tray_management", "open_settings"),
-                triggered=lambda: require_and_run(
-                    "open_settings",
-                    self.main_window,
-                    lambda: self.showSettingsRequested.emit("basicSettingsInterface"),
+                triggered=lambda: self.showSettingsRequested.emit(
+                    "basicSettingsInterface"
                 ),
             )
             menu_items.append(open_settings_action)
