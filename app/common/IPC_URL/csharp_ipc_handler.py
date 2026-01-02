@@ -19,6 +19,7 @@ try:
 
     # 导入程序集
     from System import Action
+    from ClassIsland.Shared.Enums import TimeState
     from ClassIsland.Shared.IPC import IpcClient, IpcRoutedNotifyIds
     from ClassIsland.Shared.IPC.Abstractions.Services import IPublicLessonsService
     from dotnetCampus.Ipc.CompilerServices.GeneratedProxies import GeneratedIpcFactory
@@ -89,6 +90,8 @@ if CSHARP_AVAILABLE:
                 settings=None,
                 settings_group=None
             ) -> bool:
+            """发送提醒"""
+
             if settings:
                 display_duration = settings.get("notification_display_duration", 5)
             else:
@@ -100,6 +103,14 @@ if CSHARP_AVAILABLE:
             randomService.NotifyResult(result)
 
             return True
+
+        def is_breaking(self) -> bool:
+            """是否处于下课时间"""
+            lessonSc = GeneratedIpcFactory.CreateIpcProxy[IPublicLessonsService](
+                self.ipc_client.Provider, self.ipc_client.PeerProxy)
+            state = lessonSc.CurrentState in [getattr(TimeState, "None"), TimeState.PrepareOnClass, TimeState.Breaking, TimeState.AfterSchool]
+            logger.debug(f"获取到的 ClassIsland 时间状态: {lessonSc.CurrentState} 是否下课: {state}")
+            return state
 
         @staticmethod
         def convert_to_call_result(class_name: str, selected_students, draw_count: int, display_duration=5.0) -> CallResult:
@@ -189,6 +200,11 @@ else:
                 settings=None,
                 settings_group=None
             ) -> bool:
+            """发送提醒"""
+            return False
+
+        def is_breaking(self) -> bool:
+            """是否处于下课时间"""
             return False
         
         @staticmethod

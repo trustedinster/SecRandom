@@ -11,6 +11,7 @@ from loguru import logger
 from qfluentwidgets import *
 
 from app.Language.obtain_language import get_content_name_async
+from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
 from app.common.extraction.cses_parser import CSESParser
 from app.tools.path_utils import *
 from app.tools.settings_access import readme_settings_async
@@ -37,11 +38,7 @@ def _is_non_class_time() -> bool:
         )
         logger.debug(f"是否启用了ClassIsland数据源: {use_class_island_source}")
         if use_class_island_source:
-            class_island_break_status = readme_settings_async(
-                "time_settings", "current_class_island_break_status"
-            )
-            logger.debug(f"ClassIsland数据源当前课间状态: {class_island_break_status}")
-            return bool(class_island_break_status)
+            return CSharpIPCHandler.instance().is_breaking()
         else:
             current_day_of_week = _get_current_day_of_week()
             class_times = _get_class_times_by_day(current_day_of_week)
