@@ -37,11 +37,6 @@
 >
 > GNU GPLv3 has Copyleft characteristics, which means you can modify the source code of SecRandom, but **must also open source the modified version under the GNU GPLv3 license**
 ---------
-> [!NOTE]
->
-> **SecRandom v2** will be released around 2026/01/01 (GMT +8:00 China Standard Time)!
->
-> Please follow our BiliBili / QQ Channel for regular development progress updates!
 
 ## 📖 Table of Contents
 
