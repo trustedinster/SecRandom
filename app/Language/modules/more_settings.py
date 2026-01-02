@@ -165,10 +165,48 @@ time_settings = {
     },
 }
 
-# 调试设置语言配置
-debug = {
-    "ZH_CN": {"title": {"name": "调试设置", "description": "调试功能设置"}},
-    "EN_US": {"title": {"name": "Debug settings", "description": "Debug settings"}},
+# 快捷键设置
+shortcut_settings = {
+    "ZH_CN": {
+        "title": {"name": "快捷键设置", "description": "设置快捷键功能"},
+        "function": {"name": "功能"},
+        "shortcut": {"name": "快捷键"},
+        "press_shortcut": {"name": "点击此处设置快捷键"},
+        "enable_shortcut": {
+            "name": "启用快捷键",
+            "description": "启用后可使用快捷键快速操作",
+            "switchbutton_name": {"enable": "启用", "disable": "禁用"},
+        },
+        "open_roll_call_page": {"name": "打开点名页面"},
+        "use_quick_draw": {"name": "使用闪抽"},
+        "open_lottery_page": {"name": "打开抽奖页面"},
+        "increase_roll_call_count": {"name": "增加点名人数"},
+        "decrease_roll_call_count": {"name": "减少点名人数"},
+        "increase_lottery_count": {"name": "增加抽奖人数"},
+        "decrease_lottery_count": {"name": "减少抽奖人数"},
+        "start_roll_call": {"name": "开始点名"},
+        "start_lottery": {"name": "开始抽奖"},
+    },
+    "EN_US": {
+        "title": {"name": "Shortcut settings", "description": "Shortcut settings"},
+        "function": {"name": "Function"},
+        "shortcut": {"name": "Shortcut"},
+        "press_shortcut": {"name": "Click here to set shortcut"},
+        "enable_shortcut": {
+            "name": "Enable shortcut",
+            "description": "Enable shortcuts for quick operations",
+            "switchbutton_name": {"enable": "Enable", "disable": "Disable"},
+        },
+        "open_roll_call_page": {"name": "Open roll call page"},
+        "use_quick_draw": {"name": "Use quick draw"},
+        "open_lottery_page": {"name": "Open lottery page"},
+        "increase_roll_call_count": {"name": "Increase roll call count"},
+        "decrease_roll_call_count": {"name": "Decrease roll call count"},
+        "increase_lottery_count": {"name": "Increase lottery count"},
+        "decrease_lottery_count": {"name": "Decrease lottery count"},
+        "start_roll_call": {"name": "Start roll call"},
+        "start_lottery": {"name": "Start lottery"},
+    },
 }
 
 # 关于语言配置

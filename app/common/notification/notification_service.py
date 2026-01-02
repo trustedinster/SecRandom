@@ -959,7 +959,9 @@ class FloatingNotificationManager:
 
         try:
             cs_ipc = CSharpIPCHandler.instance()
-            status = cs_ipc.send_notification(class_name, selected_students, draw_count, settings, settings_group)
+            status = cs_ipc.send_notification(
+                class_name, selected_students, draw_count, settings, settings_group
+            )
             if status:
                 logger.info("成功发送通知到ClassIsland，结果未知")
             else:

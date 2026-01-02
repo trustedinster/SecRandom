@@ -11,7 +11,7 @@ def create_cs_ipc_handler():
     global cs_ipc_handler
     try:
         from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
-        
+
         cs_ipc_handler = CSharpIPCHandler()
         cs_ipc_handler.start_ipc_client()
 

@@ -12,6 +12,7 @@ from PySide6.QtCore import QTimer, QEvent, Signal
 from qfluentwidgets import FluentWindow, NavigationItemPosition
 
 from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
+from app.common.shortcut import ShortcutManager
 from app.tools.variable import MINIMUM_WINDOW_SIZE, APP_INIT_DELAY
 from app.tools.path_utils import get_data_path, get_app_root
 from app.tools.personalised import get_theme_icon
@@ -60,6 +61,11 @@ class MainWindow(FluentWindow):
 
         self.roll_call_page = None
         self.settingsInterface = None
+
+        self.shortcut_manager = ShortcutManager(self)
+        self._connect_shortcut_signals()
+        self.shortcut_manager._init_shortcuts()
+        self._setup_shortcut_settings_listener()
 
         # resize_timer的初始化
         self.resize_timer = QTimer(self)
@@ -617,6 +623,7 @@ class MainWindow(FluentWindow):
     def close_window_secrandom(self):
         """关闭窗口
         执行安全验证后关闭程序，释放所有资源"""
+        self.cleanup_shortcuts()
         try:
             loguru.logger.remove()
         except Exception as e:
@@ -625,6 +632,135 @@ class MainWindow(FluentWindow):
         QApplication.quit()
         CSharpIPCHandler.instance().stop_ipc_client()
         sys.exit(0)
+
+    def cleanup_shortcuts(self):
+        """清理快捷键"""
+        if hasattr(self, "shortcut_manager"):
+            self.shortcut_manager.cleanup()
+
+    def _connect_shortcut_signals(self):
+        """连接快捷键管理器的信号"""
+        logger.debug("开始连接快捷键信号...")
+
+        self.shortcut_manager.openRollCallPageRequested.connect(
+            lambda: self._show_and_switch_to(self.roll_call_page)
+        )
+        logger.debug("快捷键信号已连接: openRollCallPageRequested")
+
+        self.shortcut_manager.useQuickDrawRequested.connect(self._handle_quick_draw)
+        logger.debug("快捷键信号已连接: useQuickDrawRequested")
+
+        self.shortcut_manager.openLotteryPageRequested.connect(
+            lambda: self._show_and_switch_to(self.lottery_page)
+        )
+        logger.debug("快捷键信号已连接: openLotteryPageRequested")
+
+        self.shortcut_manager.increaseRollCallCountRequested.connect(
+            self._handle_increase_roll_call_count
+        )
+        logger.debug("快捷键信号已连接: increaseRollCallCountRequested")
+
+        self.shortcut_manager.decreaseRollCallCountRequested.connect(
+            self._handle_decrease_roll_call_count
+        )
+        logger.debug("快捷键信号已连接: decreaseRollCallCountRequested")
+
+        self.shortcut_manager.increaseLotteryCountRequested.connect(
+            self._handle_increase_lottery_count
+        )
+        logger.debug("快捷键信号已连接: increaseLotteryCountRequested")
+
+        self.shortcut_manager.decreaseLotteryCountRequested.connect(
+            self._handle_decrease_lottery_count
+        )
+        logger.debug("快捷键信号已连接: decreaseLotteryCountRequested")
+
+        self.shortcut_manager.startRollCallRequested.connect(
+            self._handle_start_roll_call
+        )
+        logger.debug("快捷键信号已连接: startRollCallRequested")
+
+        self.shortcut_manager.startLotteryRequested.connect(self._handle_start_lottery)
+        logger.debug("快捷键信号已连接: startLotteryRequested")
+
+        logger.debug("所有快捷键信号连接完成")
+
+    def _handle_increase_roll_call_count(self):
+        """处理增加点名人数快捷键"""
+        if hasattr(self, "roll_call_page") and self.roll_call_page:
+            if (
+                hasattr(self.roll_call_page, "contentWidget")
+                and self.roll_call_page.contentWidget
+            ):
+                self.roll_call_page.contentWidget.update_count(1)
+
+    def _handle_decrease_roll_call_count(self):
+        """处理减少点名人数快捷键"""
+        if hasattr(self, "roll_call_page") and self.roll_call_page:
+            if (
+                hasattr(self.roll_call_page, "contentWidget")
+                and self.roll_call_page.contentWidget
+            ):
+                self.roll_call_page.contentWidget.update_count(-1)
+
+    def _handle_increase_lottery_count(self):
+        """处理增加抽奖人数快捷键"""
+        if hasattr(self, "lottery_page") and self.lottery_page:
+            if (
+                hasattr(self.lottery_page, "contentWidget")
+                and self.lottery_page.contentWidget
+            ):
+                self.lottery_page.contentWidget.update_count(1)
+
+    def _handle_decrease_lottery_count(self):
+        """处理减少抽奖人数快捷键"""
+        if hasattr(self, "lottery_page") and self.lottery_page:
+            if (
+                hasattr(self.lottery_page, "contentWidget")
+                and self.lottery_page.contentWidget
+            ):
+                self.lottery_page.contentWidget.update_count(-1)
+
+    def _handle_start_roll_call(self):
+        """处理开始点名快捷键"""
+        if hasattr(self, "roll_call_page") and self.roll_call_page:
+            if (
+                hasattr(self.roll_call_page, "contentWidget")
+                and self.roll_call_page.contentWidget
+            ):
+                self.roll_call_page.contentWidget.start_draw()
+
+    def _handle_start_lottery(self):
+        """处理开始抽奖快捷键"""
+        if hasattr(self, "lottery_page") and self.lottery_page:
+            if (
+                hasattr(self.lottery_page, "contentWidget")
+                and self.lottery_page.contentWidget
+            ):
+                self.lottery_page.contentWidget.start_draw()
+
+    def _setup_shortcut_settings_listener(self):
+        """设置快捷键设置监听器，监听快捷键设置变化"""
+        from app.tools.settings_access import get_settings_signals
+
+        settings_signals = get_settings_signals()
+        settings_signals.settingChanged.connect(self._on_shortcut_settings_changed)
+
+    def _on_shortcut_settings_changed(
+        self, first_level_key: str, second_level_key: str, value
+    ):
+        """当快捷键设置发生变化时的处理函数"""
+        logger.debug(f"快捷键设置变化: {first_level_key}.{second_level_key} = {value}")
+
+        if first_level_key == "shortcut_settings":
+            if second_level_key == "enable_shortcut":
+                logger.debug(f"快捷键启用状态变化: {value}")
+                self.shortcut_manager.set_enabled(value)
+            else:
+                config_key = second_level_key
+                shortcut_str = value if value else ""
+                logger.debug(f"快捷键更新: {config_key} = {shortcut_str}")
+                self.shortcut_manager.update_shortcut(config_key, shortcut_str)
 
     def restart_app(self):
         """重启应用程序
@@ -647,6 +783,8 @@ class MainWindow(FluentWindow):
         except Exception as e:
             logger.error(f"启动新进程失败: {e}")
             return
+
+        self.cleanup_shortcuts()
 
         try:
             loguru.logger.remove()

@@ -147,10 +147,16 @@ class more_settings_page(PivotPageTemplate):
         if readme_settings_async("basic_settings", "simplified_mode"):
             page_config = {
                 "time_settings": get_content_name_async("time_settings", "title"),
+                "shortcut_settings": get_content_name_async(
+                    "shortcut_settings", "title"
+                ),
             }
         else:
             page_config = {
                 "fair_draw": get_content_name_async("fair_draw_settings", "title"),
+                "shortcut_settings": get_content_name_async(
+                    "shortcut_settings", "title"
+                ),
                 "time_settings": get_content_name_async("time_settings", "title"),
                 "music_settings": get_content_name_async("music_settings", "title"),
                 "page_management": get_content_name_async("page_management", "title"),
