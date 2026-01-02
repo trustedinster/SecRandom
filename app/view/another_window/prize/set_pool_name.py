@@ -276,6 +276,14 @@ class SetPoolNameWindow(QWidget):
                             pool_file.unlink()
                             deleted_count += 1
 
+                        # 删除对应的抽奖历史记录
+                        from app.common.history.history import get_history_file_path
+
+                        history_file_path = get_history_file_path("lottery", pool_name)
+                        if history_file_path.exists():
+                            history_file_path.unlink()
+                            logger.info(f"已删除奖池 '{pool_name}' 的抽奖历史记录")
+
                     # 显示删除成功消息
                     if deleted_count > 0:
                         config = NotificationConfig(

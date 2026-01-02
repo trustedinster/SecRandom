@@ -276,6 +276,16 @@ class SetClassNameWindow(QWidget):
                             class_file.unlink()
                             deleted_count += 1
 
+                        # 删除对应的点名历史记录
+                        from app.common.history.history import get_history_file_path
+
+                        history_file_path = get_history_file_path(
+                            "roll_call", class_name
+                        )
+                        if history_file_path.exists():
+                            history_file_path.unlink()
+                            logger.info(f"已删除班级 '{class_name}' 的点名历史记录")
+
                     # 显示删除成功消息
                     if deleted_count > 0:
                         config = NotificationConfig(
