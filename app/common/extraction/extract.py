@@ -192,6 +192,52 @@ def _get_class_times_by_day(day_of_week: int) -> Dict[str, str]:
     return parser.get_class_times_by_day(day_of_week)
 
 
+def _get_seconds_to_next_class() -> int:
+    """获取距离下一节课的剩余时间（秒）
+
+    Returns:
+        int: 距离下一节课的剩余秒数，如果没有下一节课则返回0
+    """
+    try:
+        current_day_of_week = _get_current_day_of_week()
+        class_times = _get_class_times_by_day(current_day_of_week)
+
+        if not class_times or not isinstance(class_times, dict):
+            return 0
+
+        current_total_seconds = _get_current_time_in_seconds()
+
+        # 将上课时间段按开始时间排序
+        time_ranges = []
+        for range_name, time_range in class_times.items():
+            try:
+                start_end = time_range.split("-")
+                if len(start_end) != 2:
+                    continue
+
+                start_time_str, end_time_str = start_end
+                start_total_seconds = _parse_time_string_to_seconds(start_time_str)
+                time_ranges.append((start_total_seconds, range_name))
+            except Exception as e:
+                logger.error(f"解析时间段失败: {range_name} = {time_range}, 错误: {e}")
+                continue
+
+        # 按开始时间排序
+        time_ranges.sort(key=lambda x: x[0])
+
+        # 找到下一个上课时间段
+        for start_seconds, range_name in time_ranges:
+            if start_seconds > current_total_seconds:
+                return start_seconds - current_total_seconds
+
+        # 如果当天没有下一节课，返回0
+        return 0
+
+    except Exception as e:
+        logger.error(f"计算距离下一节课时间失败: {e}")
+        return 0
+
+
 def _get_non_class_times_config() -> Dict[str, str]:
     """获取非上课时间段配置
 

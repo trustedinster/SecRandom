@@ -43,10 +43,6 @@ class URLHandler(QObject):
         self.command_handler.showTrayActionRequested.connect(
             self.showTrayActionRequested.emit
         )
-        # 连接ClassIsland数据信号
-        self.command_handler.classIslandDataReceived.connect(
-            self._handle_class_island_data
-        )
 
     def parse_command_line_args(self) -> Optional[Dict[str, Any]]:
         """
@@ -172,10 +168,6 @@ class URLHandler(QObject):
             self.url_ipc_handler.register_message_handler(
                 "url", self._handle_ipc_url_message
             )
-            # 注册ClassIsland数据消息处理器
-            self.url_ipc_handler.register_message_handler(
-                "class_island_data", self._handle_ipc_class_island_message
-            )
             return True
         else:
             return False
@@ -189,28 +181,6 @@ class URLHandler(QObject):
             return self.handle_url_startup(url)
         else:
             return {"success": False, "error": "缺少URL参数"}
-
-    def _handle_ipc_class_island_message(
-        self, payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        处理IPC ClassIsland数据消息
-
-        Args:
-            payload: 包含ClassIsland数据的负载
-
-        Returns:
-            处理结果
-        """
-        class_island_data = payload.get("data", {})
-        if class_island_data:
-            # 调用command_handler处理ClassIsland数据
-            # 构建参数字典，包含ClassIsland数据
-            params = {"data": class_island_data}
-            # 使用command_handler的_class_island_data方法处理数据
-            return self.command_handler._handle_class_island_data(params)
-        else:
-            return {"success": False, "error": "缺少ClassIsland数据参数"}
 
     def send_url_to_existing_instance(self, url: str) -> bool:
         """
@@ -230,21 +200,6 @@ class URLHandler(QObject):
             return response is not None and response.get("success", False)
         else:
             return False
-
-    def _handle_class_island_data(self, class_island_data: dict):
-        """
-        处理ClassIsland数据
-
-        Args:
-            class_island_data: ClassIsland发送的数据
-        """
-        # 将ClassIsland数据信号转发给主窗口
-        # 这里可以添加额外的处理逻辑
-        logger.info("URLHandler接收到ClassIsland数据")
-
-        # 发射信号，让主窗口处理数据
-        # 注意：URLHandler本身不直接处理UI逻辑，只是转发信号
-        self.classIslandDataReceived.emit(class_island_data)
 
 
 def handle_url_arguments() -> Optional[Dict[str, Any]]:

@@ -67,6 +67,7 @@ if CSHARP_AVAILABLE:
             self.is_running = False
             self.is_connected = False
             self._disconnect_logged = False  # 跟踪是否已记录断连日志
+            self._last_on_class_left_log_time = 0  # 上次记录距离上课时间的时间
 
         def start_ipc_client(self) -> bool:
             """
@@ -140,6 +141,43 @@ if CSHARP_AVAILABLE:
                 f"获取到的 ClassIsland 时间状态: {lessonSc.CurrentState} 是否下课: {state}"
             )
             return state
+
+        def get_on_class_left_time(self) -> int:
+            """获取距离上课剩余时间（秒）
+
+            Returns:
+                int: 距离上课的剩余时间（秒），如果当前正在上课或没有下一节课程则返回0
+            """
+            try:
+                import time
+
+                lessonSc = GeneratedIpcFactory.CreateIpcProxy[IPublicLessonsService](
+                    self.ipc_client.Provider, self.ipc_client.PeerProxy
+                )
+                on_class_left_time = lessonSc.OnClassLeftTime
+                total_seconds = int(on_class_left_time.TotalSeconds)
+
+                # 根据距离上课的时间调整日志记录频率
+                # 距离上课3秒前：每30秒记录一次
+                # 距离上课3秒内：每秒记录一次
+                current_time = time.time()
+                should_log = False
+
+                if total_seconds > 0 and total_seconds <= 3:
+                    # 3秒内，每秒记录一次
+                    should_log = True
+                elif current_time - self._last_on_class_left_log_time >= 30:
+                    # 3秒前，每30秒记录一次
+                    should_log = True
+                    self._last_on_class_left_log_time = current_time
+
+                if should_log:
+                    logger.debug(f"获取到的距离上课剩余时间: {total_seconds} 秒")
+
+                return total_seconds
+            except Exception as e:
+                logger.error(f"获取距离上课时间失败: {e}")
+                return 0
 
         @staticmethod
         def convert_to_call_result(
@@ -269,6 +307,14 @@ else:
         def is_breaking(self) -> bool:
             """是否处于下课时间"""
             return False
+
+        def get_on_class_left_time(self) -> int:
+            """获取距离上课剩余时间（秒）
+
+            Returns:
+                int: 距离上课的剩余时间（秒），如果当前正在上课或没有下一节课程则返回0
+            """
+            return 0
 
         @staticmethod
         def convert_to_call_result(

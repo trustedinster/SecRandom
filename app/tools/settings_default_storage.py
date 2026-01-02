@@ -435,9 +435,7 @@ DEFAULT_SETTINGS = {
         "verification_required": {"default_value": True},
         "instant_draw_disable": {"default_value": False},
         "class_island_source_enabled": {"default_value": False},
-        "current_class_island_break_status": {"default_value": False},
-        "last_class_island_state": {"default_value": ""},
-        "pre_class_reset_enabled": {"default_value": True},
+        "pre_class_reset_enabled": {"default_value": False},
         "pre_class_reset_time": {"default_value": 120},
     },
     "fair_draw_settings": {

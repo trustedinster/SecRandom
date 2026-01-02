@@ -113,6 +113,16 @@ class contributor_page(QWidget):
                 "avatar": str(get_data_path("assets/contribution", "contributor7.png")),
             },
             {
+                "name": "lrs2187",
+                "role": get_any_position_value_async(
+                    "about", "contributor", "contributor_role_10"
+                ),
+                "github": "https://github.com/lrsgzs",
+                "avatar": str(
+                    get_data_path("assets/contribution", "contributor10.png")
+                ),
+            },
+            {
                 "name": "LHGS-github",
                 "role": get_any_position_value_async(
                     "about", "contributor", "contributor_role_8"

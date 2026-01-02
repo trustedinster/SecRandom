@@ -252,6 +252,7 @@ about = {
             "contributor_role_5": "创意、维护",
             "contributor_role_6": "应用测试、文档、安装包制作",
             "contributor_role_7": "响应式前端页面\n设计及维护、文档",
+            "contributor_role_10": "ClassIsland 插件\nClassIsland 联动",
         },
         "donation": {"name": "捐赠支持", "description": "支持项目发展，感谢您的捐赠"},
         "website": {"name": "SecRandom 官网", "description": "访问SecRandom软件官网"},
@@ -275,6 +276,7 @@ about = {
             "contributor_role_5": "Creativity & Maintenance",
             "contributor_role_6": "Test & Documentation & Install Package Making",
             "contributor_role_7": "Responsive frontend page Design and Maintenance & Documentation",
+            "contributor_role_10": "Test & Documentation & Install Package Making",
         },
         "donation": {"name": "Donate", "description": "Buy me a coffee"},
         "check_update": {

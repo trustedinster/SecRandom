@@ -159,10 +159,6 @@ class more_settings_page(PivotPageTemplate):
 
         if readme_settings_async("basic_settings", "simplified_mode"):
             page_config = {}
-            if show_behind_scenes:
-                page_config["behind_scenes_settings"] = get_content_name_async(
-                    "behind_scenes_settings", "title"
-                )
             page_config["course_settings"] = get_content_name_async(
                 "course_settings", "title"
             )

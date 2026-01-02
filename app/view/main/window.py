@@ -76,6 +76,11 @@ class MainWindow(FluentWindow):
 
         # 课前重置相关变量
         self.pre_class_reset_performed = False
+        self.pre_class_reset_timer = QTimer(self)
+        self.pre_class_reset_timer.timeout.connect(self._check_pre_class_reset)
+
+        # 初始化课前重置功能
+        QTimer.singleShot(1000, self._init_pre_class_reset)
 
         # 设置窗口属性
         self.setMinimumSize(MINIMUM_WINDOW_SIZE[0], MINIMUM_WINDOW_SIZE[1])
@@ -96,9 +101,6 @@ class MainWindow(FluentWindow):
         )
         self.url_command_handler.showTrayActionRequested.connect(
             self._handle_tray_action_requested
-        )
-        self.url_command_handler.classIslandDataReceived.connect(
-            self._handle_class_island_data
         )
 
         # 导入并创建托盘图标
@@ -153,10 +155,6 @@ class MainWindow(FluentWindow):
                     # 重新注册消息处理器
                     url_handler.url_ipc_handler.register_message_handler(
                         "url", url_handler._handle_ipc_url_message
-                    )
-                    url_handler.url_ipc_handler.register_message_handler(
-                        "class_island_data",
-                        url_handler._handle_ipc_class_island_message,
                     )
                     logger.info(f"IPC服务器已在端口 {new_port} 上重新启动")
                     return True
@@ -626,6 +624,10 @@ class MainWindow(FluentWindow):
     def close_window_secrandom(self):
         """关闭窗口
         执行安全验证后关闭程序，释放所有资源"""
+        # 停止课前重置定时器
+        if self.pre_class_reset_timer.isActive():
+            self.pre_class_reset_timer.stop()
+
         self.cleanup_shortcuts()
         try:
             loguru.logger.remove()
@@ -787,6 +789,10 @@ class MainWindow(FluentWindow):
             logger.error(f"启动新进程失败: {e}")
             return
 
+        # 停止课前重置定时器
+        if self.pre_class_reset_timer.isActive():
+            self.pre_class_reset_timer.stop()
+
         self.cleanup_shortcuts()
 
         try:
@@ -799,209 +805,45 @@ class MainWindow(FluentWindow):
         CSharpIPCHandler.instance().stop_ipc_client()
         sys.exit(0)
 
-    def _handle_class_island_data(self, class_island_data: dict):
-        """处理ClassIsland数据
-        接收并处理来自ClassIsland软件的课程表信息
-
-        Args:
-            class_island_data: 包含课程表信息的字典
-        """
-        logger.info("收到ClassIsland数据")
-        logger.debug(f"ClassIsland数据内容: {class_island_data}")
-
-        # 提取并处理ClassIsland数据
+    def _check_pre_class_reset(self):
+        """每秒检测课前重置条件"""
         try:
-            # 当前所处时间点的科目
-            current_subject = class_island_data.get("CurrentSubject")
-            # 下一节课的科目
-            next_class_subject = class_island_data.get("NextClassSubject")
-            # 当前时间点状态
-            current_state = class_island_data.get("CurrentState")
-            # 当前所处的时间点
-            current_time_layout_item = class_island_data.get("CurrentTimeLayoutItem")
-            # 当前加载的课表
-            current_class_plan = class_island_data.get("CurrentClassPlan")
-            # 下一个课间休息类型的时间点
-            next_breaking_time_layout_item = class_island_data.get(
-                "NextBreakingTimeLayoutItem"
+            # 如果已经执行过重置，不再重复执行
+            if self.pre_class_reset_performed:
+                self.pre_class_reset_timer.stop()
+                return
+
+            # 获取课前重置时间（秒）
+            pre_class_reset_time = readme_settings_async(
+                "course_settings", "pre_class_reset_time", 120
             )
-            # 下一个上课类型的时间点
-            next_class_time_layout_item = class_island_data.get(
-                "NextClassTimeLayoutItem"
-            )
-            # 当前所处时间点的索引
-            current_selected_index = class_island_data.get("CurrentSelectedIndex")
-            # 距离上课剩余时间
-            on_class_left_time = class_island_data.get("OnClassLeftTime")
-            # 距下课剩余时间
-            on_breaking_time_left_time = class_island_data.get("OnBreakingTimeLeftTime")
-            # 是否启用课表
-            is_class_plan_enabled = class_island_data.get("IsClassPlanEnabled")
-            # 是否已加载课表
-            is_class_plan_loaded = class_island_data.get("IsClassPlanLoaded")
-            # 是否已确定当前时间点
-            is_lesson_confirmed = class_island_data.get("IsLessonConfirmed")
 
             # 检查是否启用了ClassIsland数据源
             use_class_island_source = readme_settings_async(
                 "course_settings", "class_island_source_enabled", False
             )
 
-            if (
-                use_class_island_source
-                and is_class_plan_enabled
-                and is_class_plan_loaded
-            ):
-                # 使用ClassIsland数据来判断是否为课间时间
-                # 根据当前状态判断当前是否为课间时间
-                is_break_time = self._is_class_island_break_time(
-                    current_state, current_time_layout_item
+            # 根据数据源选择不同的方式获取距离上课时间
+            if use_class_island_source:
+                # 使用 ClassIsland 获取距离上课剩余时间（秒）
+                on_class_left_time = (
+                    CSharpIPCHandler.instance().get_on_class_left_time()
                 )
+            else:
+                # 使用 CSES 数据计算距离下一节课的时间
+                from app.common.extraction.extract import _get_seconds_to_next_class
 
-                # 更新全局状态以反映当前是否为课间时间
-                # 注意：这将影响到整个应用的课间禁用行为
-                self._update_class_island_break_status(is_break_time, current_state)
-
-                # 检查是否需要执行课前重置
-                self._handle_pre_class_reset(
-                    is_break_time, on_class_left_time, on_breaking_time_left_time
-                )
-
-            # 这里可以添加根据ClassIsland数据更新UI的逻辑
-            # 例如：显示当前课程信息、更新课程表显示等
-            # 目前只是记录日志，后续可以根据需要添加具体功能
-
-        except Exception as e:
-            logger.error(f"处理ClassIsland数据时出错: {e}")
-
-    def _is_class_island_break_time(
-        self, current_state: str, current_time_layout_item: dict
-    ) -> bool:
-        """根据ClassIsland数据判断是否为课间时间
-
-        Args:
-            current_state: 当前时间点状态
-            current_time_layout_item: 当前时间布局项
-
-        Returns:
-            bool: 如果当前是课间时间返回True，否则返回False
-        """
-        if not current_state:
-            return False
-
-        # 通常课间时间的状态包含 "break", "rest", "interval", "free" 等关键词
-        # 或者当前状态明确表示是课间时间
-        current_state_lower = current_state.lower()
-
-        # 检查状态是否表明当前是课间时间
-        break_indicators = [
-            "break",
-            "rest",
-            "interval",
-            "free",
-            "recess",
-            "pause",
-            "课间",
-            "休息",
-            "间歇",
-            "自由",
-            "breaktime",
-            "break_time",
-            "Breaking",
-        ]
-
-        for indicator in break_indicators:
-            if indicator in current_state_lower:
-                return True
-
-        # 如果时间布局项存在，可以进一步检查其类型
-        if current_time_layout_item and isinstance(current_time_layout_item, dict):
-            time_type = current_time_layout_item.get("Type", "")
-            time_name = current_time_layout_item.get("Name", "")
-
-            # 检查时间布局项的类型或名称是否表明是课间时间
-            time_type_lower = time_type.lower()
-            time_name_lower = time_name.lower()
-
-            for indicator in break_indicators:
-                if indicator in time_type_lower or indicator in time_name_lower:
-                    return True
-
-        return False
-
-    def _update_class_island_break_status(
-        self, is_break_time: bool, current_state: str
-    ):
-        """更新ClassIsland课间状态
-
-        Args:
-            is_break_time: 是否为课间时间
-            current_state: 当前状态
-        """
-        logger.debug(
-            f"ClassIsland课间状态更新: {'课间时间' if is_break_time else '上课时间'} (状态: {current_state})"
-        )
-
-        # 这里可以添加逻辑来更新应用的课间禁用状态
-        # 例如，可以设置一个全局标志或更新设置
-        try:
-            # 保存当前ClassIsland的课间状态
-            from app.tools.settings_access import update_settings
-
-            update_settings(
-                "course_settings", "current_class_island_break_status", is_break_time
-            )
-            update_settings("course_settings", "last_class_island_state", current_state)
-        except Exception as e:
-            logger.error(f"更新ClassIsland课间状态失败: {e}")
-
-    def _handle_pre_class_reset(
-        self,
-        is_break_time: bool,
-        on_class_left_time: int,
-        on_breaking_time_left_time: int,
-    ):
-        """处理课前重置逻辑
-
-        Args:
-            is_break_time: 是否为课间时间
-            on_class_left_time: 距离上课剩余时间（秒）
-            on_breaking_time_left_time: 距下课剩余时间（秒）
-        """
-        try:
-            # 检查是否启用了课前重置功能
-            pre_class_reset_enabled = readme_settings_async(
-                "course_settings", "pre_class_reset_enabled", False
-            )
-            if not pre_class_reset_enabled:
-                return
-
-            # 获取课前重置时间（秒）
-            pre_class_reset_time = readme_settings_async(
-                "course_settings", "pre_class_reset_time", 60
-            )
-
-            # 如果当前是课间时间，重置标记
-            if is_break_time:
-                self.pre_class_reset_performed = False
-                return
-
-            # 如果已经执行过重置，不再重复执行
-            if self.pre_class_reset_performed:
-                return
+                on_class_left_time = _get_seconds_to_next_class()
 
             # 检查是否在上课前指定时间范围内
-            # on_class_left_time 是距离上课的剩余时间（秒）
-            if (
-                on_class_left_time is not None
-                and on_class_left_time <= pre_class_reset_time
-            ):
+            if on_class_left_time > 0 and on_class_left_time <= pre_class_reset_time:
                 logger.info(f"距离上课还有 {on_class_left_time} 秒，执行课前重置")
                 self._perform_pre_class_reset()
                 self.pre_class_reset_performed = True
+                self.pre_class_reset_timer.stop()
 
         except Exception as e:
-            logger.error(f"处理课前重置时出错: {e}")
+            logger.error(f"检测课前重置时出错: {e}")
 
     def _perform_pre_class_reset(self):
         """执行课前重置操作"""
@@ -1016,9 +858,6 @@ class MainWindow(FluentWindow):
                 self.lottery_page.clear_result()
                 logger.info("已清除抽奖页面结果")
 
-            # 清除临时记录文件
-            from app.tools.config import reset_drawn_record
-
             # 清除所有班级的临时记录
             from app.tools.path_utils import get_data_path
             import os
@@ -1027,30 +866,70 @@ class MainWindow(FluentWindow):
             if os.path.exists(list_dir):
                 for file_name in os.listdir(list_dir):
                     if file_name.endswith(".json"):
-                        class_name = file_name[:-5]  # 移除.json后缀
+                        file_path = os.path.join(list_dir, file_name)
                         try:
-                            reset_drawn_record(
-                                None, class_name, None, None
-                            )  # 清除临时记录
+                            os.remove(file_path)
+                            class_name = file_name[:-5]
                             logger.info(f"已清除班级 {class_name} 的临时记录")
                         except Exception as e:
-                            logger.error(f"清除班级 {class_name} 的临时记录失败: {e}")
+                            logger.error(f"清除班级 {file_name} 的临时记录失败: {e}")
 
             # 清除奖池的临时记录
             pool_dir = get_data_path("list/lottery_list")
             if os.path.exists(pool_dir):
                 for file_name in os.listdir(pool_dir):
                     if file_name.endswith(".json"):
-                        pool_name = file_name[:-5]  # 移除.json后缀
+                        file_path = os.path.join(pool_dir, file_name)
                         try:
-                            reset_drawn_record(
-                                None, pool_name, None, None
-                            )  # 清除临时记录
+                            os.remove(file_path)
+                            pool_name = file_name[:-5]
                             logger.info(f"已清除奖池 {pool_name} 的临时记录")
                         except Exception as e:
-                            logger.error(f"清除奖池 {pool_name} 的临时记录失败: {e}")
+                            logger.error(f"清除奖池 {file_name} 的临时记录失败: {e}")
+
+            # 刷新点名页面的剩余人数显示
+            if self.roll_call_page and hasattr(
+                self.roll_call_page, "update_many_count_label"
+            ):
+                self.roll_call_page.update_many_count_label()
+                logger.debug("已刷新点名页面剩余人数显示")
+
+            # 刷新抽奖页面的显示
+            if self.lottery_page and hasattr(
+                self.lottery_page, "update_many_count_label"
+            ):
+                self.lottery_page.update_many_count_label()
+                logger.debug("已刷新抽奖页面显示")
 
             logger.info("课前重置完成")
 
         except Exception as e:
             logger.error(f"执行课前重置时出错: {e}")
+
+    def _init_pre_class_reset(self):
+        """初始化课前重置功能"""
+        try:
+            logger.debug("初始化课前重置功能")
+            # 检查是否启用了课前重置功能
+            pre_class_reset_enabled = readme_settings_async(
+                "course_settings", "pre_class_reset_enabled", False
+            )
+            if not pre_class_reset_enabled:
+                return
+
+            # 检查是否启用了ClassIsland数据源
+            use_class_island_source = readme_settings_async(
+                "course_settings", "class_island_source_enabled", False
+            )
+
+            if not use_class_island_source:
+                if not self.pre_class_reset_timer.isActive():
+                    self.pre_class_reset_timer.start(1000)
+                    logger.debug("课前重置定时器已启动（CSES模式）")
+            else:
+                if not self.pre_class_reset_timer.isActive():
+                    self.pre_class_reset_timer.start(1000)
+                    logger.debug("课前重置定时器已启动（ClassIsland模式）")
+
+        except Exception as e:
+            logger.error(f"初始化课前重置功能时出错: {e}")

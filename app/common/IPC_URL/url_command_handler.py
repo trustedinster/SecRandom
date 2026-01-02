@@ -24,7 +24,6 @@ class URLCommandHandler(QObject):
     showMainPageRequested = Signal(str)  # 请求显示主页面
     showTrayActionRequested = Signal(str)  # 请求执行托盘操作
     securityVerificationRequested = Signal(str, dict)  # 请求安全验证
-    classIslandDataReceived = Signal(dict)  # 接收ClassIsland数据信号
 
     def __init__(self, main_window=None):
         super().__init__()
@@ -63,8 +62,6 @@ class URLCommandHandler(QObject):
             "open": self._handle_open,
             "action": self._handle_action,
             "verify": self._handle_verify,
-            # ClassIsland数据命令
-            "data/class_island": self._handle_class_island_data,
         }
 
         # 需要密码验证的命令列表
@@ -636,74 +633,6 @@ class URLCommandHandler(QObject):
         """处理验证命令"""
         # 这里可以实现具体的验证逻辑
         return {"status": "success", "message": "验证通过", "verified": True}
-
-    def _handle_class_island_data(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """处理ClassIsland数据
-        接收包含课程表信息的JSON数据
-
-        Args:
-            params: 包含ClassIsland数据的参数字典
-                   预期包含以下字段:
-                   - data: ClassIsland发送的课程表数据
-                   - CurrentSubject: 当前所处时间点的科目
-                   - NextClassSubject: 下一节课的科目
-                   - CurrentState: 当前时间点状态
-                   - CurrentTimeLayoutItem: 当前所处的时间点
-                   - CurrentClassPlan: 当前加载的课表
-                   - NextBreakingTimeLayoutItem: 下一个课间休息类型的时间点
-                   - NextClassTimeLayoutItem: 下一个上课类型的时间点
-                   - CurrentSelectedIndex: 当前所处时间点的索引
-                   - OnClassLeftTime: 距离上课剩余时间
-                   - OnBreakingTimeLeftTime: 距下课剩余时间
-                   - IsClassPlanEnabled: 是否启用课表
-                   - IsClassPlanLoaded: 是否已加载课表
-                   - IsLessonConfirmed: 是否已确定当前时间点
-        """
-        logger.debug("处理ClassIsland数据")
-
-        # 从参数中获取ClassIsland数据
-        class_island_data = params.get("data", {})
-
-        if not class_island_data:
-            logger.warning("收到空的ClassIsland数据")
-            return {"status": "error", "message": "ClassIsland数据不能为空"}
-
-        # 验证必要的字段是否存在
-        required_fields = [
-            "CurrentSubject",
-            "NextClassSubject",
-            "CurrentState",
-            "CurrentTimeLayoutItem",
-            "CurrentClassPlan",
-            "NextBreakingTimeLayoutItem",
-            "NextClassTimeLayoutItem",
-            "CurrentSelectedIndex",
-            "OnClassLeftTime",
-            "OnBreakingTimeLeftTime",
-            "IsClassPlanEnabled",
-            "IsClassPlanLoaded",
-            "IsLessonConfirmed",
-        ]
-
-        for field in required_fields:
-            if field not in class_island_data:
-                logger.warning(f"ClassIsland数据缺少必要字段: {field}")
-
-        # 发射信号，让主窗口处理ClassIsland数据
-        try:
-            self.classIslandDataReceived.emit(class_island_data)
-            logger.debug("ClassIsland数据已发送到主窗口处理")
-            return {
-                "status": "success",
-                "message": "ClassIsland数据已接收并处理",
-                "data_received": True,
-            }
-        except Exception as e:
-            logger.error(f"发送ClassIsland数据信号失败: {e}")
-            return {
-                "status": "error",
-                "message": f"发送ClassIsland数据信号失败: {str(e)}",
-            }
 
     def register_command(
         self,
