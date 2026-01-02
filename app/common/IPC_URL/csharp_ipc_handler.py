@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import threading
 from typing import Optional
@@ -8,6 +9,9 @@ from app.tools.path_utils import get_data_path
 CSHARP_AVAILABLE = False
 
 try:
+    # 添加 dlls path
+    sys.path.append(str(get_data_path("dlls")))
+
     # 导入 Python.NET
     from pythonnet import load
 
@@ -29,8 +33,9 @@ try:
     from SecRandom4Ci.Interface.Models import CallResult, Student
 
     CSHARP_AVAILABLE = True
-except:
+except Exception as e:
     logger.warning("无法加载 Python.NET，将会回滚！")
+    logger.warning(e)
 
 
 if CSHARP_AVAILABLE:
