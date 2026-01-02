@@ -99,7 +99,7 @@ class about_info(GroupHeaderCardWidget):
 
         # 查看当前软件版权所属
         # 根据发布年份和当前年份是否相同，决定显示格式
-        if INITIAL_AUTHORING_YEAR == CURRENT_YEAR:
+        if INITIAL_AUTHORING_YEAR <= CURRENT_YEAR:
             copyright_text = f"Copyright © {INITIAL_AUTHORING_YEAR} {COPYRIGHT_HOLDER}"
         else:
             copyright_text = f"Copyright © {INITIAL_AUTHORING_YEAR}-{CURRENT_YEAR} {COPYRIGHT_HOLDER}"
