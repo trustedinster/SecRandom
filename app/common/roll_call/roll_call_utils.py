@@ -411,6 +411,10 @@ class RollCallUtils:
             "vertical_offset": readme_settings_async(
                 "roll_call_notification_settings", "floating_window_vertical_offset"
             ),
+            # 通知设置
+            "notification_display_duration": readme_settings_async(
+                "roll_call_notification_settings", "notification_display_duration"
+            ),
         }
 
         return settings

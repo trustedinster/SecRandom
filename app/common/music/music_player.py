@@ -51,6 +51,8 @@ class MusicPlayer:
         Returns:
             bool: 是否成功开始播放
         """
+        from app.Language.obtain_language import get_content_name_async
+
         # 如果音乐文件为空或"无音乐"，则不播放
         if not music_file or music_file == get_content_name_async(
             "music_settings", "no_music"
@@ -61,8 +63,37 @@ class MusicPlayer:
         # 停止当前播放的音乐
         self.stop_music()
 
+        # 检查是否为随机播放
+        is_random_play = music_file == get_content_name_async(
+            "music_settings", "random_play"
+        )
+
         # 获取音乐文件路径
         try:
+            if is_random_play:
+                # 随机播放：从音乐文件列表中随机选择一个
+                from app.tools.path_utils import get_audio_path
+
+                audio_dir = get_audio_path("music")
+                if audio_dir.exists():
+                    supported_formats = [".mp3", ".flac", ".wav", ".ogg"]
+                    music_files = [
+                        f.name
+                        for f in audio_dir.iterdir()
+                        if f.is_file() and f.suffix.lower() in supported_formats
+                    ]
+                    if music_files:
+                        import random
+
+                        music_file = random.choice(music_files)
+                        logger.info(f"随机播放选择音乐: {music_file}")
+                    else:
+                        logger.warning("没有可用的音乐文件，无法随机播放")
+                        return False
+                else:
+                    logger.warning("音乐目录不存在，无法随机播放")
+                    return False
+
             music_path = get_audio_path(f"music/{music_file}")
             if not music_path.exists():
                 logger.error(f"音乐文件不存在: {music_path}")
@@ -278,7 +309,7 @@ def get_music_files():
     """获取音乐文件列表
 
     Returns:
-        List[str]: 音乐文件名列表，包含"无音乐"选项
+        List[str]: 音乐文件名列表，包含"无音乐"和"随机播放"选项
     """
     from app.tools.path_utils import get_audio_path
     from app.Language.obtain_language import get_content_name_async
@@ -294,6 +325,10 @@ def get_music_files():
     music_files = [
         get_content_name_async("music_settings", "no_music")
     ]  # 无音乐选项，表示不使用音乐
+    music_files.append(
+        get_content_name_async("music_settings", "random_play")
+    )  # 随机播放选项，表示随机选择音乐文件播放
+
     if audio_dir.exists():
         # 支持的音频格式
         supported_formats = [".mp3", ".flac", ".wav", ".ogg"]

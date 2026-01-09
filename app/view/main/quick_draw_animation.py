@@ -48,8 +48,6 @@ class QuickDrawAnimation(QObject):
         """
         logger.debug(f"start_animation: 开始闪抽动画，设置: {quick_draw_settings}")
 
-        self.is_animating = True
-
         self.roll_call_widget.is_quick_draw = True
 
         class_name = readme_settings_async("quick_draw_settings", "default_class")
@@ -89,20 +87,17 @@ class QuickDrawAnimation(QObject):
         animation_interval = quick_draw_settings["animation_interval"]
         autoplay_count = quick_draw_settings["autoplay_count"]
 
-        self.animation_timer = QTimer()
-        self.animation_timer.timeout.connect(self._animate_result)
-        self.animation_timer.start(animation_interval)
-
-        if animation_mode == 0:
-            logger.debug(
-                f"start_animation: 手动停止模式，动画间隔: {animation_interval}ms"
-            )
-        elif animation_mode == 1:
+        if animation_mode == 1:
             logger.debug(
                 f"start_animation: 自动停止模式，动画间隔: {animation_interval}ms, 运行次数: {autoplay_count}"
             )
+            self.is_animating = True
+            self.animation_timer = QTimer()
+            self.animation_timer.timeout.connect(self._animate_result)
+            self.animation_timer.start(animation_interval)
             QTimer.singleShot(
-                autoplay_count * animation_interval, lambda: self.stop_animation()
+                autoplay_count * animation_interval,
+                self.stop_animation,
             )
         elif animation_mode == 2:
             logger.debug("start_animation: 无动画模式，直接停止动画")
@@ -111,48 +106,46 @@ class QuickDrawAnimation(QObject):
     def stop_animation(self):
         """停止闪抽动画"""
         logger.debug("stop_animation: 停止闪抽动画")
+        self.animation_timer.stop()
+        self.is_animating = False
+        self.animation_labels_cache.clear()
+        self.animation_cache.clear()
 
-        if (
-            self.is_animating
-            and self.animation_timer
-            and self.animation_timer.isActive()
-        ):
-            self.animation_timer.stop()
-            self.is_animating = False
-            self.animation_labels_cache.clear()
-            self.animation_cache.clear()
+        from app.common.behind_scenes.behind_scenes_utils import BehindScenesUtils
 
-            from app.common.behind_scenes.behind_scenes_utils import BehindScenesUtils
+        BehindScenesUtils.clear_cache()
 
-            BehindScenesUtils.clear_cache()
+        music_player.stop_music(fade_out=True)
 
-            music_player.stop_music(fade_out=True)
+        result_music = readme_settings_async("quick_draw_settings", "result_music")
+        if result_music:
+            music_player.play_music(
+                music_file=result_music,
+                settings_group="quick_draw_settings",
+                loop=False,
+                fade_in=True,
+            )
 
-            result_music = readme_settings_async("quick_draw_settings", "result_music")
-            if result_music:
-                music_player.play_music(
-                    music_file=result_music,
-                    settings_group="quick_draw_settings",
-                    loop=False,
-                    fade_in=True,
-                )
-
-            self.roll_call_widget.is_quick_draw = False
-            self.animation_finished.emit()
+        self.roll_call_widget.is_quick_draw = False
+        self.animation_finished.emit()
 
     def _animate_result(self):
         """动画过程中更新显示"""
-        if self.is_animating:
-            self.draw_random_students()
+        if not self.draw_random_students():
+            return
 
-            if self.final_selected_students and self.final_class_name:
-                self.display_result_animated(
-                    self.final_selected_students,
-                    self.final_class_name,
-                    self.quick_draw_settings,
-                )
+        if self.final_selected_students and self.final_class_name:
+            logger.debug(
+                f"_animate_result: 准备显示动画结果，学生: {self.final_selected_students}"
+            )
+            self.display_result_animated(
+                self.final_selected_students,
+                self.final_class_name,
+                self.quick_draw_settings,
+            )
 
-            self._update_floating_notification()
+        # 更新浮窗通知
+        self._update_floating_notification()
 
     def is_animation_active(self):
         """检查动画是否正在运行
@@ -361,6 +354,11 @@ class QuickDrawAnimation(QObject):
                         "display_format": quick_draw_settings["display_format"],
                         "student_image": quick_draw_settings["student_image"],
                         "show_random": quick_draw_settings["show_random"],
+                        # 通知设置
+                        "notification_display_duration": readme_settings_async(
+                            "quick_draw_notification_settings",
+                            "notification_display_duration",
+                        ),
                     }
 
                     # 使用ResultDisplayUtils显示通知
@@ -490,6 +488,9 @@ class QuickDrawAnimation(QObject):
             class_name: 班级名称
             display_settings: 显示设置字典
         """
+        logger.debug(
+            f"display_result_animated: 开始显示动画结果，学生: {selected_students}"
+        )
         font_size = display_settings["font_size"]
         animation_color = display_settings["animation_color_theme"]
         display_format = display_settings["display_format"]
@@ -509,12 +510,20 @@ class QuickDrawAnimation(QObject):
             settings_group="quick_draw_settings",
         )
 
+        logger.debug(
+            f"display_result_animated: 创建了 {len(student_labels)} 个标签，缓存数量: {len(self.animation_labels_cache)}"
+        )
+
         if not self.animation_labels_cache:
+            logger.debug(
+                "display_result_animated: 首次显示，使用 display_results_in_grid"
+            )
             ResultDisplayUtils.display_results_in_grid(
                 self.roll_call_widget.result_grid, student_labels
             )
             self.animation_labels_cache = student_labels
         else:
+            logger.debug("display_result_animated: 更新显示，使用 update_grid_labels")
             ResultDisplayUtils.update_grid_labels(
                 self.roll_call_widget.result_grid,
                 student_labels,

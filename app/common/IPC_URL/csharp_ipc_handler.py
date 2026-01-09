@@ -116,6 +116,10 @@ if CSHARP_AVAILABLE:
             else:
                 display_duration = 5
 
+            logger.debug(
+                f"发送通知到 ClassIsland: 班级={class_name}, 选中学生={selected_students}, 抽取数量={draw_count}, 显示时长={display_duration}"
+            )
+
             randomService = GeneratedIpcFactory.CreateIpcProxy[ISecRandomService](
                 self.ipc_client.Provider, self.ipc_client.PeerProxy
             )

@@ -30,6 +30,7 @@ music_settings = {
         "quick_draw": {"name": "闪抽", "description": "闪抽功能"},
         "lottery": {"name": "抽奖", "description": "抽奖功能"},
         "no_music": {"name": "无音乐", "description": "不使用音乐"},
+        "random_play": {"name": "随机播放", "description": "随机选择音乐文件播放"},
     },
     "EN_US": {
         "title": {"name": "Music settings", "description": "音乐管理和设置"},
@@ -62,5 +63,9 @@ music_settings = {
         "instant_draw": {"name": "Instant Pick", "description": "即抽功能"},
         "lottery": {"name": "Lottery", "description": "Lottery function"},
         "no_music": {"name": "无音乐", "description": "不使用音乐"},
+        "random_play": {
+            "name": "Random Play",
+            "description": "Randomly select music file to play",
+        },
     },
 }
