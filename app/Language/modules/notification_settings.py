@@ -98,8 +98,12 @@ roll_call_notification_settings = {
         },
         "notification_service_type": {
             "name": "通知服务类型",
-            "description": "选择通知服务类型，内置服务或ClassIsland",
-            "combo_items": ["内置通知服务", "ClassIsland通知服务"],
+            "description": "选择通知服务类型，SecRandom或ClassIsland",
+            "combo_items": [
+                "SecRandom",
+                "ClassIsland",
+                "SecRandom+ClassIsland",
+            ],
         },
         "notification_display_duration": {
             "name": "通知显示时长",
@@ -183,8 +187,9 @@ roll_call_notification_settings = {
             "name": "Notification service type",
             "description": "Select notification service type, SecRandom or ClassIsland",
             "combo_items": [
-                "SecRandom Notification Service",
-                "ClassIsland Notification Service",
+                "SecRandom",
+                "ClassIsland",
+                "SecRandom + ClassIsland",
             ],
         },
         "notification_display_duration": {
@@ -259,8 +264,8 @@ quick_draw_notification_settings = {
         },
         "notification_service_type": {
             "name": "通知服务类型",
-            "description": "选择通知服务类型，内置服务或ClassIsland",
-            "combo_items": ["内置通知服务", "ClassIsland通知服务"],
+            "description": "选择通知服务类型，SecRandom或ClassIsland",
+            "combo_items": ["SecRandom", "ClassIsland", "SecRandom+ClassIsland"],
         },
         "notification_display_duration": {
             "name": "通知显示时长",
@@ -327,8 +332,9 @@ quick_draw_notification_settings = {
             "name": "Notification service type",
             "description": "Select notification service type, SecRandom or ClassIsland",
             "combo_items": [
-                "SecRandom Notification Service",
-                "ClassIsland Notification Service",
+                "SecRandom",
+                "ClassIsland",
+                "SecRandom + ClassIsland",
             ],
         },
         "notification_display_duration": {
@@ -413,8 +419,12 @@ lottery_notification_settings = {
         },
         "notification_service_type": {
             "name": "通知服务类型",
-            "description": "选择通知服务类型，内置服务或ClassIsland",
-            "combo_items": ["内置通知服务", "ClassIsland通知服务"],
+            "description": "选择通知服务类型，SecRandom或ClassIsland",
+            "combo_items": [
+                "SecRandom",
+                "ClassIsland",
+                "SecRandom+ClassIsland",
+            ],
         },
         "notification_display_duration": {
             "name": "通知显示时长",
@@ -493,8 +503,9 @@ lottery_notification_settings = {
             "name": "Notification service type",
             "description": "Select notification service type, SecRandom or ClassIsland",
             "combo_items": [
-                "SecRandom Notification Service",
-                "ClassIsland Notification Service",
+                "SecRandom",
+                "ClassIsland",
+                "SecRandom + ClassIsland",
             ],
         },
         "notification_display_duration": {

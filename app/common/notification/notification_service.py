@@ -946,6 +946,7 @@ class FloatingNotificationManager:
         draw_count=1,
         settings=None,
         settings_group=None,
+        fallback_on_error=True,
     ):
         """发送通知到ClassIsland
 
@@ -955,6 +956,7 @@ class FloatingNotificationManager:
             draw_count: 抽取的学生数量
             settings: 通知设置参数
             settings_group: 设置组名称
+            fallback_on_error: 是否在错误时回退到内置通知
         """
 
         try:
@@ -965,17 +967,27 @@ class FloatingNotificationManager:
             if status:
                 logger.info("成功发送通知到ClassIsland，结果未知")
             else:
+                if fallback_on_error:
+                    logger.info("因错误回退到SecRandom通知服务")
+                    self._show_secrandom_notification(
+                        class_name,
+                        selected_students,
+                        draw_count,
+                        settings,
+                        settings_group,
+                    )
+                else:
+                    logger.warning("发送通知到ClassIsland失败")
+        except Exception as e:
+            logger.exception("发送通知到ClassIsland时出错: {}", e)
+            # 如果发生异常，回退到SecRandom通知服务
+            if fallback_on_error:
                 logger.info("因错误回退到SecRandom通知服务")
                 self._show_secrandom_notification(
                     class_name, selected_students, draw_count, settings, settings_group
                 )
-        except Exception as e:
-            logger.exception("发送通知到ClassIsland时出错: {}", e)
-            # 如果发生异常，回退到SecRandom通知服务
-            logger.info("因错误回退到SecRandom通知服务")
-            self._show_secrandom_notification(
-                class_name, selected_students, draw_count, settings, settings_group
-            )
+            else:
+                logger.warning("发送通知到ClassIsland时出错，但不回退")
 
     def _show_secrandom_notification(
         self,
@@ -1100,6 +1112,19 @@ class FloatingNotificationManager:
                 class_name, selected_students, draw_count, settings, settings_group
             )
             return
+
+        # 如果选择了内置+ClassIsland通知服务，则同时发送到两个服务
+        if notification_service_type == 2:  # 2 表示 内置+ClassIsland 通知服务
+            # 先发送到ClassIsland，不回退（因为会继续显示内置通知）
+            self.send_to_classisland(
+                class_name,
+                selected_students,
+                draw_count,
+                settings,
+                settings_group,
+                fallback_on_error=False,
+            )
+            # 继续执行下面的内置通知逻辑，不return
 
         # 否则使用SecRandom浮窗通知
         # 获取设置

@@ -3,7 +3,7 @@ v2.0 - Koharu（小鸟游星野） release 3
 
 ## 🚀 主要更新
 
-- 无
+- 新增 **通知渠道**，新增「SecRandom+ClassIsland」选项
 
 ## 💡 功能优化
 
