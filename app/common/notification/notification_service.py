@@ -22,19 +22,48 @@ class NotificationContentWidget(QWidget):
         self.layout.setContentsMargins(15, 15, 15, 15)
         self.layout.setSpacing(10)
         self.content_widgets = []
+        self.cached_widgets = []
 
     def update_content(self, widgets):
-        """更新内容控件"""
-        # 清除现有内容
-        for widget in self.content_widgets:
+        """更新内容控件（优化版，复用控件避免闪烁）"""
+        if not widgets:
+            return
+
+        min_count = min(len(widgets), len(self.cached_widgets))
+
+        for i in range(min_count):
+            old_widget = self.cached_widgets[i]
+            new_widget = widgets[i]
+
+            if old_widget and new_widget:
+                old_layout = old_widget.layout()
+                new_layout = new_widget.layout()
+
+                if old_layout and new_layout:
+                    for j in range(min(old_layout.count(), new_layout.count())):
+                        old_item = old_layout.itemAt(j)
+                        new_item = new_layout.itemAt(j)
+
+                        if old_item and new_item:
+                            old_label = old_item.widget()
+                            new_label = new_item.widget()
+
+                            if old_label and new_label:
+                                old_label.setText(new_label.text())
+                                old_label.setStyleSheet(new_label.styleSheet())
+
+        for i in range(min_count, len(widgets)):
+            self.layout.addWidget(widgets[i])
+            self.content_widgets.append(widgets[i])
+
+        for i in range(min_count, len(self.cached_widgets)):
+            widget = self.cached_widgets[i]
             self.layout.removeWidget(widget)
             widget.deleteLater()
-        self.content_widgets.clear()
+            if widget in self.content_widgets:
+                self.content_widgets.remove(widget)
 
-        # 添加新内容
-        for widget in widgets:
-            self.layout.addWidget(widget)
-            self.content_widgets.append(widget)
+        self.cached_widgets = widgets
 
         # 确保新添加的 BodyLabel 可见：根据主题强制设置前景色
         try:
@@ -45,14 +74,11 @@ class NotificationContentWidget(QWidget):
             fg = "#ffffff" if is_dark_theme(qconfig) else "#000000"
 
             def apply_fg_to(w):
-                # 如果是直接的 BodyLabel，设置样式
                 if isinstance(w, QFBodyLabel):
                     existing = w.styleSheet() or ""
                     if "color:" not in existing:
-                        # 保留已有样式，追加颜色
                         w.setStyleSheet(existing + f" color: {fg};")
                 else:
-                    # 遍历子控件查找 BodyLabel
                     for child in w.findChildren(QFBodyLabel):
                         existing = child.styleSheet() or ""
                         if "color:" not in existing:
@@ -64,7 +90,6 @@ class NotificationContentWidget(QWidget):
                 except Exception as e:
                     logger.exception("应用前景色到内容控件时出错: {}", e)
         except Exception:
-            # 忽略主题检测错误，保持原样
             pass
 
 
@@ -132,6 +157,9 @@ class FloatingNotificationWindow(CardWidget):
 
         # 关闭动画
         self.hide_animation = None
+
+        # 缓存的标签，用于复用
+        self.cached_student_labels = []
 
         # 启动周期性置顶
         self._start_periodic_topmost()
@@ -758,7 +786,7 @@ class FloatingNotificationWindow(CardWidget):
         font_settings_group=None,
         settings_group=None,
     ):
-        """更新通知窗口的内容
+        """更新通知窗口的内容（优化版，复用控件避免闪烁）
 
         Args:
             student_labels: 包含学生信息的BodyLabel控件列表
@@ -778,34 +806,59 @@ class FloatingNotificationWindow(CardWidget):
             elif font_settings_group == "lottery_settings":
                 self.settings_group = "lottery_notification_settings"
 
-        # 清除现有内容
-        while self.content_layout.count():
-            item = self.content_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        if not student_labels:
+            return
 
-        # 添加新内容
-        if student_labels:
-            for label in student_labels:
-                # 如果有字体设置，则应用到标签上
-                if font_settings_group:
-                    # 检查是否使用全局字体
-                    use_global_font = readme_settings_async(
-                        font_settings_group, "use_global_font"
+        min_count = min(len(student_labels), len(self.cached_student_labels))
+
+        for i in range(min_count):
+            old_widget = self.cached_student_labels[i]
+            new_widget = student_labels[i]
+
+            if old_widget and new_widget:
+                old_layout = old_widget.layout()
+                new_layout = new_widget.layout()
+
+                if old_layout and new_layout:
+                    for j in range(min(old_layout.count(), new_layout.count())):
+                        old_item = old_layout.itemAt(j)
+                        new_item = new_layout.itemAt(j)
+
+                        if old_item and new_item:
+                            old_label = old_item.widget()
+                            new_label = new_item.widget()
+
+                            if old_label and new_label:
+                                old_label.setText(new_label.text())
+                                old_label.setStyleSheet(new_label.styleSheet())
+
+        for i in range(min_count, len(student_labels)):
+            label = student_labels[i]
+            # 如果有字体设置，则应用到标签上
+            if font_settings_group:
+                # 检查是否使用全局字体
+                use_global_font = readme_settings_async(
+                    font_settings_group, "use_global_font"
+                )
+                custom_font = None
+                if use_global_font == 1:  # 不使用全局字体，使用自定义字体
+                    custom_font = readme_settings_async(
+                        font_settings_group, "custom_font"
                     )
-                    custom_font = None
-                    if use_global_font == 1:  # 不使用全局字体，使用自定义字体
-                        custom_font = readme_settings_async(
-                            font_settings_group, "custom_font"
+                    if custom_font and hasattr(label, "setStyleSheet"):
+                        # 获取当前样式表并添加字体设置
+                        current_style = label.styleSheet()
+                        label.setStyleSheet(
+                            f"font-family: '{custom_font}'; {current_style}"
                         )
-                        if custom_font and hasattr(label, "setStyleSheet"):
-                            # 获取当前样式表并添加字体设置
-                            current_style = label.styleSheet()
-                            label.setStyleSheet(
-                                f"font-family: '{custom_font}'; {current_style}"
-                            )
-                self.content_layout.addWidget(label)
+            self.content_layout.addWidget(label)
+
+        for i in range(min_count, len(self.cached_student_labels)):
+            widget = self.cached_student_labels[i]
+            self.content_layout.removeWidget(widget)
+            widget.deleteLater()
+
+        self.cached_student_labels = student_labels
 
         # 确保颜色与当前主题同步
         try:
