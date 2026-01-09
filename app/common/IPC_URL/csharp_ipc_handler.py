@@ -107,7 +107,7 @@ if CSHARP_AVAILABLE:
             
             if self.client_thread and self.client_thread.is_alive():
                 # 给一点时间让线程退出，但不阻塞太久
-                # 线程是 daemon 的，所以即使没 join 成功也会随主进程退出
+                # 线程不是 daemon 的，这里只等待短时间以避免长时间阻塞主线程
                 self.client_thread.join(timeout=0.5)
             logger.debug("C# IPC 客户端停止请求已发出")
 
