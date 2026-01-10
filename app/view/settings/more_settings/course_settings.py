@@ -33,13 +33,17 @@ class course_settings(QWidget):
         self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
         self.vBoxLayout.setSpacing(10)
 
-        # 添加课间禁用设置组件
-        self.class_break_widget = class_break_settings(self)
-        self.vBoxLayout.addWidget(self.class_break_widget)
+        # 添加数据源设置组件
+        self.data_source_widget = data_source_settings(self)
+        self.vBoxLayout.addWidget(self.data_source_widget)
 
         # 添加CSES导入组件
         self.cses_import_widget = cses_import_settings(self)
         self.vBoxLayout.addWidget(self.cses_import_widget)
+
+        # 添加课间禁用设置组件
+        self.class_break_widget = class_break_settings(self)
+        self.vBoxLayout.addWidget(self.class_break_widget)
 
         # 添加课前重置设置组件
         self.pre_class_reset_widget = pre_class_reset_settings(self)
@@ -50,94 +54,35 @@ class course_settings(QWidget):
         self.vBoxLayout.addWidget(self.subject_history_filter_widget)
 
 
-class class_break_settings(GroupHeaderCardWidget):
+class data_source_settings(GroupHeaderCardWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle(
-            get_content_name_async("course_settings", "class_break_settings", "name")
+            get_content_name_async("course_settings", "data_source_settings", "name")
         )
         self.setBorderRadius(8)
 
-        # 课间禁用开关
-        self.class_break_switch = SwitchButton()
-        self.class_break_switch.setOffText(
-            get_content_name_async("course_settings", "disable")
+        # 数据源选择下拉框
+        self.data_source_combo = ComboBox()
+        self.data_source_combo.addItems(
+            get_content_combo_name_async("course_settings", "data_source_function")
         )
-        self.class_break_switch.setOnText(
-            get_content_name_async("course_settings", "enable")
-        )
-        instant_draw_disable = readme_settings_async(
-            "course_settings", "instant_draw_disable"
-        )
-        self.class_break_switch.setChecked(instant_draw_disable)
-        self.class_break_switch.checkedChanged.connect(
+        data_source = readme_settings_async("course_settings", "data_source")
+        self.data_source_combo.setCurrentIndex(data_source)
+        self.data_source_combo.currentIndexChanged.connect(
             lambda: update_settings(
                 "course_settings",
-                "instant_draw_disable",
-                self.class_break_switch.isChecked(),
-            )
-        )
-
-        # 验证流程开关
-        self.verification_switch = SwitchButton()
-        self.verification_switch.setOffText(
-            get_content_name_async("course_settings", "disable")
-        )
-        self.verification_switch.setOnText(
-            get_content_name_async("course_settings", "enable")
-        )
-        verification_required = readme_settings_async(
-            "course_settings", "verification_required"
-        )
-        self.verification_switch.setChecked(verification_required)
-        self.verification_switch.checkedChanged.connect(
-            lambda: update_settings(
-                "course_settings",
-                "verification_required",
-                self.verification_switch.isChecked(),
-            )
-        )
-
-        # ClassIsland数据源开关
-        self.class_island_source_switch = SwitchButton()
-        self.class_island_source_switch.setOffText(
-            get_content_name_async("course_settings", "disable")
-        )
-        self.class_island_source_switch.setOnText(
-            get_content_name_async("course_settings", "enable")
-        )
-        class_island_source_enabled = readme_settings_async(
-            "course_settings", "class_island_source_enabled"
-        )
-        self.class_island_source_switch.setChecked(class_island_source_enabled)
-        self.class_island_source_switch.checkedChanged.connect(
-            lambda: update_settings(
-                "course_settings",
-                "class_island_source_enabled",
-                self.class_island_source_switch.isChecked(),
+                "data_source",
+                self.data_source_combo.currentIndex(),
             )
         )
 
         # 添加设置项到分组
         self.addGroup(
-            get_theme_icon("ic_fluent_clock_lock_20_filled"),
-            get_content_name_async("course_settings", "class_break_function"),
-            get_content_description_async("course_settings", "class_break_function"),
-            self.class_break_switch,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_shield_lock_20_filled"),
-            get_content_name_async("course_settings", "verification_function"),
-            get_content_description_async("course_settings", "verification_function"),
-            self.verification_switch,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_desktop_mac_20_filled"),
-            get_content_name_async("course_settings", "class_island_source_function"),
-            get_content_description_async(
-                "course_settings", "class_island_source_function"
-            ),
-            self.class_island_source_switch,
+            get_theme_icon("ic_fluent_database_20_filled"),
+            get_content_name_async("course_settings", "data_source_function"),
+            get_content_description_async("course_settings", "data_source_function"),
+            self.data_source_combo,
         )
 
 
@@ -341,6 +286,93 @@ class cses_import_settings(GroupHeaderCardWidget):
             )
 
 
+class class_break_settings(GroupHeaderCardWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle(
+            get_content_name_async("course_settings", "class_break_settings", "name")
+        )
+        self.setBorderRadius(8)
+
+        # 课间禁用开关
+        self.class_break_switch = SwitchButton()
+        self.class_break_switch.setOffText(
+            get_content_name_async("course_settings", "disable")
+        )
+        self.class_break_switch.setOnText(
+            get_content_name_async("course_settings", "enable")
+        )
+        instant_draw_disable = readme_settings_async(
+            "course_settings", "instant_draw_disable"
+        )
+        self.class_break_switch.setChecked(instant_draw_disable)
+        self.class_break_switch.checkedChanged.connect(
+            lambda: update_settings(
+                "course_settings",
+                "instant_draw_disable",
+                self.class_break_switch.isChecked(),
+            )
+        )
+
+        # 验证流程开关
+        self.verification_switch = SwitchButton()
+        self.verification_switch.setOffText(
+            get_content_name_async("course_settings", "disable")
+        )
+        self.verification_switch.setOnText(
+            get_content_name_async("course_settings", "enable")
+        )
+        verification_required = readme_settings_async(
+            "course_settings", "verification_required"
+        )
+        self.verification_switch.setChecked(verification_required)
+        self.verification_switch.checkedChanged.connect(
+            lambda: update_settings(
+                "course_settings",
+                "verification_required",
+                self.verification_switch.isChecked(),
+            )
+        )
+
+        # 上课前提前解禁时间微调框
+        self.pre_class_enable_spinbox = SpinBox()
+        self.pre_class_enable_spinbox.setFixedWidth(WIDTH_SPINBOX)
+        self.pre_class_enable_spinbox.setRange(0, 1440)
+        self.pre_class_enable_spinbox.setSingleStep(1)
+        self.pre_class_enable_spinbox.setSuffix(" s")
+        pre_class_enable_time = readme_settings_async(
+            "course_settings", "pre_class_enable_time"
+        )
+        self.pre_class_enable_spinbox.setValue(pre_class_enable_time)
+        self.pre_class_enable_spinbox.valueChanged.connect(
+            lambda: update_settings(
+                "course_settings",
+                "pre_class_enable_time",
+                self.pre_class_enable_spinbox.value(),
+            )
+        )
+
+        # 添加设置项到分组
+        self.addGroup(
+            get_theme_icon("ic_fluent_clock_lock_20_filled"),
+            get_content_name_async("course_settings", "class_break_function"),
+            get_content_description_async("course_settings", "class_break_function"),
+            self.class_break_switch,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_shield_lock_20_filled"),
+            get_content_name_async("course_settings", "verification_function"),
+            get_content_description_async("course_settings", "verification_function"),
+            self.verification_switch,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_timer_20_filled"),
+            get_content_name_async("course_settings", "pre_class_enable_time"),
+            get_content_description_async("course_settings", "pre_class_enable_time"),
+            self.pre_class_enable_spinbox,
+        )
+
+
 class pre_class_reset_settings(GroupHeaderCardWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -436,25 +468,6 @@ class subject_history_filter_settings(GroupHeaderCardWidget):
             )
         )
 
-        # 课间记录归属下拉框
-        self.break_record_assignment_combo = ComboBox()
-        self.break_record_assignment_combo.addItems(
-            get_content_combo_name_async(
-                "course_settings", "break_record_assignment_function"
-            )
-        )
-        break_record_assignment = readme_settings_async(
-            "course_settings", "break_record_assignment"
-        )
-        self.break_record_assignment_combo.setCurrentIndex(break_record_assignment)
-        self.break_record_assignment_combo.currentIndexChanged.connect(
-            lambda: update_settings(
-                "course_settings",
-                "break_record_assignment",
-                self.break_record_assignment_combo.currentIndex(),
-            )
-        )
-
         # 添加设置项到分组
         self.addGroup(
             get_theme_icon("ic_fluent_filter_20_filled"),
@@ -465,14 +478,4 @@ class subject_history_filter_settings(GroupHeaderCardWidget):
                 "course_settings", "subject_history_filter_function"
             ),
             self.subject_history_filter_switch,
-        )
-        self.addGroup(
-            get_theme_icon("ic_fluent_arrow_swap_20_filled"),
-            get_content_name_async(
-                "course_settings", "break_record_assignment_function"
-            ),
-            get_content_description_async(
-                "course_settings", "break_record_assignment_function"
-            ),
-            self.break_record_assignment_combo,
         )

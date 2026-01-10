@@ -20,33 +20,28 @@ from app.tools.settings_access import readme_settings_async
 def _get_break_assignment_class_info() -> Dict:
     """获取课间归属的课程信息
 
-    根据设置决定课间时段的记录归属到上节课还是下节课
+    课间时段的记录归属到下节课
 
     Returns:
         Dict: 课程信息字典，包含 name, start_time, end_time, teacher, location, day_of_week
               如果无法获取课程信息，返回空字典
     """
     try:
-        break_assignment = readme_settings_async(
-            "course_settings", "break_record_assignment"
-        )
+        data_source = readme_settings_async("course_settings", "data_source")
 
-        use_class_island_source = readme_settings_async(
-            "course_settings", "class_island_source_enabled"
-        )
-
-        if use_class_island_source:
+        if data_source == 2:
             logger.debug("尝试从 ClassIsland 获取课间归属课程信息")
-            if break_assignment == 0:
-                class_info = CSharpIPCHandler.instance().get_previous_class_info()
-            else:
-                class_info = CSharpIPCHandler.instance().get_next_class_info()
+            class_info = CSharpIPCHandler.instance().get_next_class_info()
             if class_info:
                 return class_info
             else:
                 logger.debug(
                     "从 ClassIsland 获取课间归属课程信息失败，回退到 CSES 文件"
                 )
+
+        if data_source == 0:
+            logger.debug("未启用数据源，无法获取课间归属课程信息")
+            return {}
 
         parser = _get_cses_parser()
         if not parser:
@@ -57,29 +52,15 @@ def _get_break_assignment_class_info() -> Dict:
 
         class_info_list = parser.get_class_info()
 
-        if break_assignment == 0:
-            previous_class = None
-            for class_info in class_info_list:
-                if class_info.get("day_of_week") == current_day_of_week:
-                    end_time_str = class_info.get("end_time", "")
-                    if end_time_str:
-                        end_seconds = _parse_time_string_to_seconds(end_time_str)
-                        if end_seconds <= current_total_seconds:
-                            previous_class = class_info
-            if previous_class:
-                class_name = previous_class.get("name", "")
-                logger.info(f"课间归属到上节课: {class_name}")
-                return {"name": class_name}
-        else:
-            for class_info in class_info_list:
-                if class_info.get("day_of_week") == current_day_of_week:
-                    start_time_str = class_info.get("start_time", "")
-                    if start_time_str:
-                        start_seconds = _parse_time_string_to_seconds(start_time_str)
-                        if start_seconds > current_total_seconds:
-                            class_name = class_info.get("name", "")
-                            logger.info(f"课间归属到下节课: {class_name}")
-                            return {"name": class_name}
+        for class_info in class_info_list:
+            if class_info.get("day_of_week") == current_day_of_week:
+                start_time_str = class_info.get("start_time", "")
+                if start_time_str:
+                    start_seconds = _parse_time_string_to_seconds(start_time_str)
+                    if start_seconds > current_total_seconds:
+                        class_name = class_info.get("name", "")
+                        logger.info(f"课间归属到下节课: {class_name}")
+                        return {"name": class_name}
 
         logger.debug("无法获取课间归属课程信息")
         return {}
@@ -105,25 +86,58 @@ def _is_non_class_time() -> bool:
         if not instant_draw_disable:
             return False
 
-        use_class_island_source = readme_settings_async(
-            "course_settings", "class_island_source_enabled"
+        pre_class_enable_time = readme_settings_async(
+            "course_settings", "pre_class_enable_time"
         )
-        logger.debug(f"是否启用了ClassIsland数据源: {use_class_island_source}")
-        if use_class_island_source:
-            return CSharpIPCHandler.instance().is_breaking()
-        else:
-            current_day_of_week = _get_current_day_of_week()
-            class_times = _get_class_times_by_day(current_day_of_week)
-            if not class_times or not isinstance(class_times, dict):
+        logger.debug(f"上课前提前解禁时间: {pre_class_enable_time}秒")
+
+        data_source = readme_settings_async("course_settings", "data_source")
+        logger.debug(f"数据源选择: {data_source}")
+
+        if data_source == 0:
+            logger.debug("未启用数据源，不进行课间禁用判断")
+            return False
+
+        if data_source == 2:
+            is_breaking = CSharpIPCHandler.instance().is_breaking()
+            on_class_left_time = CSharpIPCHandler.instance().get_on_class_left_time()
+
+            logger.debug(
+                f"ClassIsland状态 - 是否下课: {is_breaking}, 距离上课: {on_class_left_time}秒"
+            )
+
+            # 如果距离上课时间小于等于提前解禁时间，则提前解禁
+            if on_class_left_time > 0 and on_class_left_time <= pre_class_enable_time:
+                logger.debug(
+                    f"距离上课{on_class_left_time}秒，小于等于提前解禁时间{pre_class_enable_time}秒，提前解禁"
+                )
                 return False
 
-            current_total_seconds = _get_current_time_in_seconds()
-            logger.debug(f"当前时间总秒数: {current_total_seconds}")
+            return is_breaking
 
-            is_in_class_time = _is_time_in_ranges(current_total_seconds, class_times)
-            logger.debug(f"当前时间是否在上课时间段内: {is_in_class_time}")
+        current_day_of_week = _get_current_day_of_week()
+        class_times = _get_class_times_by_day(current_day_of_week)
+        if not class_times or not isinstance(class_times, dict):
+            return False
 
-            return not is_in_class_time
+        current_total_seconds = _get_current_time_in_seconds()
+        logger.debug(f"当前时间总秒数: {current_total_seconds}")
+
+        is_in_class_time = _is_time_in_ranges(current_total_seconds, class_times)
+        logger.debug(f"当前时间是否在上课时间段内: {is_in_class_time}")
+
+        # 获取距离下一节课的时间
+        seconds_to_next_class = _get_seconds_to_next_class()
+        logger.debug(f"距离下一节课时间: {seconds_to_next_class}秒")
+
+        # 如果距离上课时间小于等于提前解禁时间，则提前解禁
+        if seconds_to_next_class > 0 and seconds_to_next_class <= pre_class_enable_time:
+            logger.debug(
+                f"距离上课{seconds_to_next_class}秒，小于等于提前解禁时间{pre_class_enable_time}秒，提前解禁"
+            )
+            return False
+
+        return not is_in_class_time
 
     except Exception as e:
         logger.error(f"检测非上课时间失败: {e}")
@@ -272,18 +286,19 @@ def _get_current_class_info() -> Dict:
               如果当前时间不在任何上课时间段内，返回空字典
     """
     try:
-        # 优先从 ClassIsland 获取课程信息
-        use_class_island_source = readme_settings_async(
-            "course_settings", "class_island_source_enabled"
-        )
+        data_source = readme_settings_async("course_settings", "data_source")
 
-        if use_class_island_source:
+        if data_source == 2:
             logger.debug("尝试从 ClassIsland 获取当前课程信息")
             class_info = CSharpIPCHandler.instance().get_current_class_info()
             if class_info:
                 return class_info
             else:
                 logger.debug("从 ClassIsland 获取课程信息失败，回退到 CSES 文件")
+
+        if data_source == 0:
+            logger.debug("未启用数据源，无法获取当前课程信息")
+            return {}
 
         # 从 CSES 文件获取课程信息
         parser = _get_cses_parser()

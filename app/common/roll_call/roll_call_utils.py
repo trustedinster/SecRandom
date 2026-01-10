@@ -266,17 +266,17 @@ class RollCallUtils:
         )
 
         if subject_history_filter_enabled:
-            use_class_island_source = readme_settings_async(
-                "course_settings", "class_island_source_enabled"
-            )
-            if use_class_island_source:
+            data_source = readme_settings_async("course_settings", "data_source")
+            if data_source == 2:
                 from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
 
                 current_class_info = (
                     CSharpIPCHandler.instance().get_current_class_info()
                 )
-            else:
+            elif data_source == 1:
                 current_class_info = _get_current_class_info()
+            else:
+                current_class_info = None
 
             # 如果当前没有课程信息（课间时段），则使用课间归属的课程信息
             if not current_class_info:

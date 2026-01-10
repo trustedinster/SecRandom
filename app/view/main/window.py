@@ -830,22 +830,24 @@ class MainWindow(FluentWindow):
                 "course_settings", "pre_class_reset_time", 120
             )
 
-            # 检查是否启用了ClassIsland数据源
-            use_class_island_source = readme_settings_async(
-                "course_settings", "class_island_source_enabled", False
-            )
+            # 检查数据源选择
+            data_source = readme_settings_async("course_settings", "data_source", 0)
 
             # 根据数据源选择不同的方式获取距离上课时间
-            if use_class_island_source:
+            if data_source == 2:
                 # 使用 ClassIsland 获取距离上课剩余时间（秒）
                 on_class_left_time = (
                     CSharpIPCHandler.instance().get_on_class_left_time()
                 )
-            else:
+            elif data_source == 1:
                 # 使用 CSES 数据计算距离下一节课的时间
                 from app.common.extraction.extract import _get_seconds_to_next_class
 
                 on_class_left_time = _get_seconds_to_next_class()
+            else:
+                # 不使用数据源，不进行课前重置
+                self.pre_class_reset_timer.stop()
+                return
 
             # 检查是否在上课前指定时间范围内
             if on_class_left_time > 0 and on_class_left_time <= pre_class_reset_time:
@@ -921,19 +923,20 @@ class MainWindow(FluentWindow):
             if not pre_class_reset_enabled:
                 return
 
-            # 检查是否启用了ClassIsland数据源
-            use_class_island_source = readme_settings_async(
-                "course_settings", "class_island_source_enabled", False
-            )
+            # 检查数据源选择
+            data_source = readme_settings_async("course_settings", "data_source", 0)
 
-            if not use_class_island_source:
-                if not self.pre_class_reset_timer.isActive():
-                    self.pre_class_reset_timer.start(1000)
-                    logger.debug("课前重置定时器已启动（CSES模式）")
-            else:
-                if not self.pre_class_reset_timer.isActive():
-                    self.pre_class_reset_timer.start(1000)
+            if data_source == 0:
+                # 不使用数据源，不启动定时器
+                logger.debug("未启用数据源，不启动课前重置定时器")
+                return
+
+            if not self.pre_class_reset_timer.isActive():
+                self.pre_class_reset_timer.start(1000)
+                if data_source == 2:
                     logger.debug("课前重置定时器已启动（ClassIsland模式）")
+                else:
+                    logger.debug("课前重置定时器已启动（CSES模式）")
 
         except Exception as e:
             logger.error(f"初始化课前重置功能时出错: {e}")

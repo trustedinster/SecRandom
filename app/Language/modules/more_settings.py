@@ -29,6 +29,10 @@ course_settings = {
             "name": "课间禁用功能",
             "description": "开启后，在下课时间段内抽取需要安全验证",
         },
+        "pre_class_enable_time": {
+            "name": "上课前提前解禁时间",
+            "description": "在上课前多少秒提前解禁（0-1440秒）",
+        },
         "cses_import": {
             "name": "课程表导入",
             "description": "从CSES格式文件导入上课时间段，用于课间禁用功能",
@@ -36,10 +40,6 @@ course_settings = {
         "verification_function": {
             "name": "验证流程功能",
             "description": "启用后，在非上课时段触发时将弹出安全验证；若关闭则直接禁用控件",
-        },
-        "class_island_source_function": {
-            "name": "ClassIsland数据源",
-            "description": "启用后，使用ClassIsland软件提供的课程表信息判断课间时间",
         },
         "pre_class_reset_settings": {
             "name": "课前重置设置",
@@ -103,14 +103,18 @@ course_settings = {
             "name": "科目历史记录过滤",
             "description": "启用后，计算权重时只使用当前科目的历史记录",
         },
-        "break_record_assignment_settings": {
-            "name": "课间记录归属",
-            "description": "设置课间时段抽取记录的归属",
+        "data_source_settings": {
+            "name": "数据源选择",
+            "description": "设置课程数据源",
         },
-        "break_record_assignment_function": {
-            "name": "课间记录归属",
-            "description": "设置在课间时段抽取时，记录应该归属到哪节课",
-            "combo_items": ["上节课", "下节课"],
+        "data_source_function": {
+            "name": "数据源选择",
+            "description": "选择课程数据的来源",
+            "combo_items": [
+                "不使用数据源",
+                "使用CSES课表数据",
+                "使用ClassIsland数据源",
+            ],
         },
     },
     "EN_US": {
@@ -126,6 +130,10 @@ course_settings = {
         "class_break_function": {
             "name": "Disable draw during class break",
             "description": "Draw during class breaks need security authorization when enabled",
+        },
+        "pre_class_enable_time": {
+            "name": "Pre-class enable time",
+            "description": "How many seconds before class to enable (0-1440 seconds)",
         },
         "cses_import": {
             "name": "Schedule import",
@@ -152,10 +160,6 @@ course_settings = {
         "verification_function": {
             "name": "验证流程功能",
             "description": "启用后，在非上课时段触发时将弹出安全验证；若关闭则直接禁用控件",
-        },
-        "class_island_source_function": {
-            "name": "ClassIsland data source",
-            "description": "When enabled, use ClassIsland software's schedule information to determine class break times",
         },
         "pre_class_reset_settings": {
             "name": "Pre-class reset settings",
@@ -211,14 +215,14 @@ course_settings = {
             "name": "Subject History Filter",
             "description": "When enabled, only use current subject's history records for weight calculation",
         },
-        "break_record_assignment_settings": {
-            "name": "Break Record Assignment",
-            "description": "Settings for break time record assignment",
+        "data_source_settings": {
+            "name": "Data Source Selection",
+            "description": "Settings for course data source",
         },
-        "break_record_assignment_function": {
-            "name": "Break Record Assignment",
-            "description": "Set which class the record should be assigned to when drawing during break time",
-            "combo_items": ["Previous Class", "Next Class"],
+        "data_source_function": {
+            "name": "Data Source Selection",
+            "description": "Select the source of course data",
+            "combo_items": ["No Data Source", "Use CSES Schedule", "Use ClassIsland"],
         },
     },
 }

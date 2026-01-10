@@ -218,71 +218,6 @@ if CSHARP_AVAILABLE:
                 logger.error(f"从 ClassIsland 获取课程信息失败: {e}")
                 return {}
 
-        def get_previous_class_info(self) -> dict:
-            """获取上一节课的课程信息
-
-            Returns:
-                dict: 课程信息字典，包含 name, start_time, end_time, teacher, location
-                      如果没有上一节课或获取失败，返回空字典
-            """
-            try:
-                if not self.is_running or not self.is_connected:
-                    return {}
-
-                lessonSc = GeneratedIpcFactory.CreateIpcProxy[IPublicLessonsService](
-                    self.ipc_client.Provider, self.ipc_client.PeerProxy
-                )
-
-                # 获取当前课表
-                current_plan = lessonSc.CurrentClassPlan
-                if not current_plan:
-                    logger.debug("ClassIsland 当前没有课表")
-                    return {}
-
-                # 获取当前时间点索引
-                current_index = lessonSc.CurrentSelectedIndex
-                if current_index <= 0:
-                    logger.debug("ClassIsland 没有上一节课")
-                    return {}
-
-                # 获取上一节课的科目
-                from System import DateTime
-
-                today = DateTime.Today
-                day_plan = lessonSc.GetClassPlanByDate(today)
-                if not day_plan:
-                    logger.debug("ClassIsland 今天没有课表")
-                    return {}
-
-                # 获取当前时间点之前的所有时间点
-                time_layout_items = day_plan.TimeLayoutItems
-                if not time_layout_items:
-                    logger.debug("ClassIsland 没有时间点信息")
-                    return {}
-
-                # 找到当前时间点之前的最后一个上课时间点
-                previous_class = None
-                for i in range(current_index):
-                    item = time_layout_items[i]
-                    if item and item.Subject:
-                        previous_class = item.Subject
-
-                if not previous_class:
-                    logger.debug("ClassIsland 没有找到上一节课")
-                    return {}
-
-                class_name = previous_class.Name
-                if not class_name or class_name.strip() == "???":
-                    logger.debug("ClassIsland 上一节课名称无效")
-                    return {}
-
-                logger.debug(f"从 ClassIsland 获取上一节课: {class_name}")
-                return {"name": class_name}
-
-            except Exception as e:
-                logger.error(f"从 ClassIsland 获取上一节课信息失败: {e}")
-                return {}
-
         def get_next_class_info(self) -> dict:
             """获取下一节课的课程信息
 
@@ -461,15 +396,6 @@ else:
             Returns:
                 dict: 课程信息字典，包含 name, start_time, end_time, teacher, location
                       如果当前没有课程或获取失败，返回空字典
-            """
-            return {}
-
-        def get_previous_class_info(self) -> dict:
-            """获取上一节课的课程信息
-
-            Returns:
-                dict: 课程信息字典，包含 name, start_time, end_time, teacher, location
-                      如果没有上一节课或获取失败，返回空字典
             """
             return {}
 
