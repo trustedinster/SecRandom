@@ -351,26 +351,19 @@ class page_management_roll_call(GroupHeaderCardWidget):
             )
         )
 
-        # 班级人数/组数标签是否显示开关
-        self.roll_call_quantity_label_switch = SwitchButton()
-        self.roll_call_quantity_label_switch.setOffText(
-            get_content_switchbutton_name_async(
-                "page_management", "roll_call_quantity_label", "disable"
-            )
+        # 班级人数/组数标签显示方式下拉框
+        self.roll_call_quantity_label_combo = ComboBox()
+        self.roll_call_quantity_label_combo.addItems(
+            get_content_combo_name_async("page_management", "roll_call_quantity_label")
         )
-        self.roll_call_quantity_label_switch.setOnText(
-            get_content_switchbutton_name_async(
-                "page_management", "roll_call_quantity_label", "enable"
-            )
-        )
-        self.roll_call_quantity_label_switch.setChecked(
+        self.roll_call_quantity_label_combo.setCurrentIndex(
             readme_settings_async("page_management", "roll_call_quantity_label")
         )
-        self.roll_call_quantity_label_switch.checkedChanged.connect(
+        self.roll_call_quantity_label_combo.currentIndexChanged.connect(
             lambda: self._update_settings_and_notify(
                 "page_management",
                 "roll_call_quantity_label",
-                self.roll_call_quantity_label_switch.isChecked(),
+                self.roll_call_quantity_label_combo.currentIndex(),
             )
         )
 
@@ -456,7 +449,7 @@ class page_management_roll_call(GroupHeaderCardWidget):
             get_content_description_async(
                 "page_management", "roll_call_quantity_label"
             ),
-            self.roll_call_quantity_label_switch,
+            self.roll_call_quantity_label_combo,
         )
 
     def _update_settings_and_notify(self, group, key, value):
@@ -650,26 +643,19 @@ class page_management_lottery(GroupHeaderCardWidget):
             )
         )
 
-        # 班级人数/组数标签是否显示开关
-        self.lottery_quantity_label_switch = SwitchButton()
-        self.lottery_quantity_label_switch.setOffText(
-            get_content_switchbutton_name_async(
-                "page_management", "lottery_quantity_label", "disable"
-            )
+        # 奖品数量标签显示方式下拉框
+        self.lottery_quantity_label_combo = ComboBox()
+        self.lottery_quantity_label_combo.addItems(
+            get_content_combo_name_async("page_management", "lottery_quantity_label")
         )
-        self.lottery_quantity_label_switch.setOnText(
-            get_content_switchbutton_name_async(
-                "page_management", "lottery_quantity_label", "enable"
-            )
-        )
-        self.lottery_quantity_label_switch.setChecked(
+        self.lottery_quantity_label_combo.setCurrentIndex(
             readme_settings_async("page_management", "lottery_quantity_label")
         )
-        self.lottery_quantity_label_switch.checkedChanged.connect(
+        self.lottery_quantity_label_combo.currentIndexChanged.connect(
             lambda: self._update_settings_and_notify(
                 "page_management",
                 "lottery_quantity_label",
-                self.lottery_quantity_label_switch.isChecked(),
+                self.lottery_quantity_label_combo.currentIndex(),
             )
         )
 
@@ -748,18 +734,18 @@ class page_management_lottery(GroupHeaderCardWidget):
             self.lottery_roll_call_gender_combo_switch,
         )
         self.addGroup(
-            get_theme_icon("ic_fluent_slide_text_person_20_filled"),
-            get_content_name_async("page_management", "lottery_quantity_label"),
-            get_content_description_async("page_management", "lottery_quantity_label"),
-            self.lottery_quantity_label_switch,
-        )
-        self.addGroup(
             get_theme_icon("ic_fluent_people_list_20_filled"),
             get_content_name_async("page_management", "lottery_remaining_button"),
             get_content_description_async(
                 "page_management", "lottery_remaining_button"
             ),
             self.lottery_remaining_button_switch,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_slide_text_person_20_filled"),
+            get_content_name_async("page_management", "lottery_quantity_label"),
+            get_content_description_async("page_management", "lottery_quantity_label"),
+            self.lottery_quantity_label_combo,
         )
 
     def _update_settings_and_notify(self, group, key, value):

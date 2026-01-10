@@ -309,16 +309,47 @@ class LotteryUtils:
             return 0
 
     @staticmethod
-    def update_prize_many_count_label_text(pool_name: str):
-        """生成奖品总数/剩余显示文本"""
+    def update_prize_many_count_label_text(pool_name: str, display_mode=None):
+        """生成奖品总数/剩余显示文本
+
+        Args:
+            pool_name: 奖池名称
+            display_mode: 显示模式 (0: 总+剩余, 1: 总数, 2: 剩余数, 3: 不显示)
+        """
         total_count = LotteryUtils.get_prize_total_count(pool_name)
         remaining_count = LotteryUtils.calculate_prize_remaining_count(pool_name)
         if remaining_count == 0:
             remaining_count = total_count
-        text_template = get_any_position_value("lottery", "many_count_label", "text_0")
-        formatted_text = text_template.format(
-            total_count=total_count, remaining_count=remaining_count
-        )
+
+        # 如果未指定显示模式，从设置中获取
+        if display_mode is None:
+            display_mode = readme_settings_async(
+                "page_management", "lottery_quantity_label"
+            )
+
+        # 根据显示模式选择不同的文本模板
+        if display_mode == 0:
+            text_template = get_any_position_value(
+                "lottery", "many_count_label", "text_0"
+            )
+        elif display_mode == 1:
+            text_template = get_any_position_value(
+                "lottery", "many_count_label", "text_1"
+            )
+        elif display_mode == 2:
+            text_template = get_any_position_value(
+                "lottery", "many_count_label", "text_2"
+            )
+        else:  # display_mode == 3, 不显示
+            text_template = ""
+
+        if text_template:
+            formatted_text = text_template.format(
+                total_count=total_count, remaining_count=remaining_count
+            )
+        else:
+            formatted_text = ""
+
         return total_count, remaining_count, formatted_text
 
     @staticmethod

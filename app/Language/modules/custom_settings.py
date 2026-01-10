@@ -53,8 +53,8 @@ page_management = {
         },
         "roll_call_quantity_label": {
             "name": "数量标签",
-            "description": "控制是否显示抽取人数/组数的标签",
-            "switchbutton_name": {"enable": "", "disable": ""},
+            "description": "设置抽取人数/组数标签的显示方式",
+            "combo_items": ["总人/组数+剩余人数", "总人/组数", "剩余人/组数", "不显示"],
         },
         "roll_call_remaining_button": {
             "name": "查看剩余名单按钮",
@@ -103,8 +103,8 @@ page_management = {
         },
         "lottery_quantity_label": {
             "name": "数量标签",
-            "description": "控制是否显示中奖数量标签",
-            "switchbutton_name": {"enable": "", "disable": ""},
+            "description": "设置中奖数量标签的显示方式",
+            "combo_items": ["总奖数+剩余奖数", "总奖数", "剩余奖数", "不显示"],
         },
         "lottery_remaining_button": {
             "name": "查看剩余名单按钮",
@@ -160,7 +160,8 @@ page_management = {
         },
         "roll_call_quantity_label": {
             "name": "Quantity label",
-            "description": "Control whether to display picked numbers/groups label",
+            "description": "Set the display mode of picked numbers/groups label",
+            "combo_items": ["Total+Remaining", "Total", "Remaining", "Hidden"],
         },
         "roll_call_remaining_button": {
             "name": "View remaining list button",
@@ -195,7 +196,8 @@ page_management = {
         },
         "lottery_quantity_label": {
             "name": "Quantity label",
-            "description": "Control whether to display the number of meddles",
+            "description": "Set the display mode of the number of prizes",
+            "combo_items": ["Total+Remaining", "Total", "Remaining", "Hidden"],
         },
         "lottery_remaining_button": {
             "name": "View remaining list button",

@@ -367,9 +367,16 @@ class Lottery(QWidget):
     ):
         """根据设置决定是否添加控件到布局"""
         try:
-            is_enabled = readme_settings_async(settings_group, setting_name)
-            if is_enabled:
-                layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignCenter)
+            # 对于数量标签，需要特殊处理显示模式
+            if setting_name in ["roll_call_quantity_label", "lottery_quantity_label"]:
+                display_mode = readme_settings_async(settings_group, setting_name)
+                # display_mode == 3 表示不显示
+                if display_mode != 3:
+                    layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignCenter)
+            else:
+                is_enabled = readme_settings_async(settings_group, setting_name)
+                if is_enabled:
+                    layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignCenter)
         except Exception as e:
             logger.error(f"添加控件 {setting_name} 时出错: {e}")
             # 出错时默认添加控件
@@ -413,7 +420,7 @@ class Lottery(QWidget):
 
             # 计算统一宽度（文本宽度 + 边距 + 下拉框箭头空间）
             padding = 60  # 左右边距 + 下拉箭头空间
-            min_width = 165  # 最小宽度
+            min_width = 200  # 最小宽度
             unified_width = max(min_width, max_text_width + padding)
 
             # 设置所有控件的固定宽度

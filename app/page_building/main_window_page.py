@@ -42,8 +42,8 @@ class roll_call_page(PageTemplate):
 
     def clear_content(self):
         """清除内容"""
-        if self.inner_layout_personal.count() > 0:
-            item = self.inner_layout_personal.takeAt(0)
+        if hasattr(self, "_inner_layout_lazy") and self._inner_layout_lazy.count() > 0:
+            item = self._inner_layout_lazy.takeAt(0)
             if item and item.widget():
                 widget = item.widget()
                 widget.deleteLater()
@@ -79,8 +79,8 @@ class lottery_page(PageTemplate):
 
     def clear_content(self):
         """清除内容"""
-        if self.inner_layout_personal.count() > 0:
-            item = self.inner_layout_personal.takeAt(0)
+        if hasattr(self, "_inner_layout_lazy") and self._inner_layout_lazy.count() > 0:
+            item = self._inner_layout_lazy.takeAt(0)
             if item and item.widget():
                 widget = item.widget()
                 widget.deleteLater()

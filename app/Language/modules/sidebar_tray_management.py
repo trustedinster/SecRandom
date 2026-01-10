@@ -237,11 +237,6 @@ sidebar_management_window = {
             "description": "Set the position of Pick in sidebar (Restart to take effect)",
             "combo_items": {"0": "Top", "1": "Bottom", "2": "Hide"},
         },
-        "custom_roll_call_sidebar_position": {
-            "name": "Custom pick sidebar position",
-            "description": "Set the position of Custom Pick in sidebar (Restart to take effect)",
-            "combo_items": {"0": "Top", "1": "Bottom", "2": "Hide"},
-        },
         "lottery_sidebar_position": {
             "name": "Position of Lottery",
             "description": "Set the position of Lottery in sidebar (Restart to take effect)",

@@ -67,6 +67,7 @@ class RollCallUtils:
         range_combobox_text,
         gender_combobox_text,
         half_repeat_setting,
+        display_mode=None,
     ):
         """
         更新多数量显示标签的文本
@@ -77,6 +78,7 @@ class RollCallUtils:
             range_combobox_text: 范围下拉框当前文本
             gender_combobox_text: 性别下拉框当前文本
             half_repeat_setting: 半重复设置值
+            display_mode: 显示模式 (0: 总+剩余, 1: 总数, 2: 剩余数, 3: 不显示)
 
         Returns:
             tuple: (总人数, 剩余人数, 格式化文本)
@@ -98,19 +100,50 @@ class RollCallUtils:
         if remaining_count == 0:
             remaining_count = total_count
 
-        # 根据是否为小组模式选择不同的文本模板
-        if range_combobox_index == 1:  # 小组模式
-            text_template = get_any_position_value(
-                "roll_call", "many_count_label", "text_3"
-            )
-        else:  # 学生模式
-            text_template = get_any_position_value(
-                "roll_call", "many_count_label", "text_0"
+        # 如果未指定显示模式，从设置中获取
+        if display_mode is None:
+            display_mode = readme_settings_async(
+                "page_management", "roll_call_quantity_label"
             )
 
-        formatted_text = text_template.format(
-            total_count=total_count, remaining_count=remaining_count
-        )
+        # 根据显示模式和是否为小组模式选择不同的文本模板
+        if range_combobox_index == 1:  # 小组模式
+            if display_mode == 0:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_3"
+                )
+            elif display_mode == 1:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_4"
+                )
+            elif display_mode == 2:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_5"
+                )
+            else:  # display_mode == 3, 不显示
+                text_template = ""
+        else:  # 学生模式
+            if display_mode == 0:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_0"
+                )
+            elif display_mode == 1:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_1"
+                )
+            elif display_mode == 2:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_2"
+                )
+            else:  # display_mode == 3, 不显示
+                text_template = ""
+
+        if text_template:
+            formatted_text = text_template.format(
+                total_count=total_count, remaining_count=remaining_count
+            )
+        else:
+            formatted_text = ""
 
         return total_count, remaining_count, formatted_text
 
