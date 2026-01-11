@@ -125,7 +125,7 @@ jobs:
           echo "使用uv进行依赖同步..."
           uv sync --frozen
           echo "依赖同步完成，开始打包..."
-          uv run build_pyinstaller.py
+          uv run build_nuitka.py
 
       # Linux PyInstaller 构建
       - name: 运行 Linux PyInstaller 构建
@@ -137,7 +137,7 @@ jobs:
           echo "使用uv进行依赖同步..."
           uv sync --frozen
           echo "依赖同步完成，开始打包..."
-          uv run build_pyinstaller.py
+          uv run build_nuitka.py
 
       # Windows 打包操作
       - name: Windows 打包操作
