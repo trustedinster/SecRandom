@@ -1,6 +1,6 @@
 """
-Nuitka 打包脚本
-用于构建 SecRandom 的独立可执行文件
+Nuitka 打包脚本 (重构版)
+参考 build_pyinstaller.py 的结构，修复 Nuitka 崩溃问题
 """
 
 import subprocess
@@ -8,7 +8,7 @@ import sys
 import re
 from pathlib import Path
 
-# 设置Windows控制台编码为UTF-8
+# 设置控制台编码为UTF-8
 if sys.platform == "win32":
     import io
 
@@ -32,6 +32,7 @@ from app.tools.variable import APPLY_NAME, VERSION, APP_DESCRIPTION, AUTHOR, WEB
 # 导入deb包构建工具
 from packaging_utils_deb import DebBuilder
 
+# 需要确保作为整体包含的包
 PACKAGE_INCLUDE_NAMES = {
     "app.Language.modules",
     "app.view",
@@ -44,32 +45,50 @@ def _print_packaging_summary() -> None:
     """Log a quick overview of the data and modules that will be bundled."""
 
     data_includes = collect_data_includes()
-    hidden_names = normalize_hidden_imports(
+    hidden_imports = normalize_hidden_imports(
         collect_language_modules() + collect_view_modules() + ADDITIONAL_HIDDEN_IMPORTS
     )
-    package_names = sorted(
-        {name for name in hidden_names if "." not in name} | PACKAGE_INCLUDE_NAMES
-    )
-    module_names = [name for name in hidden_names if "." in name]
 
     print("\nSelected data includes ({} entries):".format(len(data_includes)))
     for item in data_includes:
         kind = "dir " if item.is_dir else "file"
         print(f"  - {kind} {item.source} -> {item.target}")
 
-    print("\nRequired packages ({} entries):".format(len(package_names)))
-    for pkg in package_names:
-        print(f"  - {pkg}")
+    print("\nHidden imports ({} modules):".format(len(hidden_imports)))
+    for name in hidden_imports:
+        print(f"  - {name}")
 
-    print("\nHidden modules ({} entries):".format(len(module_names)))
-    for mod in module_names:
-        print(f"  - {mod}")
+
+def _check_module_exists(name: str) -> bool:
+    """
+    检查模块或包在文件系统中是否存在。
+    这是为了防止 Nuitka 因打包配置中引用了不存在的模块而崩溃。
+    """
+    path = name.replace('.', '/')
+    # 检查是否为模块文件
+    if (PROJECT_ROOT / f"{path}.py").exists():
+        return True
+    # 检查是否为包
+    if (PROJECT_ROOT / path / "__init__.py").exists():
+        return True
+    return False
 
 
 def _gather_data_flags() -> list[str]:
-    """收集数据文件包含标志"""
+    """收集数据文件包含标志，过滤掉纯Python代码目录"""
     flags: list[str] = []
+    
+    # 获取语言模块目录路径，用于过滤
+    # packaging_utils 中将此目录作为 data include，但对 Nuitka 来说这是代码
+    language_modules_dir = PROJECT_ROOT / "app" / "Language" / "modules"
+    
     for include in collect_data_includes():
+        # 修复：如果路径是 app/Language/modules，跳过数据包含
+        # 因为它是Python代码包，应该通过 --include-package 包含，而不是作为数据文件
+        if include.source == language_modules_dir:
+            print(f"Info: Skipping data include for Python package directory: {include.source}")
+            continue
+
         flag = "--include-data-dir" if include.is_dir else "--include-data-file"
         source = include.source
         target = include.target
@@ -81,17 +100,25 @@ def _gather_data_flags() -> list[str]:
 
 
 def _gather_module_and_package_flags() -> tuple[list[str], list[str]]:
-    """收集模块和包包含标志"""
+    """收集模块和包包含标志，并进行有效性检查"""
     hidden_names = normalize_hidden_imports(
         collect_language_modules() + collect_view_modules() + ADDITIONAL_HIDDEN_IMPORTS
     )
+    
     package_names = set(PACKAGE_INCLUDE_NAMES)
     module_names: list[str] = []
+    
     for name in hidden_names:
+        # 关键修复：验证模块是否存在，防止 Nuitka 报错退出
+        if not _check_module_exists(name):
+            print(f"Warning: Skipping non-existent module/package '{name}' (Nuitka requires it to exist)")
+            continue
+        
         if "." not in name:
             package_names.add(name)
         else:
             module_names.append(name)
+            
     package_flags = [f"--include-package={pkg}" for pkg in sorted(package_names)]
     module_flags = [f"--include-module={mod}" for mod in module_names]
     return module_flags, package_flags
@@ -206,7 +233,9 @@ def check_compiler_env() -> bool:
             return True
 
     print("⚠ 警告: 未找到 MinGW64，Nuitka 可能会尝试自动下载。")
-    return input("是否继续? (y/n): ").lower() == "y"
+    # 在 CI 环境下通常不需要交互，直接返回 True 或 False 取决于策略
+    # 这里为了兼容 CI，若交互不可用则直接 True，依赖 Nuitka 自行处理或失败
+    return True
 
 
 def build_deb() -> None:
@@ -252,7 +281,7 @@ def main():
             cmd,
             check=True,
             cwd=PROJECT_ROOT,
-            capture_output=False,
+            capture_output=False, # 改为 False 以便在 CI/本地看到实时输出
             text=True,
             encoding="utf-8",
             errors="replace",
