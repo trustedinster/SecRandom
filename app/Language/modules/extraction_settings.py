@@ -1203,6 +1203,11 @@ face_detector_settings = {
             "name": "摄像头",
             "description": "选择人脸抽取使用的摄像头设备",
         },
+        "camera_display_resolution": {
+            "name": "摄像头显示分辨率",
+            "description": "选择摄像头预览采集分辨率（默认使用最高）",
+            "recommended_suffix": "推荐",
+        },
         "detector_type": {
             "name": "检测模型",
             "description": "选择相机预览的人脸检测模型文件（ONNX）",
@@ -1258,6 +1263,11 @@ face_detector_settings = {
             "name": "Camera",
             "description": "Select the camera device for face picking",
         },
+        "camera_display_resolution": {
+            "name": "Camera resolution",
+            "description": "Select capture resolution for camera preview (default: highest)",
+            "recommended_suffix": "Recommended",
+        },
         "detector_type": {
             "name": "Detection model",
             "description": "Select ONNX model file for camera preview",
@@ -1309,6 +1319,11 @@ face_detector_settings = {
         "camera_source": {
             "name": "カメラ",
             "description": "顔抽選に使用するカメラデバイスを選択",
+        },
+        "camera_display_resolution": {
+            "name": "カメラ解像度",
+            "description": "カメラプレビューの解像度を選択（デフォルトは最大）",
+            "recommended_suffix": "推奨",
         },
         "detector_type": {
             "name": "検出モデル",

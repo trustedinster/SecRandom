@@ -155,8 +155,9 @@ DEFAULT_SETTINGS = {
         "result_music_fade_out": {"default_value": 300},
     },
     "face_detector_settings": {
-        "detector_type": {"default_value": None},
+        "detector_type": {"default_value": "version-RFB-640.onnx"},
         "camera_source": {"default_value": None},
+        "camera_display_resolution_map": {"default_value": {}},
         "picker_frame_color": {"default_value": DEFAULT_THEME_COLOR},
         "play_process_audio": {"default_value": True},
         "play_result_audio": {"default_value": True},

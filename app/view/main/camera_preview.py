@@ -18,6 +18,7 @@ from app.Language.obtain_language import (
 
 from app.common.camera_preview_backend import (
     get_cached_camera_devices,
+    get_recommended_camera_resolution,
     OpenCVCaptureWorker,
     FaceDetectorWorker,
     bgr_frame_to_qimage,
@@ -32,6 +33,7 @@ class CameraPreview(QWidget):
     """带有 OpenCV 捕获和 ONNX 人脸检测的摄像头预览页面。"""
 
     camera_source_change_requested = Signal(object)
+    camera_resolution_change_requested = Signal(object)
     capture_stop_requested = Signal()
     detector_enabled_changed = Signal(bool)
     detector_type_changed = Signal(object)
@@ -50,6 +52,7 @@ class CameraPreview(QWidget):
         self._latest_frame = None
         self._latest_qimage: Optional[QImage] = None
         self._latest_faces: list[tuple[int, int, int, int]] = []
+        self._capture_resolution: Optional[tuple[int, int]] = None
         self._picker_color: QColor = QColor()
         self._picking_active: bool = False
         self._picking_started: bool = False
@@ -522,14 +525,42 @@ class CameraPreview(QWidget):
                     break
         if default_source is None:
             default_source = self._devices[0].source
+            default_camera_id = (
+                self._devices[0].qt_id
+                if getattr(self._devices[0], "qt_id", "")
+                else self._devices[0].source
+            )
+        else:
+            default_camera_id = None
+            for device in self._devices:
+                try:
+                    if device.source == default_source:
+                        default_camera_id = (
+                            device.qt_id
+                            if getattr(device, "qt_id", "")
+                            else device.source
+                        )
+                        break
+                except Exception:
+                    continue
+            if default_camera_id is None:
+                default_camera_id = default_source
+
+        desired_resolution = self._resolve_camera_display_resolution(default_camera_id)
 
         self._capture_thread = QThread(self)
-        self._capture_worker = OpenCVCaptureWorker(default_source)
+        self._capture_worker = OpenCVCaptureWorker(default_source, desired_resolution)
         self._capture_worker.moveToThread(self._capture_thread)
         self._capture_thread.started.connect(self._capture_worker.start)
         self.capture_stop_requested.connect(self._capture_worker.stop)
         self.camera_source_change_requested.connect(
             self._capture_worker.request_source_change
+        )
+        self.camera_resolution_change_requested.connect(
+            self._capture_worker.request_resolution_change
+        )
+        self._capture_worker.resolution_applied.connect(
+            self._on_capture_resolution_applied
         )
         self._capture_worker.error_occurred.connect(self._on_worker_error)
 
@@ -647,6 +678,13 @@ class CameraPreview(QWidget):
     ) -> None:
         if first_level_key != "face_detector_settings":
             return
+        if second_level_key == "camera_display_resolution_map":
+            if self._capture_worker is None:
+                return
+            camera_id = readme_settings_async("face_detector_settings", "camera_source")
+            desired = self._resolve_camera_display_resolution(camera_id)
+            self.camera_resolution_change_requested.emit(desired)
+            return
         if second_level_key in ("model_input_width", "model_input_height"):
             try:
                 w = int(
@@ -721,7 +759,110 @@ class CameraPreview(QWidget):
         self._no_face_timer.stop()
         self._clear_timer.stop()
         self.camera_source_change_requested.emit(source)
+        desired = self._resolve_camera_display_resolution(value)
+        self.camera_resolution_change_requested.emit(desired)
         self._apply_preview_mode()
+
+    def _get_camera_display_resolution_map(self) -> dict:
+        value = readme_settings_async(
+            "face_detector_settings", "camera_display_resolution_map"
+        )
+        return value if isinstance(value, dict) else {}
+
+    def _get_camera_key_variants(self, camera_id: object) -> list[str]:
+        values: list[object] = []
+        if camera_id is not None:
+            values.append(camera_id)
+
+        for device in self._devices:
+            try:
+                if (
+                    device.qt_id == camera_id
+                    or str(device.qt_id) == str(camera_id)
+                    or device.source == camera_id
+                    or str(device.source) == str(camera_id)
+                ):
+                    if getattr(device, "qt_id", ""):
+                        values.append(device.qt_id)
+                    values.append(device.source)
+                    break
+            except Exception:
+                continue
+
+        keys: list[str] = []
+        for v in values:
+            try:
+                k = str(v).strip()
+            except Exception:
+                continue
+            if k and k not in keys:
+                keys.append(k)
+        return keys
+
+    def _set_camera_display_resolution_for_camera(
+        self, camera_id: object, resolution: tuple[int, int]
+    ) -> None:
+        keys = self._get_camera_key_variants(camera_id)
+        if not keys:
+            return
+        mapping = self._get_camera_display_resolution_map()
+        text = f"{int(resolution[0])}x{int(resolution[1])}"
+        for key in keys:
+            mapping[key] = text
+        try:
+            from app.tools.settings_access import update_settings
+
+            update_settings(
+                "face_detector_settings", "camera_display_resolution_map", mapping
+            )
+        except Exception:
+            return
+
+    def _resolve_camera_display_resolution(
+        self, camera_id: object
+    ) -> Optional[tuple[int, int]]:
+        mapping = self._get_camera_display_resolution_map()
+        keys = self._get_camera_key_variants(camera_id)
+        for key in keys:
+            raw = mapping.get(key)
+            if not raw:
+                continue
+            try:
+                text = str(raw).strip().lower()
+                if "x" in text:
+                    w_str, h_str = text.split("x", 1)
+                    w = int(w_str.strip())
+                    h = int(h_str.strip())
+                    if w > 0 and h > 0:
+                        return (w, h)
+            except Exception:
+                continue
+
+        recommended = None
+        try:
+            preferred_id: object = camera_id
+            for device in self._devices:
+                try:
+                    if (
+                        device.qt_id == camera_id
+                        or str(device.qt_id) == str(camera_id)
+                        or device.source == camera_id
+                        or str(device.source) == str(camera_id)
+                    ):
+                        preferred_id = (
+                            device.qt_id
+                            if getattr(device, "qt_id", "")
+                            else device.source
+                        )
+                        break
+                except Exception:
+                    continue
+            recommended = get_recommended_camera_resolution(preferred_id)
+        except Exception:
+            recommended = None
+        if recommended is not None:
+            self._set_camera_display_resolution_for_camera(camera_id, recommended)
+        return recommended
 
     def _stop_detection_and_reset(self) -> None:
         """停止检测，清除覆盖层，并恢复 UI 状态。"""
@@ -775,6 +916,13 @@ class CameraPreview(QWidget):
         """在 UI 中渲染新帧。"""
         self._latest_frame = frame_bgr
         try:
+            h = int(frame_bgr.shape[0])
+            w = int(frame_bgr.shape[1])
+            if w > 0 and h > 0:
+                self._capture_resolution = (w, h)
+        except Exception:
+            pass
+        try:
             if self.preview_stack.currentWidget() is not self.preview_label:
                 return
         except Exception:
@@ -787,9 +935,10 @@ class CameraPreview(QWidget):
         self._latest_qimage = qimage
 
         pixmap = QPixmap.fromImage(qimage)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
         if self._detection_active and self._overlay_circles:
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
             for circle, color in zip(
                 self._overlay_circles, self._overlay_colors, strict=True
             ):
@@ -797,7 +946,8 @@ class CameraPreview(QWidget):
                 painter.setPen(pen)
                 cx, cy, r = circle
                 painter.drawEllipse(QPointF(float(cx), float(cy)), float(r), float(r))
-            painter.end()
+
+        painter.end()
 
         target = self.preview_label.size()
         if target.width() > 0 and target.height() > 0:
@@ -807,6 +957,24 @@ class CameraPreview(QWidget):
                 Qt.TransformationMode.SmoothTransformation,
             )
         self.preview_label.setPixmap(pixmap)
+
+    def _on_capture_resolution_applied(self, resolution: object) -> None:
+        try:
+            if (
+                isinstance(resolution, (list, tuple))
+                and len(resolution) >= 2
+                and int(resolution[0]) > 0
+                and int(resolution[1]) > 0
+            ):
+                self._capture_resolution = (int(resolution[0]), int(resolution[1]))
+        except Exception:
+            return
+
+        try:
+            if self._latest_frame is not None:
+                self._on_frame_received(self._latest_frame)
+        except Exception:
+            pass
 
     def _update_result_pixmap(self) -> None:
         pix = self._final_face_pixmap

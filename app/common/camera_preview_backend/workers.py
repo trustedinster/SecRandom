@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import os
 import time
+import threading
 from typing import Optional, Union
 
 from loguru import logger
@@ -17,6 +18,7 @@ from app.common.camera_preview_backend.detection import (
 
 
 CameraSource = Union[int, str]
+_CV2_IMPORT_LOCK = threading.Lock()
 
 
 def _silence_opencv_logs(cv2: object) -> None:
@@ -63,16 +65,22 @@ class OpenCVCaptureWorker(QObject):
     error_occurred = Signal(str, str, str)
     opened = Signal(object)
     closed = Signal()
+    resolution_applied = Signal(object)
 
     def __init__(
         self,
         source: Optional[CameraSource],
+        desired_resolution: Optional[tuple[int, int]] = None,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._source: CameraSource = 0 if source is None else source
+        self._desired_resolution: Optional[tuple[int, int]] = (
+            tuple(desired_resolution) if desired_resolution is not None else None
+        )
         self._running = False
         self._pending_source: Optional[CameraSource] = None
+        self._pending_resolution: Optional[tuple[int, int]] = None
         self._cap = None
         self._timer: Optional[QTimer] = None
         self._last_ok = 0.0
@@ -80,13 +88,15 @@ class OpenCVCaptureWorker(QObject):
         self._last_emit = 0.0
         self._emit_interval_s = 1.0 / 20.0
         self._cv2 = None
+        self._last_reported_resolution: Optional[tuple[int, int]] = None
 
     @Slot()
     def start(self) -> None:
         """在此线程的事件循环中开始捕获帧。"""
         if self._cv2 is None:
             try:
-                import cv2  # type: ignore
+                with _CV2_IMPORT_LOCK:
+                    import cv2  # type: ignore
 
                 _silence_opencv_logs(cv2)
                 self._cv2 = cv2
@@ -144,6 +154,21 @@ class OpenCVCaptureWorker(QObject):
             return
         self._pending_source = 0
 
+    @Slot(object)
+    def request_resolution_change(self, resolution: object) -> None:
+        target = None
+        try:
+            if (
+                isinstance(resolution, (list, tuple))
+                and len(resolution) >= 2
+                and int(resolution[0]) > 0
+                and int(resolution[1]) > 0
+            ):
+                target = (int(resolution[0]), int(resolution[1]))
+        except Exception:
+            target = None
+        self._pending_resolution = target
+
     @Slot()
     def _read_once(self) -> None:
         if not self._running:
@@ -164,6 +189,36 @@ class OpenCVCaptureWorker(QObject):
                 )
                 self.stop()
                 return
+
+        pending_resolution = self._pending_resolution
+        if pending_resolution is not None:
+            self._pending_resolution = None
+            self._desired_resolution = pending_resolution
+            try:
+                cap = self._cap
+                if cap is not None:
+                    applied = self._apply_resolution(cap, self._desired_resolution)
+                    if (
+                        self._desired_resolution is not None
+                        and applied is not None
+                        and applied != self._desired_resolution
+                    ):
+                        try:
+                            self._release()
+                        except Exception:
+                            pass
+                        try:
+                            self._cap = self._open_capture(self._source)
+                            cap = self._cap
+                        except Exception:
+                            cap = None
+                        if cap is not None:
+                            applied = self._apply_resolution(
+                                cap, self._desired_resolution
+                            )
+                    self._emit_resolution_if_changed(applied)
+            except Exception:
+                pass
 
         cap = self._cap
         if cap is None:
@@ -217,6 +272,13 @@ class OpenCVCaptureWorker(QObject):
 
         self._consecutive_failures = 0
         self._last_ok = time.monotonic()
+        try:
+            h = int(frame.shape[0])
+            w = int(frame.shape[1])
+            if w > 0 and h > 0:
+                self._emit_resolution_if_changed((w, h))
+        except Exception:
+            pass
         now = time.monotonic()
         if self._last_emit <= 0.0 or (now - self._last_emit) >= self._emit_interval_s:
             self._last_emit = now
@@ -228,6 +290,11 @@ class OpenCVCaptureWorker(QObject):
         self._cap = self._open_capture(source)
         if self._cap is None:
             raise RuntimeError(f"OpenCV VideoCapture open failed: {source!r}")
+        try:
+            applied = self._apply_resolution(self._cap, self._desired_resolution)
+            self._emit_resolution_if_changed(applied)
+        except Exception:
+            pass
         self.opened.emit(source)
 
     def _switch_source(self, source: CameraSource) -> None:
@@ -236,6 +303,11 @@ class OpenCVCaptureWorker(QObject):
         self._cap = self._open_capture(source)
         if self._cap is None:
             raise RuntimeError(f"OpenCV VideoCapture open failed: {source!r}")
+        try:
+            applied = self._apply_resolution(self._cap, self._desired_resolution)
+            self._emit_resolution_if_changed(applied)
+        except Exception:
+            pass
         self.opened.emit(source)
 
     def _open_capture(self, source: CameraSource):
@@ -284,15 +356,92 @@ class OpenCVCaptureWorker(QObject):
                 cap.set(getattr(cv2, "CAP_PROP_BUFFERSIZE", 38), 1)
             except Exception:
                 pass
-            try:
-                cap.set(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3), 640)
-                cap.set(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4), 480)
-            except Exception:
-                pass
 
             return cap
 
         return None
+
+    def _apply_resolution(
+        self, cap: object, desired: Optional[tuple[int, int]]
+    ) -> Optional[tuple[int, int]]:
+        cv2 = self._cv2
+        if cv2 is None or cap is None:
+            return None
+
+        def _try_set(w: int, h: int) -> Optional[tuple[int, int]]:
+            try:
+                cap.set(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3), int(w))
+                cap.set(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4), int(h))
+            except Exception:
+                return None
+
+            try:
+                w1 = int(round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3)))))
+                h1 = int(
+                    round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4))))
+                )
+                if w1 > 0 and h1 > 0:
+                    return (w1, h1)
+            except Exception:
+                return None
+            return None
+
+        if desired is not None:
+            w, h = int(desired[0]), int(desired[1])
+            if w > 0 and h > 0:
+                applied = _try_set(w, h)
+                if applied == (w, h):
+                    return applied
+
+        fallback_candidates: list[tuple[int, int]] = [
+            (7680, 4320),
+            (5120, 2880),
+            (3840, 2160),
+            (2560, 1440),
+            (2560, 1080),
+            (1920, 1200),
+            (1920, 1080),
+            (1680, 1050),
+            (1600, 1200),
+            (1600, 900),
+            (1440, 900),
+            (1366, 768),
+            (1280, 1024),
+            (1280, 960),
+            (1280, 800),
+            (1280, 720),
+            (1024, 768),
+            (800, 600),
+            (640, 480),
+            (320, 240),
+        ]
+        for w, h in fallback_candidates:
+            applied = _try_set(w, h)
+            if applied == (w, h):
+                return applied
+
+        try:
+            w0 = int(round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3)))))
+            h0 = int(round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4)))))
+            if w0 > 0 and h0 > 0:
+                return (w0, h0)
+        except Exception:
+            pass
+        return None
+
+    def _emit_resolution_if_changed(
+        self, resolution: Optional[tuple[int, int]]
+    ) -> None:
+        if resolution is None:
+            return
+        w, h = int(resolution[0]), int(resolution[1])
+        if w <= 0 or h <= 0:
+            return
+        normalized = (w, h)
+        if self._last_reported_resolution == normalized:
+            return
+        self._last_reported_resolution = normalized
+        self.resolution_applied.emit(normalized)
 
     def _release(self) -> None:
         cap = self._cap
@@ -361,7 +510,8 @@ class FaceDetectorWorker(QObject):
     def ensure_loaded(self) -> None:
         if self._cv2 is None:
             try:
-                import cv2  # type: ignore
+                with _CV2_IMPORT_LOCK:
+                    import cv2  # type: ignore
 
                 self._cv2 = cv2
             except Exception:

@@ -31,6 +31,27 @@ _QT_WARMUP_INFLIGHT = False
 _QT_WARMUP_THREAD: object | None = None
 _QT_WARMUP_WORKER: object | None = None
 _QT_WARMUP_HOOKED = False
+_RESOLUTION_CACHE_LOCK = threading.Lock()
+_RESOLUTION_CACHE: dict[str, tuple[float, list[tuple[int, int]]]] = {}
+_RESOLUTION_CACHE_TTL_S = 300.0
+_FALLBACK_RESOLUTIONS: list[tuple[int, int]] = [
+    (3840, 2160),
+    (2560, 1440),
+    (2560, 1080),
+    (1920, 1200),
+    (1920, 1080),
+    (1600, 1200),
+    (1600, 900),
+    (1366, 768),
+    (1280, 1024),
+    (1280, 960),
+    (1280, 800),
+    (1280, 720),
+    (1024, 768),
+    (800, 600),
+    (640, 480),
+    (320, 240),
+]
 
 
 def _silence_opencv_logs(cv2: Any) -> None:
@@ -248,6 +269,9 @@ def _get_backend_name(backend: int) -> str:
 
 
 def _start_opencv_warmup() -> None:
+    if sys.platform.startswith("win"):
+        return
+
     global _OPENCV_WARMUP_STARTED
     with _CACHE_LOCK:
         if _OPENCV_WARMUP_STARTED:
@@ -291,7 +315,6 @@ def warmup_camera_devices_async(force_refresh: bool = False) -> None:
     if not force_refresh:
         cached = _get_cached_devices()
         if cached is not None:
-            _start_opencv_warmup()
             return
 
     with _CACHE_LOCK:
@@ -353,7 +376,10 @@ def warmup_camera_devices_async(force_refresh: bool = False) -> None:
             except Exception:
                 pass
             try:
-                thread.wait(1200)
+                from PySide6.QtCore import QThread  # type: ignore
+
+                if QThread.currentThread() is not thread:
+                    thread.wait(1200)
             except Exception:
                 pass
 
@@ -418,7 +444,6 @@ def list_camera_devices(force_refresh: bool = False) -> list[CameraDeviceInfo]:
     qt_results = _list_cameras_via_qt()
     if qt_results:
         _set_cached_devices(qt_results)
-        _start_opencv_warmup()
         return list(qt_results)
 
     opencv_devices = _list_cameras_via_opencv()
@@ -429,3 +454,215 @@ def list_camera_devices(force_refresh: bool = False) -> list[CameraDeviceInfo]:
 
     _set_cached_devices([])
     return []
+
+
+def _normalize_camera_key(camera_id: object) -> str:
+    if camera_id is None:
+        return ""
+    if isinstance(camera_id, bytes):
+        try:
+            return camera_id.decode("utf-8", errors="ignore")
+        except Exception:
+            return ""
+    try:
+        return str(camera_id)
+    except Exception:
+        return ""
+
+
+def _list_resolutions_via_qt(qt_id: str) -> list[tuple[int, int]]:
+    try:
+        from PySide6.QtMultimedia import QMediaDevices  # type: ignore
+    except Exception:
+        return []
+
+    try:
+        qt_devices = list(QMediaDevices.videoInputs())
+    except Exception:
+        qt_devices = []
+
+    target = ""
+    try:
+        target = str(qt_id)
+    except Exception:
+        target = ""
+    if not target:
+        return []
+
+    results: set[tuple[int, int]] = set()
+    for device in qt_devices:
+        try:
+            device_id = _qt_device_id_to_string(device.id())
+        except Exception:
+            device_id = ""
+        if not device_id or device_id != target:
+            continue
+        try:
+            formats = list(device.videoFormats())
+        except Exception:
+            formats = []
+        for fmt in formats:
+            try:
+                size = fmt.resolution()
+                w = int(size.width())
+                h = int(size.height())
+                if w > 0 and h > 0:
+                    results.add((w, h))
+            except Exception:
+                continue
+        break
+
+    return sorted(results, key=lambda x: (x[0] * x[1], x[0], x[1]), reverse=True)
+
+
+def _probe_resolutions_via_opencv(source: CameraSource) -> list[tuple[int, int]]:
+    try:
+        import cv2  # type: ignore
+    except Exception:
+        return []
+
+    _silence_opencv_logs(cv2)
+
+    backend_candidates: list[int] = []
+    if sys.platform.startswith("win"):
+        backend_candidates = [
+            getattr(cv2, "CAP_DSHOW", cv2.CAP_ANY),
+            getattr(cv2, "CAP_MSMF", cv2.CAP_ANY),
+            cv2.CAP_ANY,
+        ]
+    elif sys.platform.startswith("linux"):
+        backend_candidates = [
+            getattr(cv2, "CAP_V4L2", cv2.CAP_ANY),
+            cv2.CAP_ANY,
+        ]
+    elif sys.platform == "darwin":
+        backend_candidates = [
+            getattr(cv2, "CAP_AVFOUNDATION", cv2.CAP_ANY),
+            cv2.CAP_ANY,
+        ]
+    else:
+        backend_candidates = [cv2.CAP_ANY]
+
+    candidates: list[tuple[int, int]] = [
+        (7680, 4320),
+        (5120, 2880),
+        (3840, 2160),
+        (2560, 1440),
+        (2560, 1080),
+        (1920, 1200),
+        (1920, 1080),
+        (1680, 1050),
+        (1600, 1200),
+        (1600, 900),
+        (1440, 900),
+        (1366, 768),
+        (1280, 1024),
+        (1280, 960),
+        (1280, 800),
+        (1280, 720),
+        (1024, 768),
+        (800, 600),
+        (640, 480),
+        (320, 240),
+    ]
+
+    results: set[tuple[int, int]] = set()
+
+    for backend in backend_candidates:
+        cap = None
+        try:
+            if backend == cv2.CAP_ANY:
+                cap = cv2.VideoCapture(source)
+            else:
+                cap = cv2.VideoCapture(source, backend)
+        except Exception:
+            cap = None
+
+        if cap is None or not cap.isOpened():
+            try:
+                if cap is not None:
+                    cap.release()
+            except Exception:
+                pass
+            continue
+
+        try:
+            w0 = int(round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3)))))
+            h0 = int(round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4)))))
+            if w0 > 0 and h0 > 0:
+                results.add((w0, h0))
+        except Exception:
+            pass
+
+        for w, h in candidates:
+            try:
+                cap.set(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3), int(w))
+                cap.set(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4), int(h))
+            except Exception:
+                continue
+
+            try:
+                w1 = int(round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_WIDTH", 3)))))
+                h1 = int(
+                    round(float(cap.get(getattr(cv2, "CAP_PROP_FRAME_HEIGHT", 4))))
+                )
+            except Exception:
+                continue
+
+            if w1 != int(w) or h1 != int(h):
+                continue
+
+            ok = False
+            frame = None
+            try:
+                ok, frame = cap.read()
+            except Exception:
+                ok = False
+            if not ok or frame is None:
+                continue
+            try:
+                if int(frame.shape[1]) == int(w) and int(frame.shape[0]) == int(h):
+                    results.add((int(w), int(h)))
+            except Exception:
+                results.add((int(w), int(h)))
+
+        try:
+            cap.release()
+        except Exception:
+            pass
+
+        if results:
+            break
+
+    return sorted(results, key=lambda x: (x[0] * x[1], x[0], x[1]), reverse=True)
+
+
+def list_camera_resolutions(camera_id: object) -> list[tuple[int, int]]:
+    key = _normalize_camera_key(camera_id)
+    if not key:
+        return []
+
+    now = time.monotonic()
+    with _RESOLUTION_CACHE_LOCK:
+        cached = _RESOLUTION_CACHE.get(key)
+        if cached is not None:
+            cached_at, cached_values = cached
+            if now - cached_at <= _RESOLUTION_CACHE_TTL_S:
+                return list(cached_values)
+
+    resolutions: list[tuple[int, int]] = []
+    if isinstance(camera_id, str):
+        resolutions = _list_resolutions_via_qt(camera_id)
+
+    if not resolutions:
+        resolutions = list(_FALLBACK_RESOLUTIONS)
+
+    with _RESOLUTION_CACHE_LOCK:
+        _RESOLUTION_CACHE[key] = (now, list(resolutions))
+
+    return list(resolutions)
+
+
+def get_recommended_camera_resolution(camera_id: object) -> tuple[int, int] | None:
+    values = list_camera_resolutions(camera_id)
+    return values[0] if values else None

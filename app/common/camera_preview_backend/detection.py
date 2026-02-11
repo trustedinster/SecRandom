@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import threading
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -10,6 +11,7 @@ from app.tools.path_utils import ensure_dir, get_data_path
 
 
 Rect = Tuple[int, int, int, int]
+_CV2_IMPORT_LOCK = threading.Lock()
 
 
 def merge_face_rects(frame_size: Tuple[int, int], rects: list[Rect]) -> list[Rect]:
@@ -348,17 +350,12 @@ def _ultralight_input_size_from_name(model_name: str) -> Tuple[int, int]:
 
 
 def create_ultralight_net(*, model_path: Path):
-    import cv2
+    with _CV2_IMPORT_LOCK:
+        import cv2
 
     if not hasattr(cv2, "dnn"):
         raise RuntimeError("OpenCV dnn is not available in this build")
-    try:
-        blob = model_path.read_bytes()
-        if not blob:
-            raise RuntimeError("ONNX file is empty")
-        return cv2.dnn.readNetFromONNX(blob)
-    except Exception:
-        return cv2.dnn.readNetFromONNX(str(model_path))
+    return cv2.dnn.readNetFromONNX(str(model_path))
 
 
 def _generate_ultralight_priors(input_size: Tuple[int, int]):
@@ -631,17 +628,12 @@ def ensure_scrfd_model_path(
 
 
 def create_scrfd_net(*, model_path: Path):
-    import cv2
+    with _CV2_IMPORT_LOCK:
+        import cv2
 
     if not hasattr(cv2, "dnn"):
         raise RuntimeError("OpenCV dnn is not available in this build")
-    try:
-        blob = model_path.read_bytes()
-        if not blob:
-            raise RuntimeError("ONNX file is empty")
-        return cv2.dnn.readNetFromONNX(blob)
-    except Exception:
-        return cv2.dnn.readNetFromONNX(str(model_path))
+    return cv2.dnn.readNetFromONNX(str(model_path))
 
 
 def detect_faces_scrfd(

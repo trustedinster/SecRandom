@@ -244,8 +244,8 @@ def update_settings(first_level_key: str, second_level_key: str, value: Any):
         with open_file(settings_path, "w", encoding="utf-8") as f:
             json.dump(settings_data, f, ensure_ascii=False, indent=4)
 
-        if (
-            not first_level_key == "user_info"
+        if not (
+            first_level_key == "user_info"
             and second_level_key == "total_runtime_seconds"
         ):
             logger.debug(

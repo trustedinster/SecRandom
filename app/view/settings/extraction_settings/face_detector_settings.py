@@ -16,6 +16,7 @@ from qfluentwidgets import (
 )
 
 from app.Language.obtain_language import (
+    get_any_position_value_async,
     get_content_combo_name_async,
     get_content_description_async,
     get_content_name_async,
@@ -24,6 +25,7 @@ from app.Language.obtain_language import (
 )
 from app.common.camera_preview_backend import (
     get_cached_camera_devices,
+    list_camera_resolutions,
     warmup_camera_devices_async,
 )
 from app.tools.path_utils import get_data_path
@@ -74,6 +76,11 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
         self.camera_combo = _ModelComboBox(self._refresh_camera_list)
         self.camera_combo.currentIndexChanged.connect(self._on_camera_changed)
         QTimer.singleShot(0, self._init_camera_combo)
+
+        self.camera_resolution_combo = ComboBox()
+        self.camera_resolution_combo.currentTextChanged.connect(
+            self._on_camera_resolution_changed
+        )
 
         self.picking_duration_spin = SpinBox()
         self.picking_duration_spin.setFixedWidth(WIDTH_SPINBOX)
@@ -174,6 +181,17 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
         )
 
         self.addGroup(
+            get_theme_icon("ic_fluent_resize_20_filled"),
+            get_content_name_async(
+                "face_detector_settings", "camera_display_resolution"
+            ),
+            get_content_description_async(
+                "face_detector_settings", "camera_display_resolution"
+            ),
+            self.camera_resolution_combo,
+        )
+
+        self.addGroup(
             get_theme_icon("ic_fluent_reading_mode_mobile_20_filled"),
             get_content_name_async("face_detector_settings", "camera_preview_mode"),
             get_content_description_async(
@@ -241,6 +259,7 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
         self._camera_poll_left = 30
         self._refresh_camera_list()
         self._apply_saved_camera_selection()
+        self._refresh_camera_resolution_list()
         if self.camera_combo.count() <= 0:
             try:
                 warmup_camera_devices_async(force_refresh=False)
@@ -270,12 +289,14 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
         if devices:
             self._refresh_camera_list()
             self._apply_saved_camera_selection()
+            self._refresh_camera_resolution_list()
             return
         self._schedule_camera_poll()
 
     def _on_video_inputs_changed(self) -> None:
         self._refresh_camera_list(force_refresh=True)
         self._apply_saved_camera_selection()
+        self._refresh_camera_resolution_list()
         self._schedule_camera_poll()
 
     def _refresh_camera_list(self, force_refresh: bool = False) -> None:
@@ -324,6 +345,221 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
         if value is None:
             return
         update_settings("face_detector_settings", "camera_source", value)
+        self._refresh_camera_resolution_list()
+
+    def _get_camera_resolution_map(self) -> dict:
+        value = readme_settings_async(
+            "face_detector_settings", "camera_display_resolution_map"
+        )
+        return value if isinstance(value, dict) else {}
+
+    def _get_camera_key_variants(self, camera_id: object) -> list[str]:
+        keys: list[object] = []
+        if camera_id is not None:
+            keys.append(camera_id)
+
+        for device in self._camera_devices:
+            try:
+                if (
+                    device.qt_id == camera_id
+                    or str(device.qt_id) == str(camera_id)
+                    or device.source == camera_id
+                    or str(device.source) == str(camera_id)
+                ):
+                    if getattr(device, "qt_id", ""):
+                        keys.append(device.qt_id)
+                    keys.append(device.source)
+                    break
+            except Exception:
+                continue
+
+        normalized: list[str] = []
+        for k in keys:
+            try:
+                kk = str(k).strip()
+            except Exception:
+                continue
+            if kk and kk not in normalized:
+                normalized.append(kk)
+        return normalized
+
+    def _normalize_resolution_text(self, value: object) -> str | None:
+        if value is None:
+            return None
+        try:
+            text = str(value).strip()
+        except Exception:
+            return None
+        if not text:
+            return None
+
+        for sep in ("(", "（"):
+            if sep in text:
+                text = text.split(sep, 1)[0].strip()
+                break
+
+        text = (
+            text.replace("×", "x")
+            .replace("X", "x")
+            .replace(" ", "")
+            .replace("\t", "")
+            .strip()
+        )
+
+        if "x" not in text:
+            return None
+        w_str, h_str = text.split("x", 1)
+        try:
+            w = int(w_str)
+            h = int(h_str)
+        except Exception:
+            return None
+        if w <= 0 or h <= 0:
+            return None
+        return f"{w}x{h}"
+
+    def _set_camera_resolution_for_camera(
+        self, camera_id: object, resolution: str
+    ) -> None:
+        normalized_keys = self._get_camera_key_variants(camera_id)
+        if not normalized_keys:
+            return
+
+        normalized_resolution = self._normalize_resolution_text(resolution)
+        if not normalized_resolution:
+            return
+
+        mapping = self._get_camera_resolution_map()
+        for k in normalized_keys:
+            mapping[k] = normalized_resolution
+        try:
+            update_settings(
+                "face_detector_settings", "camera_display_resolution_map", mapping
+            )
+            try:
+                camera_name = str(self.camera_combo.currentText()).strip()
+            except Exception:
+                camera_name = ""
+            logger.info(
+                f"摄像头预览分辨率已保存: {camera_name or 'Camera'} -> {normalized_resolution}"
+            )
+        except Exception as e:
+            logger.exception(f"摄像头预览分辨率保存失败: {e}")
+
+    def _refresh_camera_resolution_list(self) -> None:
+        camera_id = None
+        try:
+            camera_id = self.camera_combo.currentData()
+        except Exception:
+            camera_id = None
+
+        try:
+            resolutions = list_camera_resolutions(camera_id)
+        except Exception:
+            resolutions = []
+
+        try:
+            suffix = get_any_position_value_async(
+                "face_detector_settings",
+                "camera_display_resolution",
+                "recommended_suffix",
+            )
+            suffix = str(suffix).strip() if suffix is not None else ""
+        except Exception:
+            suffix = ""
+        if not suffix:
+            suffix = "推荐"
+
+        self.camera_resolution_combo.blockSignals(True)
+        try:
+            self.camera_resolution_combo.clear()
+            for i, (w, h) in enumerate(resolutions):
+                text = f"{int(w)} x {int(h)}"
+                if i == 0:
+                    text = f"{text} ({suffix})"
+                self.camera_resolution_combo.addItem(text, f"{int(w)}x{int(h)}")
+        finally:
+            self.camera_resolution_combo.blockSignals(False)
+
+        if self.camera_resolution_combo.count() <= 0:
+            return
+
+        saved_map = self._get_camera_resolution_map()
+        saved = None
+        for key in self._get_camera_key_variants(camera_id):
+            try:
+                saved = saved_map.get(key)
+            except Exception:
+                saved = None
+            if saved:
+                break
+
+        target_index = 0
+        normalized_saved = self._normalize_resolution_text(saved)
+        matched = False
+        if normalized_saved:
+            for idx in range(self.camera_resolution_combo.count()):
+                try:
+                    data = self.camera_resolution_combo.itemData(idx)
+                    data_norm = self._normalize_resolution_text(data)
+                    if data_norm and data_norm == normalized_saved:
+                        target_index = idx
+                        matched = True
+                        break
+                except Exception:
+                    continue
+
+        if normalized_saved and not matched:
+            try:
+                w_str, h_str = normalized_saved.split("x", 1)
+                text = f"{int(w_str)} x {int(h_str)}"
+            except Exception:
+                text = normalized_saved
+            self.camera_resolution_combo.blockSignals(True)
+            try:
+                self.camera_resolution_combo.addItem(text, normalized_saved)
+                target_index = self.camera_resolution_combo.count() - 1
+            finally:
+                self.camera_resolution_combo.blockSignals(False)
+
+        self.camera_resolution_combo.blockSignals(True)
+        try:
+            self.camera_resolution_combo.setCurrentIndex(target_index)
+        finally:
+            self.camera_resolution_combo.blockSignals(False)
+
+    def _on_camera_resolution_changed(self, _index: int) -> None:
+        camera_id = None
+        try:
+            camera_id = self.camera_combo.currentData()
+        except Exception:
+            camera_id = None
+
+        if camera_id is None:
+            try:
+                camera_id = readme_settings_async(
+                    "face_detector_settings", "camera_source"
+                )
+            except Exception:
+                camera_id = None
+            if camera_id is None:
+                return
+
+        raw = None
+        try:
+            raw = self.camera_resolution_combo.currentData()
+        except Exception:
+            raw = None
+        if raw is None:
+            try:
+                raw = self.camera_resolution_combo.currentText()
+            except Exception:
+                raw = None
+        normalized = self._normalize_resolution_text(raw)
+        if not normalized:
+            return
+
+        self._set_camera_resolution_for_camera(camera_id, normalized)
 
     def _apply_saved_camera_selection(self) -> None:
         saved = readme_settings_async("face_detector_settings", "camera_source")
@@ -334,6 +570,12 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
                     self.camera_combo.setCurrentIndex(0)
                 finally:
                     self.camera_combo.blockSignals(False)
+                try:
+                    value = self.camera_combo.currentData()
+                except Exception:
+                    value = None
+                if value is not None:
+                    update_settings("face_detector_settings", "camera_source", value)
             return
 
         target_index = -1
@@ -367,6 +609,12 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
                 self.camera_combo.setCurrentIndex(target_index)
             finally:
                 self.camera_combo.blockSignals(False)
+            try:
+                value = self.camera_combo.currentData()
+            except Exception:
+                value = None
+            if value is not None:
+                update_settings("face_detector_settings", "camera_source", value)
             return
 
 
