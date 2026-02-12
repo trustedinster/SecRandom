@@ -20,6 +20,22 @@ set_class_name = {
             "name": "以下班级名称包含非法字符或为保留字: {names}",
             "description": "班级名称验证失败时的错误提示",
         },
+        "duplicate_names_title": {
+            "name": "发现重复名称",
+            "description": "名称重复对话框标题",
+        },
+        "duplicate_names_message": {
+            "name": "检测到 {count} 个重复的班级名称：\n{names}\n\n请选择返回编辑，或自动将重复项重命名为“_1/_2…”格式。",
+            "description": "名称重复对话框内容",
+        },
+        "duplicate_names_rename_button": {
+            "name": "自动重命名",
+            "description": "名称重复对话框自动重命名按钮文本",
+        },
+        "duplicate_names_edit_button": {
+            "name": "返回编辑",
+            "description": "名称重复对话框返回编辑按钮文本",
+        },
         "save_error": {
             "name": "保存班级名称失败",
             "description": "保存班级名称时的错误提示",
@@ -131,6 +147,22 @@ set_class_name = {
         "invalid_names_error": {
             "name": "The following class names include invalid characters or reserved words: {names}",
             "description": "Error hint when pool validation failed",
+        },
+        "duplicate_names_title": {
+            "name": "Duplicate names found",
+            "description": "Dialog title when duplicate names are detected",
+        },
+        "duplicate_names_message": {
+            "name": "Detected {count} duplicate class names:\n{names}\n\nChoose to go back and edit, or automatically rename duplicates with “_1/_2…” suffix.",
+            "description": "Dialog content when duplicate names are detected",
+        },
+        "duplicate_names_rename_button": {
+            "name": "Auto rename",
+            "description": "Auto rename button text for duplicate names dialog",
+        },
+        "duplicate_names_edit_button": {
+            "name": "Back to edit",
+            "description": "Back to edit button text for duplicate names dialog",
         },
         "save_error": {
             "name": "Failed to save class name",
@@ -257,6 +289,22 @@ set_class_name = {
         "invalid_names_error": {
             "name": "以下のクラス名に不正な文字または予約語が含まれています: {names}",
             "description": "クラス名検証失敗時のエラーヒント",
+        },
+        "duplicate_names_title": {
+            "name": "重複名が見つかりました",
+            "description": "重複名検出ダイアログのタイトル",
+        },
+        "duplicate_names_message": {
+            "name": "{count}個の重複したクラス名が検出されました：\n{names}\n\n編集に戻るか、重複項目を“_1/_2…”の形式で自動リネームしてください。",
+            "description": "重複名検出ダイアログの内容",
+        },
+        "duplicate_names_rename_button": {
+            "name": "自動リネーム",
+            "description": "重複名検出ダイアログの自動リネームボタン",
+        },
+        "duplicate_names_edit_button": {
+            "name": "編集に戻る",
+            "description": "重複名検出ダイアログの編集に戻るボタン",
         },
         "save_error": {
             "name": "クラス名の保存に失敗しました",
@@ -463,6 +511,22 @@ import_student_name = {
             "description": "未选择姓名列错误信息",
         },
         "no_id_column": {"name": "请选择学号列", "description": "未选择学号列错误信息"},
+        "duplicate_names_title": {
+            "name": "发现重复名称",
+            "description": "导入时名称重复对话框标题",
+        },
+        "duplicate_names_message": {
+            "name": "检测到 {count} 个重复的姓名：\n{names}\n\n请选择返回编辑，或自动将重复项重命名为“_1/_2…”格式。",
+            "description": "导入时名称重复对话框内容",
+        },
+        "duplicate_names_rename_button": {
+            "name": "自动重命名",
+            "description": "导入时名称重复对话框自动重命名按钮文本",
+        },
+        "duplicate_names_edit_button": {
+            "name": "返回编辑",
+            "description": "导入时名称重复对话框返回编辑按钮文本",
+        },
         "import_success_title": {
             "name": "导入成功",
             "description": "导入成功对话框标题",
@@ -623,6 +687,22 @@ import_student_name = {
         "no_id_column": {
             "name": "Please select the Student ID column",
             "description": "Error: No Student ID column selected",
+        },
+        "duplicate_names_title": {
+            "name": "Duplicate names found",
+            "description": "Dialog title when duplicate names are detected during import",
+        },
+        "duplicate_names_message": {
+            "name": "Detected {count} duplicate names:\n{names}\n\nChoose to go back and edit, or automatically rename duplicates with “_1/_2…” suffix.",
+            "description": "Dialog content when duplicate names are detected during import",
+        },
+        "duplicate_names_rename_button": {
+            "name": "Auto rename",
+            "description": "Auto rename button text for duplicate names dialog during import",
+        },
+        "duplicate_names_edit_button": {
+            "name": "Back to edit",
+            "description": "Back to edit button text for duplicate names dialog during import",
         },
         "import_success_title": {
             "name": "Import success",
@@ -803,6 +883,22 @@ import_student_name = {
             "name": "学籍番号列を選択してください",
             "description": "学籍番号列が選択されていないエラー情報",
         },
+        "duplicate_names_title": {
+            "name": "重複名が見つかりました",
+            "description": "インポート時の重複名検出ダイアログのタイトル",
+        },
+        "duplicate_names_message": {
+            "name": "{count}個の重複した氏名が検出されました：\n{names}\n\n編集に戻るか、重複項目を“_1/_2…”の形式で自動リネームしてください。",
+            "description": "インポート時の重複名検出ダイアログの内容",
+        },
+        "duplicate_names_rename_button": {
+            "name": "自動リネーム",
+            "description": "インポート時の重複名検出ダイアログの自動リネームボタン",
+        },
+        "duplicate_names_edit_button": {
+            "name": "編集に戻る",
+            "description": "インポート時の重複名検出ダイアログの編集に戻るボタン",
+        },
         "import_success_title": {
             "name": "インポート成功",
             "description": "インポート成功ダイアログのタイトル",
@@ -863,6 +959,22 @@ name_setting = {
         "invalid_names_error": {
             "name": "以下姓名包含非法字符或为保留字: {names}",
             "description": "姓名验证失败时的错误提示",
+        },
+        "duplicate_names_title": {
+            "name": "发现重复名称",
+            "description": "名称重复对话框标题",
+        },
+        "duplicate_names_message": {
+            "name": "检测到 {count} 个重复的姓名：\n{names}\n\n请选择返回编辑，或自动将重复项重命名为“_1/_2…”格式。",
+            "description": "名称重复对话框内容",
+        },
+        "duplicate_names_rename_button": {
+            "name": "自动重命名",
+            "description": "名称重复对话框自动重命名按钮文本",
+        },
+        "duplicate_names_edit_button": {
+            "name": "返回编辑",
+            "description": "名称重复对话框返回编辑按钮文本",
         },
         "save_error": {"name": "保存姓名失败", "description": "保存姓名时的错误提示"},
         "success_message": {
@@ -965,6 +1077,22 @@ name_setting = {
         "invalid_names_error": {
             "name": "The following names include invalid characters or reserved words: {names}",
             "description": "Error hint when name validation failed",
+        },
+        "duplicate_names_title": {
+            "name": "Duplicate names found",
+            "description": "Dialog title when duplicate names are detected",
+        },
+        "duplicate_names_message": {
+            "name": "Detected {count} duplicate names:\n{names}\n\nChoose to go back and edit, or automatically rename duplicates with “_1/_2…” suffix.",
+            "description": "Dialog content when duplicate names are detected",
+        },
+        "duplicate_names_rename_button": {
+            "name": "Auto rename",
+            "description": "Auto rename button text for duplicate names dialog",
+        },
+        "duplicate_names_edit_button": {
+            "name": "Back to edit",
+            "description": "Back to edit button text for duplicate names dialog",
         },
         "save_error": {
             "name": "Failed to save names",
@@ -1088,6 +1216,22 @@ name_setting = {
         "invalid_names_error": {
             "name": "以下の氏名に不正な文字または予約語が含まれています: {names}",
             "description": "氏名検証失敗時のエラーヒント",
+        },
+        "duplicate_names_title": {
+            "name": "重複名が見つかりました",
+            "description": "重複名検出ダイアログのタイトル",
+        },
+        "duplicate_names_message": {
+            "name": "{count}個の重複した氏名が検出されました：\n{names}\n\n編集に戻るか、重複項目を“_1/_2…”の形式で自動リネームしてください。",
+            "description": "重複名検出ダイアログの内容",
+        },
+        "duplicate_names_rename_button": {
+            "name": "自動リネーム",
+            "description": "重複名検出ダイアログの自動リネームボタン",
+        },
+        "duplicate_names_edit_button": {
+            "name": "編集に戻る",
+            "description": "重複名検出ダイアログの編集に戻るボタン",
         },
         "save_error": {
             "name": "氏名の保存に失敗しました",

@@ -40,6 +40,47 @@ def _format_tags_for_export(value) -> str:
     return "" if raw.lower() == "nan" else raw
 
 
+def get_duplicate_names(names: List[str]) -> List[str]:
+    duplicates = []
+    seen = set()
+    added = set()
+    for name in names:
+        if name in seen and name not in added:
+            duplicates.append(name)
+            added.add(name)
+        else:
+            seen.add(name)
+    return duplicates
+
+
+def make_unique_names(
+    names: List[str], sep: str = "_"
+) -> Tuple[List[str], Dict[str, List[str]]]:
+    used = set()
+    counters: Dict[str, int] = {}
+    rename_map: Dict[str, List[str]] = {}
+    unique_names: List[str] = []
+
+    for raw in names:
+        if raw not in used:
+            used.add(raw)
+            unique_names.append(raw)
+            continue
+
+        index = counters.get(raw, 0) + 1
+        candidate = f"{raw}{sep}{index}"
+        while candidate in used:
+            index += 1
+            candidate = f"{raw}{sep}{index}"
+
+        counters[raw] = index
+        used.add(candidate)
+        unique_names.append(candidate)
+        rename_map.setdefault(raw, []).append(candidate)
+
+    return unique_names, rename_map
+
+
 # ==================================================
 # 班级列表管理函数
 # ==================================================

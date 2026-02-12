@@ -19,6 +19,7 @@ from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.Language.obtain_language import *
 from app.tools.config import *
+from app.common.data.list import get_duplicate_names, make_unique_names
 
 
 class ImportPrizeNameWindow(QWidget):
@@ -745,6 +746,39 @@ class ImportPrizeNameWindow(QWidget):
                 # 验证名称不为空
                 if row_data["name"]:
                     prize_rows.append(row_data)
+
+            duplicate_names = get_duplicate_names([item["name"] for item in prize_rows])
+            if duplicate_names:
+                dialog = Dialog(
+                    get_content_name_async(
+                        "import_prize_name", "duplicate_names_title"
+                    ),
+                    get_content_name_async(
+                        "import_prize_name", "duplicate_names_message"
+                    ).format(
+                        count=len(duplicate_names),
+                        names="\n".join(duplicate_names),
+                    ),
+                    self,
+                )
+                dialog.yesButton.setText(
+                    get_content_name_async(
+                        "import_prize_name", "duplicate_names_rename_button"
+                    )
+                )
+                dialog.cancelButton.setText(
+                    get_content_name_async(
+                        "import_prize_name", "duplicate_names_edit_button"
+                    )
+                )
+                if dialog.exec():
+                    unique_names, _ = make_unique_names(
+                        [item["name"] for item in prize_rows]
+                    )
+                    for i, item in enumerate(prize_rows):
+                        item["name"] = unique_names[i]
+                else:
+                    return
 
             # 获取班级名称并进行有效性检查
             pool_name = readme_settings_async("lottery_list", "select_pool_name")

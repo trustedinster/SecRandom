@@ -226,6 +226,34 @@ class NameSettingWindow(QWidget):
                 show_notification(NotificationType.ERROR, config, parent=self)
                 return
 
+            duplicate_names = get_duplicate_names(names)
+            if duplicate_names:
+                dialog = Dialog(
+                    get_content_name_async("name_setting", "duplicate_names_title"),
+                    get_content_name_async(
+                        "name_setting", "duplicate_names_message"
+                    ).format(
+                        count=len(duplicate_names),
+                        names="\n".join(duplicate_names),
+                    ),
+                    self,
+                )
+                dialog.yesButton.setText(
+                    get_content_name_async(
+                        "name_setting", "duplicate_names_rename_button"
+                    )
+                )
+                dialog.cancelButton.setText(
+                    get_content_name_async(
+                        "name_setting", "duplicate_names_edit_button"
+                    )
+                )
+                if dialog.exec():
+                    names, _ = make_unique_names(names)
+                    self.text_edit.setPlainText("\n".join(names))
+                else:
+                    return
+
             # 获取文件路径
             roll_call_list_dir = get_data_path("list", "roll_call_list")
             roll_call_list_dir.mkdir(parents=True, exist_ok=True)
