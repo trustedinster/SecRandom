@@ -69,6 +69,7 @@ class URLCommandHandler(QObject):
             "window/main": self._handle_window_main,
             "window/settings": self._handle_window_settings,
             "window/float": self._handle_window_float,
+            "window/timer": self._handle_window_timer,
             # 数据获取命令（只读）
             "data/roll_call_list": self._handle_get_roll_call_list,
             "data/lottery_list": self._handle_get_lottery_list,
@@ -277,6 +278,7 @@ class URLCommandHandler(QObject):
             "window/main": None,
             "window/settings": "open_settings",
             "window/float": "show_hide_floating_window",
+            "window/timer": None,
             "tray/restart": "restart",
             "tray/exit": "exit",
             "roll_call/quick_draw": None,
@@ -344,6 +346,7 @@ class URLCommandHandler(QObject):
             "window/main": None,
             "window/settings": "open_settings",
             "window/float": "show_hide_floating_window",
+            "window/timer": None,
             "tray/restart": "restart",
             "tray/exit": "exit",
             "roll_call/quick_draw": "quick_draw",
@@ -980,6 +983,16 @@ class URLCommandHandler(QObject):
         action = self._resolve_window_action(query)
         self.windowActionRequested.emit("float", {"action": action, **(params or {})})
         return {"status": "success", "message": "已请求浮窗操作", "action": action}
+
+    def _handle_window_timer(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        query = (params or {}).get("query", {}) or {}
+        action = self._resolve_window_action(query)
+        self.windowActionRequested.emit("timer", {"action": action, **(params or {})})
+        return {
+            "status": "success",
+            "message": "已请求计时器窗口操作",
+            "action": action,
+        }
 
     def _handle_main_window(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """处理主窗口命令"""
