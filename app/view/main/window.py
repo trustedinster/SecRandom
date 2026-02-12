@@ -256,6 +256,9 @@ class MainWindow(FluentWindow):
         self.float_window.lotteryRequested.connect(
             lambda: self._show_and_switch_to(self.lottery_page)
         )
+        self.float_window.faceDrawRequested.connect(
+            lambda: self._show_and_switch_to(self.camera_preview_page)
+        )
         self.float_window.timerRequested.connect(
             lambda: create_countdown_timer_window()
         )

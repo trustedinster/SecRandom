@@ -606,6 +606,47 @@ class WindowManager:
                     activate_window(win)
                     return
 
+            if target in ("timer", "countdown_timer"):
+                try:
+                    from app.page_building import (
+                        another_window as another_window_module,
+                    )
+                except Exception:
+                    return
+
+                instances = (
+                    getattr(another_window_module, "_window_instances", {}) or {}
+                )
+                win = instances.get("countdown_timer")
+
+                if action == "hide":
+                    if (
+                        win is not None
+                        and getattr(win, "isVisible", None)
+                        and win.isVisible()
+                    ):
+                        win.hide()
+                    return
+
+                if action == "toggle" and win is not None:
+                    try:
+                        if win.isVisible():
+                            win.hide()
+                            return
+                    except Exception:
+                        pass
+
+                if hasattr(another_window_module, "create_countdown_timer_window"):
+                    another_window_module.create_countdown_timer_window()
+
+                instances = (
+                    getattr(another_window_module, "_window_instances", {}) or {}
+                )
+                win = instances.get("countdown_timer")
+                if win is not None:
+                    activate_window(win)
+                return
+
         safe_execute(impl, error_message="执行窗口控制失败")
 
     def _log_startup_time(self) -> None:

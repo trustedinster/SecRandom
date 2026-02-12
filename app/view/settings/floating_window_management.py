@@ -18,6 +18,7 @@ from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.Language.obtain_language import *
 from app.common.windows.uiaccess import is_uiaccess_process
+from app.view.components.checkable_combo_box import MultiSelectionComboBox
 
 
 # ==================================================
@@ -454,18 +455,37 @@ class floating_window_appearance_settings(GroupHeaderCardWidget):
         self.setBorderRadius(8)
 
         # 浮窗按钮控件配置下拉框
-        self.floating_window_button_control_combo_box = ComboBox()
-        self.floating_window_button_control_combo_box.addItems(
-            get_content_combo_name_async(
-                "floating_window_management", "floating_window_button_control"
+        self.floating_window_button_control_combo_box = MultiSelectionComboBox(
+            minimum_checked=1
+        )
+        self.floating_window_button_control_combo_box.addItem(
+            get_content_name_async("floating_window_management", "roll_call_button"),
+            userData="roll_call",
+        )
+        self.floating_window_button_control_combo_box.addItem(
+            get_content_name_async("floating_window_management", "quick_draw_button"),
+            userData="quick_draw",
+        )
+        self.floating_window_button_control_combo_box.addItem(
+            get_content_name_async("floating_window_management", "lottery_button"),
+            userData="lottery",
+        )
+        self.floating_window_button_control_combo_box.addItem(
+            get_content_name_async("floating_window_management", "face_draw_button"),
+            userData="face_draw",
+        )
+        self.floating_window_button_control_combo_box.addItem(
+            get_content_name_async("floating_window_management", "timer_button"),
+            userData="timer",
+        )
+        self.floating_window_button_control_combo_box.setCheckedData(
+            self._normalize_button_control_value(
+                readme_settings_async(
+                    "floating_window_management", "floating_window_button_control"
+                )
             )
         )
-        self.floating_window_button_control_combo_box.setCurrentIndex(
-            readme_settings_async(
-                "floating_window_management", "floating_window_button_control"
-            )
-        )
-        self.floating_window_button_control_combo_box.currentIndexChanged.connect(
+        self.floating_window_button_control_combo_box.checkedDataChanged.connect(
             self.floating_window_button_control_combo_box_changed
         )
 
@@ -591,9 +611,45 @@ class floating_window_appearance_settings(GroupHeaderCardWidget):
             self.floating_window_theme_combo_box,
         )
 
-    def floating_window_button_control_combo_box_changed(self, index):
+    def _normalize_button_control_value(self, value):
+        allowed = {"roll_call", "quick_draw", "lottery", "face_draw", "timer"}
+        if isinstance(value, list):
+            keys = []
+            for v in value:
+                if isinstance(v, str):
+                    k = v.strip()
+                    if k in allowed and k not in keys:
+                        keys.append(k)
+            return keys
+
+        combos = [
+            ["roll_call"],
+            ["quick_draw"],
+            ["lottery"],
+            ["roll_call", "quick_draw"],
+            ["roll_call", "lottery"],
+            ["quick_draw", "lottery"],
+            ["roll_call", "quick_draw", "lottery"],
+            ["timer"],
+            ["roll_call", "timer"],
+            ["quick_draw", "timer"],
+            ["lottery", "timer"],
+            ["roll_call", "quick_draw", "timer"],
+            ["roll_call", "lottery", "timer"],
+            ["quick_draw", "lottery", "timer"],
+            ["roll_call", "quick_draw", "lottery", "timer"],
+        ]
+        try:
+            idx = int(value or 0)
+        except Exception:
+            idx = 0
+        if idx < 0 or idx >= len(combos):
+            idx = 0
+        return combos[idx]
+
+    def floating_window_button_control_combo_box_changed(self, keys):
         update_settings(
-            "floating_window_management", "floating_window_button_control", index
+            "floating_window_management", "floating_window_button_control", keys
         )
         self.appearance_settings_changed.emit()
 

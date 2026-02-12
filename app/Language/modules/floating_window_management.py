@@ -84,6 +84,7 @@ floating_window_management = {
         "roll_call_button": {"name": "点名", "description": "浮窗点名按钮文本"},
         "quick_draw_button": {"name": "闪抽", "description": "浮窗闪抽按钮文本"},
         "lottery_button": {"name": "抽奖", "description": "浮窗抽奖按钮文本"},
+        "face_draw_button": {"name": "人脸抽", "description": "浮窗人脸抽按钮文本"},
         "timer_button": {"name": "计时器", "description": "浮窗计时器按钮文本"},
         "floating_window_placement": {
             "name": "浮窗排列方式",
@@ -254,6 +255,10 @@ floating_window_management = {
         "lottery_button": {
             "name": "Lottery",
             "description": "Floating window lottery button",
+        },
+        "face_draw_button": {
+            "name": "Face Pick",
+            "description": "Floating window face pick button",
         },
         "timer_button": {
             "name": "Timer",
@@ -435,6 +440,10 @@ floating_window_management = {
         "lottery_button": {
             "name": "抽選",
             "description": "フローティングウィンドウ抽選ボタンテキスト",
+        },
+        "face_draw_button": {
+            "name": "顔抽選",
+            "description": "フローティングウィンドウ顔抽選ボタンテキスト",
         },
         "timer_button": {
             "name": "タイマー",

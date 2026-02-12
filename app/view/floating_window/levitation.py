@@ -41,6 +41,7 @@ class LevitationWindow(QWidget):
     rollCallRequested = Signal()
     quickDrawRequested = Signal()
     lotteryRequested = Signal()
+    faceDrawRequested = Signal()
     timerRequested = Signal()
     visibilityChanged = Signal(bool)
     positionChanged = Signal(int, int)
@@ -676,10 +677,10 @@ class LevitationWindow(QWidget):
         )
 
         # 按钮配置
-        button_control_idx = self._get_int_setting(
-            "floating_window_management", "floating_window_button_control", 0
+        button_control_value = readme_settings_async(
+            "floating_window_management", "floating_window_button_control"
         )
-        self._buttons_spec = self._map_button_control(button_control_idx)
+        self._buttons_spec = self._normalize_button_control_value(button_control_value)
 
         # 浮窗大小设置
         size_idx = self._get_int_setting(
@@ -1389,6 +1390,15 @@ class LevitationWindow(QWidget):
                     "floating_window_management", "lottery_button"
                 ),
                 "signal": self.lotteryRequested,
+            },
+            "face_draw": {
+                "icon": self._get_icon_for_floating_window(
+                    "ic_fluent_video_person_sparkle_20_filled", self._icon_size
+                ),
+                "text": get_content_name_async(
+                    "floating_window_management", "face_draw_button"
+                ),
+                "signal": self.faceDrawRequested,
             },
             "timer": {
                 "icon": self._get_icon_for_floating_window(
@@ -2948,7 +2958,7 @@ class LevitationWindow(QWidget):
                 self._apply_size_setting(int(value or 1))
                 self.rebuild_ui()
             elif second == "floating_window_button_control":
-                self._buttons_spec = self._map_button_control(int(value or 0))
+                self._buttons_spec = self._normalize_button_control_value(value)
                 self.rebuild_ui()
             elif second == "do_not_steal_focus":
                 try:
@@ -3066,6 +3076,25 @@ class LevitationWindow(QWidget):
         if idx < 0 or idx >= len(combos):
             return combos[0]
         return combos[idx]
+
+    def _normalize_button_control_value(self, value):
+        allowed = {"roll_call", "quick_draw", "lottery", "face_draw", "timer"}
+        if isinstance(value, list):
+            keys = []
+            for v in value:
+                if isinstance(v, str):
+                    k = v.strip()
+                    if k in allowed and k not in keys:
+                        keys.append(k)
+            if keys:
+                return keys
+            return self._map_button_control(0)
+
+        try:
+            idx = int(value or 0)
+        except Exception:
+            idx = 0
+        return self._map_button_control(idx)
 
 
 class DraggableWidget(QWidget):
