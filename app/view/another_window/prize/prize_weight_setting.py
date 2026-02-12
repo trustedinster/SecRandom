@@ -148,20 +148,12 @@ class PrizeWeightSettingWindow(QWidget):
         self.save_button.setIcon(FluentIcon.SAVE)
         button_layout.addWidget(self.save_button)
 
-        # 取消按钮
-        self.cancel_button = PushButton(
-            get_content_name_async("weight_setting", "cancel_button")
-        )
-        self.cancel_button.setIcon(FluentIcon.CANCEL)
-        button_layout.addWidget(self.cancel_button)
-
         # 添加到主布局
         self.main_layout.addLayout(button_layout)
 
     def __connect_signals(self):
         """连接信号与槽"""
         self.save_button.clicked.connect(self.__save_weights)
-        self.cancel_button.clicked.connect(self.__cancel)
         # 添加文本变化监听器
         self.text_edit.textChanged.connect(self.__on_text_changed)
 

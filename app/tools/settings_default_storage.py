@@ -128,6 +128,7 @@ DEFAULT_SETTINGS = {
         "draw_mode": {"default_value": 1},
         "clear_record": {"default_value": 0},
         "half_repeat": {"default_value": 1},
+        "draw_type": {"default_value": 0},
         "default_pool": {"default_value": ""},
         "font_size": {"default_value": 50},
         "display_format": {"default_value": 0},

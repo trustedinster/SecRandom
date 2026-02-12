@@ -237,11 +237,19 @@ def get_pool_list(pool_name: str) -> List[Dict[str, Any]]:
         # 将字典数据转换为列表形式
         pool_list = []
         for name, info in pool_data.items():
+            raw_count = info.get("count", 1)
+            try:
+                count = int(raw_count)
+            except Exception:
+                count = 1
+            if count < 0:
+                count = 0
             pool = {
                 "name": name,
                 "id": info.get("id", 0),
                 "weight": info.get("weight", 1),
                 "exist": info.get("exist", True),
+                "count": count,
             }
             pool_list.append(pool)
 

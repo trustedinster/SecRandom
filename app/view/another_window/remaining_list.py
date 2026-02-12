@@ -33,6 +33,7 @@ from app.Language.obtain_language import (
     get_content_name_async,
 )
 from app.tools.config import read_drawn_record, read_drawn_record_simple
+from app.tools.list_specific_settings_access import read_lottery_setting
 from app.tools.path_utils import get_data_path, get_path
 from app.tools.personalised import load_custom_font
 from app.tools.variable import (
@@ -65,13 +66,19 @@ class StudentLoader(QThread):
         super().__init__()
         self._students_file = get_path(students_file)
         self._class_name = class_name
-        self._group_index = int(group_index or 0)
-        self._gender_index = int(gender_index or 0)
-        self._group_filter = group_filter or ""
-        self._gender_filter = gender_filter or ""
+        self._is_lottery = source == "lottery"
+        if self._is_lottery:
+            self._group_index = 0
+            self._gender_index = 0
+            self._group_filter = ""
+            self._gender_filter = ""
+        else:
+            self._group_index = int(group_index or 0)
+            self._gender_index = int(gender_index or 0)
+            self._group_filter = group_filter or ""
+            self._gender_filter = gender_filter or ""
         self._half_repeat = max(0, int(half_repeat or 0))
         self._info_template = info_template or "{id} {gender} {group}"
-        self._is_lottery = source == "lottery"
 
     def run(self) -> None:
         """执行完整的数据准备流程。"""
@@ -92,6 +99,18 @@ class StudentLoader(QThread):
             if self.isInterruptionRequested():
                 return
 
+            if self._is_lottery:
+                for idx, student in enumerate(students, start=1):
+                    student["index"] = idx
+                    quantity = student.get("remaining_units", None)
+                    if isinstance(quantity, int):
+                        student["quantity"] = quantity
+                        continue
+                    try:
+                        student["quantity"] = int(student.get("count", 1) or 0)
+                    except Exception:
+                        student["quantity"] = 1
+
             prepared = [self._prepare_student(student) for student in students]
         except Exception as exc:
             logger.exception("Failed to process remaining students: {}", exc)
@@ -108,6 +127,13 @@ class StudentLoader(QThread):
             exist = payload.get("exist", True)
             if not exist:
                 continue
+            raw_count = payload.get("count", 1)
+            try:
+                count = int(raw_count)
+            except Exception:
+                count = 1
+            if count < 0:
+                count = 0
             students.append(
                 {
                     "id": payload.get("id", ""),
@@ -115,6 +141,8 @@ class StudentLoader(QThread):
                     "gender": payload.get("gender", ""),
                     "group": payload.get("group", ""),
                     "exist": exist,
+                    "count": count,
+                    "weight": payload.get("weight", 1),
                 }
             )
         students.sort(key=lambda item: item.get("name", ""))
@@ -183,11 +211,32 @@ class StudentLoader(QThread):
     def _apply_half_repeat(
         self, students: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        if self._half_repeat <= 0:
-            return students
-
         try:
             if self._is_lottery:
+                draw_type = 0
+                try:
+                    draw_type = int(
+                        read_lottery_setting(self._class_name, "draw_type", 0) or 0
+                    )
+                except Exception:
+                    draw_type = 0
+
+                draw_mode = 0
+                try:
+                    draw_mode = int(
+                        read_lottery_setting(self._class_name, "draw_mode", 0) or 0
+                    )
+                except Exception:
+                    draw_mode = 0
+
+                half_repeat = 1
+                try:
+                    half_repeat = int(
+                        read_lottery_setting(self._class_name, "half_repeat", 1) or 1
+                    )
+                except Exception:
+                    half_repeat = 1
+
                 drawn_records = read_drawn_record_simple(self._class_name)
             else:
                 drawn_records = read_drawn_record(
@@ -198,6 +247,49 @@ class StudentLoader(QThread):
             drawn_records = []
 
         drawn_counts = {name: count for name, count in drawn_records}
+
+        if self._is_lottery:
+            if draw_type == 1:
+                filtered: List[Dict[str, Any]] = []
+                for student in students:
+                    name = str(student.get("name", "") or "")
+                    try:
+                        base_limit = int(student.get("count", 1) or 0)
+                    except Exception:
+                        base_limit = 1
+                    if base_limit <= 0:
+                        continue
+
+                    try:
+                        drawn = int(drawn_counts.get(name, 0) or 0)
+                    except Exception:
+                        drawn = 0
+                    remaining_units = base_limit - drawn
+                    if remaining_units <= 0:
+                        continue
+                    item = dict(student)
+                    item["remaining_units"] = remaining_units
+                    filtered.append(item)
+                filtered.sort(key=lambda item: item.get("name", ""))
+                return filtered
+
+            if draw_mode == 0:
+                return students
+            if draw_mode == 1:
+                threshold = 1
+            else:
+                threshold = max(1, half_repeat)
+
+            remaining: List[Dict[str, Any]] = []
+            for student in students:
+                name = student.get("name", "")
+                if drawn_counts.get(name, 0) < threshold:
+                    remaining.append(student)
+            return remaining
+
+        if self._half_repeat <= 0:
+            return students
+
         remaining: List[Dict[str, Any]] = []
         for student in students:
             if student.get("is_group"):
@@ -239,6 +331,8 @@ class StudentLoader(QThread):
                 id=student.get("id", ""),
                 gender=student.get("gender", ""),
                 group=student.get("group", ""),
+                index=student.get("index", ""),
+                quantity=student.get("quantity", ""),
             )
         except Exception:
             return " ".join(
@@ -295,6 +389,7 @@ class RemainingListPage(QWidget):
             self._font_family = None
 
         self._student_info_text: Optional[str] = None
+        self._lottery_info_text: Optional[str] = None
         self._title_with_class_template: Optional[str] = None
         self._count_label_template: Optional[str] = None
 
@@ -395,6 +490,13 @@ class RemainingListPage(QWidget):
         except Exception:
             self._student_info_text = "{id} {gender} {group}"
 
+        try:
+            self._lottery_info_text = get_any_position_value_async(
+                "remaining_list", "lottery_info", "name"
+            )
+        except Exception:
+            self._lottery_info_text = "序号: {index}\n数量: {quantity}"
+
     # ------------------------------------------------------------------
     # 数据加载
     # ------------------------------------------------------------------
@@ -449,7 +551,9 @@ class RemainingListPage(QWidget):
             self.gender_filter,
             self.half_repeat,
             self.source,
-            self._student_info_text,
+            self._lottery_info_text
+            if self.source == "lottery"
+            else self._student_info_text,
         )
         loader.finished.connect(self._on_students_loaded)
         loader.finished.connect(loader.deleteLater)
@@ -489,6 +593,16 @@ class RemainingListPage(QWidget):
     def _calculate_remaining_count(self) -> int:
         if not self.students:
             return 0
+        if self.source == "lottery" and any(
+            isinstance(student.get("remaining_units"), int) for student in self.students
+        ):
+            total = 0
+            for student in self.students:
+                try:
+                    total += int(student.get("remaining_units", 0) or 0)
+                except Exception:
+                    pass
+            return total
         if any(student.get("is_group", False) for student in self.students):
             total = 0
             for student in self.students:
@@ -625,12 +739,19 @@ class RemainingListPage(QWidget):
             # 学生信息
             info_text = student.get("info_text_pre", "")
             if not info_text:
-                template = self._student_info_text or "{id} {gender} {group}"
+                if self.source == "lottery":
+                    template = (
+                        self._lottery_info_text or "序号: {index}\n数量: {quantity}"
+                    )
+                else:
+                    template = self._student_info_text or "{id} {gender} {group}"
                 try:
                     info_text = template.format(
                         id=student.get("id", ""),
                         gender=student.get("gender", ""),
                         group=student.get("group", ""),
+                        index=student.get("index", ""),
+                        quantity=student.get("quantity", ""),
                     )
                 except Exception:
                     info_text = f"{student.get('id', '')} {student.get('gender', '')} {student.get('group', '')}"

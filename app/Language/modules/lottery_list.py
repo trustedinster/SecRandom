@@ -396,11 +396,16 @@ import_prize_name = {
             "name": "权重列 (可选):",
             "description": "权重列标签",
         },
+        "column_mapping_count_column": {
+            "name": "数量列 (可选):",
+            "description": "数量列标签",
+        },
         "column_mapping_none": {"name": "无", "description": "无选项文本"},
         "data_preview_title": {"name": "数据预览", "description": "数据预览区域标题"},
         "prize_id": {"name": "序号", "description": "序号列标题"},
         "prize_name": {"name": "奖池名称", "description": "奖池名称列标题"},
         "weight": {"name": "权重", "description": "权重列标题"},
+        "count": {"name": "数量", "description": "数量列标题"},
         "buttons_import": {"name": "导入", "description": "导入按钮文本"},
         "file_loaded_title": {
             "name": "文件已加载",
@@ -535,6 +540,10 @@ import_prize_name = {
             "name": "Weight column (optional):",
             "description": "Column label of Weight",
         },
+        "column_mapping_count_column": {
+            "name": "Count column (optional):",
+            "description": "Column label of Count",
+        },
         "column_mapping_none": {"name": "None", "description": "Text of None"},
         "data_preview_title": {
             "name": "Data preview",
@@ -543,6 +552,7 @@ import_prize_name = {
         "prize_id": {"name": "Serial", "description": "Serial Number Title"},
         "prize_name": {"name": "Pool name", "description": "Title of Pool name list"},
         "weight": {"name": "Weight", "description": "Column title of Weight"},
+        "count": {"name": "Count", "description": "Column title of Count"},
         "buttons_import": {"name": "Import", "description": "Button text of Import"},
         "file_loaded_title": {
             "name": "File loaded",
@@ -683,6 +693,10 @@ import_prize_name = {
             "name": "重み列（オプション）:",
             "description": "重み列ラベル",
         },
+        "column_mapping_count_column": {
+            "name": "数量列（オプション）:",
+            "description": "数量列ラベル",
+        },
         "column_mapping_none": {
             "name": "なし",
             "description": "なしオプションのテキスト",
@@ -694,6 +708,7 @@ import_prize_name = {
         "prize_id": {"name": "番号", "description": "番号列タイトル"},
         "prize_name": {"name": "賞プール名", "description": "賞プール名列タイトル"},
         "weight": {"name": "重み", "description": "重み列タイトル"},
+        "count": {"name": "数量", "description": "数量列タイトル"},
         "buttons_import": {
             "name": "インポート",
             "description": "インポートボタンのテキスト",
@@ -1498,6 +1513,187 @@ weight_setting = {
         "weight_deleted_message": {
             "name": "重みオプション '{weight}' が入力ボックスから削除されたことが検出されました。変更を保存して永久に削除してください",
             "description": "重みオプション削除ヒントの内容",
+        },
+    },
+}
+
+# 数量设置窗口
+count_setting = {
+    "ZH_CN": {
+        "title": {"name": "数量设置", "description": "设置数量窗口标题"},
+        "description": {
+            "name": "在此窗口中，您可以设置奖品的数量\n每行输入一个数量值，系统会将其存储到奖品名单文件中\n\n请每行只输入一个数量值，例如：\n1\n2\n3",
+            "description": "数量设置窗口描述",
+        },
+        "input_title": {"name": "数量列表", "description": "数量输入区域标题"},
+        "input_placeholder": {
+            "name": "请输入数量，每行一个数量",
+            "description": "数量输入框占位符",
+        },
+        "save_button": {"name": "保存", "description": "保存按钮文本"},
+        "cancel_button": {"name": "取消", "description": "取消按钮文本"},
+        "error_title": {"name": "错误", "description": "错误消息标题"},
+        "success_title": {"name": "成功", "description": "成功消息标题"},
+        "info_title": {"name": "提示", "description": "信息消息标题"},
+        "no_counts_error": {
+            "name": "请至少输入一个数量值",
+            "description": "未输入数量时的错误提示",
+        },
+        "invalid_counts_error": {
+            "name": "以下数量包含非法字符或无法解析: {counts}",
+            "description": "数量输入校验失败提示",
+        },
+        "save_error": {"name": "保存数量失败", "description": "保存数量失败提示"},
+        "success_message": {
+            "name": "成功创建 {count} 个数量选项",
+            "description": "数量创建成功提示",
+        },
+        "no_new_counts_message": {
+            "name": "所有数量选项已存在，未创建新的数量选项",
+            "description": "未创建新数量提示",
+        },
+        "unsaved_changes_title": {
+            "name": "未保存的更改",
+            "description": "未保存更改标题",
+        },
+        "unsaved_changes_message": {
+            "name": "您有未保存的更改。确定要关闭窗口吗？",
+            "description": "未保存更改提示内容",
+        },
+        "discard_button": {"name": "放弃更改", "description": "放弃更改按钮文本"},
+        "continue_editing_button": {
+            "name": "继续编辑",
+            "description": "继续编辑按钮文本",
+        },
+        "count_deleted_title": {
+            "name": "数量选项已删除",
+            "description": "删除数量提示标题",
+        },
+        "count_deleted_message": {
+            "name": "数量选项 '{count}' 已从输入框中移除，请保存更改以永久删除",
+            "description": "删除数量提示内容",
+        },
+    },
+    "EN_US": {
+        "title": {"name": "Count settings", "description": "Set count window title"},
+        "description": {
+            "name": "In this window, you can set the count of prizes\nEnter one count per line, and the system will store it in the prize list file\n\nPlease enter only one count per line, e.g.:\n1\n2\n3",
+            "description": "Count settings window description",
+        },
+        "input_title": {"name": "Count list", "description": "Count input area title"},
+        "input_placeholder": {
+            "name": "Please enter count, one per row",
+            "description": "Count input placeholder",
+        },
+        "save_button": {"name": "Save", "description": "Button text of Save"},
+        "cancel_button": {"name": "Cancel", "description": "Button text of Cancel"},
+        "error_title": {"name": "Error", "description": "Message title of Error"},
+        "success_title": {"name": "Success", "description": "Message title of Success"},
+        "info_title": {"name": "Prompt", "description": "Message title of Info"},
+        "no_counts_error": {
+            "name": "Please enter at least one count value",
+            "description": "Error hint when no count entered",
+        },
+        "invalid_counts_error": {
+            "name": "The following counts include invalid characters or can not be parsed: {counts}",
+            "description": "Error hint when count validation failed",
+        },
+        "save_error": {
+            "name": "Failed to save counts",
+            "description": "Save error hint",
+        },
+        "success_message": {
+            "name": "Succeed creating {count} count options",
+            "description": "Success message of count creation",
+        },
+        "no_new_counts_message": {
+            "name": "All count options already exist, no new count options have been created",
+            "description": "Tips when not created new counts",
+        },
+        "unsaved_changes_title": {
+            "name": "Unsaved changes",
+            "description": "Unsaved change dialog title",
+        },
+        "unsaved_changes_message": {
+            "name": "You have unsaved changes. Are you sure you want to close the window?",
+            "description": "Unsaved change dialog content",
+        },
+        "discard_button": {"name": "Discard changes", "description": "Discard button"},
+        "continue_editing_button": {
+            "name": "Keep editing",
+            "description": "Continue button",
+        },
+        "count_deleted_title": {
+            "name": "Count option deleted",
+            "description": "Deleted count option title",
+        },
+        "count_deleted_message": {
+            "name": "Detected that the count option '{count}' have been removed from the input box. Please save your changes to permanently delete it",
+            "description": "Deleted count option content",
+        },
+    },
+    "JA_JP": {
+        "title": {"name": "数量設定", "description": "数量ウィンドウのタイトルを設定"},
+        "description": {
+            "name": "このウィンドウで賞品の数量を設定できます\n1行に1つの数量を入力すると、システムは賞品名簿ファイルに保存します\n\n1行に1つの数量のみを入力してください。例：\n1\n2\n3",
+            "description": "数量設定ウィンドウの説明",
+        },
+        "input_title": {
+            "name": "数量リスト",
+            "description": "数量入力エリアのタイトル",
+        },
+        "input_placeholder": {
+            "name": "数量を入力してください、1行に1つの数量",
+            "description": "数量入力ボックスのプレースホルダー",
+        },
+        "save_button": {"name": "保存", "description": "保存ボタンのテキスト"},
+        "cancel_button": {
+            "name": "キャンセル",
+            "description": "キャンセルボタンのテキスト",
+        },
+        "error_title": {"name": "エラー", "description": "エラーメッセージのタイトル"},
+        "success_title": {"name": "成功", "description": "成功メッセージのタイトル"},
+        "info_title": {"name": "プロンプト", "description": "情報メッセージのタイトル"},
+        "no_counts_error": {
+            "name": "少なくとも1つの数量を入力してください",
+            "description": "数量が入力されていない場合のエラーヒント",
+        },
+        "invalid_counts_error": {
+            "name": "以下の数量に不正な文字が含まれているか、解析できません: {counts}",
+            "description": "数量検証失敗時のエラーヒント",
+        },
+        "save_error": {
+            "name": "数量の保存に失敗しました",
+            "description": "数量保存時のエラーヒント",
+        },
+        "success_message": {
+            "name": "{count}個の新しい数量オプションを作成しました",
+            "description": "数量作成成功時のメッセージ",
+        },
+        "no_new_counts_message": {
+            "name": "すべての数量オプションが既に存在するため、新しい数量オプションは作成されませんでした",
+            "description": "新しい数量が作成されなかった場合のメッセージ",
+        },
+        "unsaved_changes_title": {
+            "name": "未保存の変更",
+            "description": "未保存変更ダイアログのタイトル",
+        },
+        "unsaved_changes_message": {
+            "name": "未保存の変更があります。ウィンドウを閉じますか？",
+            "description": "未保存変更ダイアログの内容",
+        },
+        "discard_button": {"name": "変更を破棄", "description": "破棄ボタンのテキスト"},
+        "continue_editing_button": {
+            "name": "編集を続ける",
+            "description": "継続ボタンのテキスト",
+        },
+        "count_deleted_title": {
+            "name": "数量が削除されました",
+            "description": "数量削除ヒントのタイトル",
+        },
+        "count_deleted_message": {
+            "name": "数量 '{count}' が入力ボックスから削除されたことが検出されました。変更を保存して永久に削除してください",
+            "description": "数量削除ヒントの内容",
         },
     },
 }

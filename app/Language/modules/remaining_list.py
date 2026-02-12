@@ -31,6 +31,10 @@ remaining_list = {
             "name": "学号: {id}\n性别: {gender}\n小组: {group}",
             "description": "学生信息卡片的显示格式",
         },
+        "lottery_info": {
+            "name": "序号: {index}\n数量: {quantity}",
+            "description": "抽奖模式信息卡片的显示格式",
+        },
     },
     "EN_US": {
         "title": {
@@ -56,6 +60,10 @@ remaining_list = {
         "student_info": {
             "name": "Student ID: {id}\nGender: {gender}\nGroup: {group}",
             "description": "Student info card style",
+        },
+        "lottery_info": {
+            "name": "No.: {index}\nQuantity: {quantity}",
+            "description": "Lottery mode info card style",
         },
         "windows_title": {
             "name": "Unpicked list",
@@ -106,6 +114,10 @@ remaining_list = {
         "student_info": {
             "name": "学籍番号: {id}\n性別: {gender}\nグループ: {group}",
             "description": "学生情報カードの表示形式",
+        },
+        "lottery_info": {
+            "name": "番号: {index}\n数量: {quantity}",
+            "description": "抽選モード情報カードの表示形式",
         },
     },
 }

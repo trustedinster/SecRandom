@@ -199,6 +199,19 @@ class ImportPrizeNameWindow(QWidget):
         weight_row.addWidget(self.weight_column_combo, 1)
         mapping_form.addLayout(weight_row)
 
+        # 数量列选择（可选，第四个）
+        count_row = QHBoxLayout()
+        count_label = BodyLabel(
+            get_content_name_async("import_prize_name", "column_mapping_count_column")
+        )
+        self.count_column_combo = ComboBox()
+        self.count_column_combo.currentIndexChanged.connect(
+            self.__on_column_mapping_changed
+        )
+        count_row.addWidget(count_label)
+        count_row.addWidget(self.count_column_combo, 1)
+        mapping_form.addLayout(count_row)
+
         mapping_layout.addLayout(mapping_form)
 
         # 添加到主布局
@@ -263,6 +276,9 @@ class ImportPrizeNameWindow(QWidget):
         self.weight_column_combo.currentIndexChanged.connect(
             self.__on_column_mapping_changed
         )
+        self.count_column_combo.currentIndexChanged.connect(
+            self.__on_column_mapping_changed
+        )
 
         # 按钮事件
         self.import_btn.clicked.connect(self.__import_data)
@@ -277,6 +293,7 @@ class ImportPrizeNameWindow(QWidget):
         id_column = self.id_column_combo.currentText()
         name_column = self.name_column_combo.currentText()
         weight_column = self.weight_column_combo.currentText()
+        count_column = self.count_column_combo.currentText()
 
         # 检查是否选择了"无"选项
         if id_column == get_content_name_async(
@@ -291,6 +308,10 @@ class ImportPrizeNameWindow(QWidget):
             "import_prize_name", "column_mapping_none"
         ):
             weight_column = ""
+        if count_column == get_content_name_async(
+            "import_prize_name", "column_mapping_none"
+        ):
+            count_column = ""
 
         has_id = bool(id_column)
         has_name = bool(name_column)
@@ -303,6 +324,7 @@ class ImportPrizeNameWindow(QWidget):
         self.id_column_combo.setEnabled(has_file)
         self.name_column_combo.setEnabled(has_file)
         self.weight_column_combo.setEnabled(has_file)
+        self.count_column_combo.setEnabled(has_file)
 
         # 导入按钮需要同时有文件、序号映射和名称映射
         if hasattr(self, "import_btn"):
@@ -311,6 +333,8 @@ class ImportPrizeNameWindow(QWidget):
         # 权重列需要有文件
         if hasattr(self, "weight_column_combo"):
             self.weight_column_combo.setEnabled(has_file)
+        if hasattr(self, "count_column_combo"):
+            self.count_column_combo.setEnabled(has_file)
 
     def __on_column_mapping_changed(self):
         """列映射变化时的处理"""
@@ -435,18 +459,21 @@ class ImportPrizeNameWindow(QWidget):
         self.name_column_combo.clear()
         self.id_column_combo.clear()
         self.weight_column_combo.clear()
+        self.count_column_combo.clear()
 
         # 为所有列添加"无"选项
         none_text = get_content_name_async("import_prize_name", "column_mapping_none")
         self.name_column_combo.addItem(none_text)
         self.id_column_combo.addItem(none_text)
         self.weight_column_combo.addItem(none_text)
+        self.count_column_combo.addItem(none_text)
 
         # 添加所有列
         for column in self.columns:
             self.name_column_combo.addItem(column)
             self.id_column_combo.addItem(column)
             self.weight_column_combo.addItem(column)
+            self.count_column_combo.addItem(column)
 
     def __auto_map_columns(self):
         """自动映射列"""
@@ -458,6 +485,9 @@ class ImportPrizeNameWindow(QWidget):
 
         # 体重列可能的关键词（优先级从高到低）
         weight_keywords = ["权重", "weight", "概率"]
+
+        # 数量列可能的关键词（优先级从高到低）
+        count_keywords = ["数量", "count", "次数", "num", "number"]
 
         # 使用更精确的匹配方法
         def find_best_match(keywords, columns):
@@ -504,6 +534,13 @@ class ImportPrizeNameWindow(QWidget):
             if index >= 0:
                 self.weight_column_combo.setCurrentIndex(index)
 
+        # 自动映射数量列
+        count_match = find_best_match(count_keywords, self.columns)
+        if count_match:
+            index = self.count_column_combo.findText(count_match)
+            if index >= 0:
+                self.count_column_combo.setCurrentIndex(index)
+
     def __update_preview(self):
         """更新预览"""
         if self.data is None:
@@ -512,6 +549,7 @@ class ImportPrizeNameWindow(QWidget):
         id_column = self.id_column_combo.currentText()
         name_column = self.name_column_combo.currentText()
         weight_column = self.weight_column_combo.currentText()
+        count_column = self.count_column_combo.currentText()
 
         # 检查是否选择了"无"选项（空字符串）
         if not id_column and not name_column:
@@ -529,6 +567,10 @@ class ImportPrizeNameWindow(QWidget):
             "import_prize_name", "column_mapping_none"
         ):
             weight_column = None
+        if count_column == get_content_name_async(
+            "import_prize_name", "column_mapping_none"
+        ):
+            count_column = None
 
         if not id_column and not name_column and not weight_column:
             return
@@ -556,6 +598,10 @@ class ImportPrizeNameWindow(QWidget):
                 get_content_name_async("import_prize_name", "weight")
             )
 
+        if count_column:
+            preview_columns.append(count_column)
+            preview_headers.append(get_content_name_async("import_prize_name", "count"))
+
         # 限制预览行数
         max_rows = min(3, len(self.data))
         preview_df = self.data[preview_columns].head(max_rows).reset_index(drop=True)
@@ -580,6 +626,19 @@ class ImportPrizeNameWindow(QWidget):
             id_column = self.id_column_combo.currentText()
             name_column = self.name_column_combo.currentText()
             weight_column = self.weight_column_combo.currentText()
+            count_column = self.count_column_combo.currentText()
+
+            none_text = get_content_name_async(
+                "import_prize_name", "column_mapping_none"
+            )
+            if id_column == none_text:
+                id_column = None
+            if name_column == none_text:
+                name_column = None
+            if weight_column == none_text:
+                weight_column = None
+            if count_column == none_text:
+                count_column = None
 
             # 验证必选项：序号和奖池名称列都必须选择
             if not id_column:
@@ -597,12 +656,28 @@ class ImportPrizeNameWindow(QWidget):
             # 提取数据
             prize_rows = []
             for _, row in self.data.iterrows():
+                try:
+                    weight_value = (
+                        float(str(row[weight_column]).strip()) if weight_column else 0
+                    )
+                except Exception:
+                    weight_value = 0
+
+                if count_column:
+                    try:
+                        count_value = int(float(str(row[count_column]).strip()))
+                    except Exception:
+                        count_value = 1
+                else:
+                    count_value = 1
+                if count_value < 0:
+                    count_value = 0
+
                 row_data = {
                     "id": str(row[id_column]).strip(),
                     "name": str(row[name_column]).strip(),
-                    "weight": float(str(row[weight_column]).strip())
-                    if weight_column
-                    else 0,
+                    "weight": weight_value,
+                    "count": count_value,
                     "exist": True,
                 }
 
@@ -680,10 +755,17 @@ class ImportPrizeNameWindow(QWidget):
             if dialog.exec():
                 all_items = {}
                 for row in prize_rows:
+                    try:
+                        count_value = int(row.get("count", 1))
+                    except Exception:
+                        count_value = 1
+                    if count_value < 0:
+                        count_value = 0
                     all_items[row["name"]] = {
                         "id": int(row["id"]) if str(row["id"]).isdigit() else row["id"],
                         "weight": row["weight"] if row["weight"] else 0,
                         "exist": row.get("exist", True),
+                        "count": count_value,
                     }
                 action = "overwrite"
             else:
@@ -694,10 +776,17 @@ class ImportPrizeNameWindow(QWidget):
             # 将列表结构转换为字典结构，符合学生名单文件格式
             all_items = {}
             for row in prize_rows:
+                try:
+                    count_value = int(row.get("count", 1))
+                except Exception:
+                    count_value = 1
+                if count_value < 0:
+                    count_value = 0
                 all_items[row["name"]] = {
                     "id": int(row["id"]) if str(row["id"]).isdigit() else row["id"],
                     "weight": row["weight"] if row["weight"] else 0,
                     "exist": row.get("exist", True),
+                    "count": count_value,
                 }
             action = "new"
 

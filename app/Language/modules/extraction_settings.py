@@ -929,6 +929,11 @@ lottery_settings = {
             "name": "半重复抽取次数",
             "description": "设置每人被抽中多少次后清除抽取记录",
         },
+        "draw_type": {
+            "name": "抽取方式",
+            "description": "设置抽奖抽取方式",
+            "combo_items": ["份数模式", "数量模式"],
+        },
         "default_pool": {
             "name": "默认抽取名单",
             "description": "设置默认使用的抽取名单",
@@ -1077,9 +1082,9 @@ lottery_settings = {
             "description": "Set the maximum picked times of each person to clean history",
         },
         "draw_type": {
-            "name": "Picking method",
-            "description": "Set lottery function",
-            "combo_items": {"0": "Random pick", "1": "Fair pick"},
+            "name": "Draw type",
+            "description": "Set lottery draw type",
+            "combo_items": {"0": "Piece mode", "1": "Count mode"},
         },
         "font_size": {
             "name": "Font size",
@@ -1252,9 +1257,9 @@ lottery_settings = {
             "description": "各人が何回抽選された後に履歴を消去するかを設定",
         },
         "draw_type": {
-            "name": "抽選方法",
-            "description": "抽選機能を設定",
-            "combo_items": {"0": "ランダム抽選", "1": "公平抽選"},
+            "name": "抽選方式",
+            "description": "抽選方式を設定",
+            "combo_items": {"0": "份数モード", "1": "数量モード"},
         },
         "font_size": {
             "name": "フォントサイズ",

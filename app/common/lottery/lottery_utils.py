@@ -33,6 +33,15 @@ class LotteryUtils:
     """抽奖工具类，提供通用的抽奖相关功能"""
 
     @staticmethod
+    def _get_prize_draw_type(pool_name: str | None = None) -> int:
+        try:
+            if not pool_name:
+                return 0
+            return int(read_lottery_setting(pool_name, "draw_type", 0) or 0)
+        except Exception:
+            return 0
+
+    @staticmethod
     def get_total_count(list_combobox_text, range_combobox_index, range_combobox_text):
         """
         根据当前选择的范围计算实际人数
@@ -373,8 +382,21 @@ class LotteryUtils:
         try:
             from app.common.data.list import get_pool_list
 
-            items = get_pool_list(pool_name)
-            return len([item for item in items if item.get("exist", True)])
+            items = [
+                item for item in get_pool_list(pool_name) if item.get("exist", True)
+            ]
+            draw_type = LotteryUtils._get_prize_draw_type(pool_name)
+            if draw_type == 1:
+                total = 0
+                for item in items:
+                    try:
+                        cnt = int(item.get("count", 1) or 0)
+                    except Exception:
+                        cnt = 1
+                    if cnt > 0:
+                        total += cnt
+                return total
+            return len(items)
         except Exception:
             return 0
 
@@ -433,20 +455,55 @@ class LotteryUtils:
                     "pool_name": pool_name,
                     "selected_prizes_dict": [],
                 }
-            # 非重复/半重复处理：根据 TEMP 记录过滤已达阈值的奖品（与 roll_call 一致）
-            threshold = LotteryUtils._get_prize_draw_threshold(pool_name)
-            if threshold is not None:
-                drawn_records = read_drawn_record_simple(pool_name)
-                drawn_counts = {name: cnt for name, cnt in drawn_records}
-                available = []
-                for i in items:
-                    name = i.get("name", "")
-                    cnt = int(drawn_counts.get(name, 0))
-                    if cnt < threshold:
-                        available.append(i)
-                items = available
-                if not items:
+            draw = int(current_count or 0)
+            if draw <= 0:
+                return {
+                    "selected_prizes": [],
+                    "pool_name": pool_name,
+                    "selected_prizes_dict": [],
+                }
+            draw_type = LotteryUtils._get_prize_draw_type(pool_name)
+            drawn_records = read_drawn_record_simple(pool_name)
+            drawn_counts = {name: cnt for name, cnt in drawn_records}
+
+            if draw_type == 1:
+                candidates = []
+                remaining_map = {}
+                for item in items:
+                    if not item.get("exist", True):
+                        continue
+                    name = str(item.get("name", "") or "")
+                    try:
+                        base_limit = int(item.get("count", 1) or 0)
+                    except Exception:
+                        base_limit = 1
+                    if base_limit <= 0:
+                        continue
+                    drawn = 0
+                    try:
+                        drawn = int(drawn_counts.get(name, 0) or 0)
+                    except Exception:
+                        drawn = 0
+                    remaining = base_limit - drawn
+                    if remaining > 0:
+                        candidates.append(item)
+                        remaining_map[name] = remaining
+
+                if not candidates:
                     return {"reset_required": True}
+                items = candidates
+            else:
+                threshold = LotteryUtils._get_prize_draw_threshold(pool_name)
+                if threshold is not None:
+                    available = []
+                    for i in items:
+                        name = i.get("name", "")
+                        cnt = int(drawn_counts.get(name, 0))
+                        if cnt < threshold and i.get("exist", True):
+                            available.append(i)
+                    items = available
+                    if not items:
+                        return {"reset_required": True}
 
             # 应用内幕设置
             items, behind_scenes_weights = (
@@ -459,33 +516,57 @@ class LotteryUtils:
             guaranteed_items = BehindScenesUtils.ensure_guaranteed_selection(
                 items, behind_scenes_weights, pool_name
             )
+            bs_weights = list(behind_scenes_weights or [])
+            selected = []
+            selected_dict = []
+            guaranteed_names = set()
             if guaranteed_items is not None:
-                # 存在必中奖品，直接返回
-                selected = []
-                selected_dict = []
                 for item in guaranteed_items:
+                    if len(selected_dict) >= draw:
+                        break
                     selected.append(
                         (item.get("id"), item.get("name"), item.get("exist", True))
                     )
                     selected_dict.append(item)
-
-                return {
-                    "selected_prizes": selected,
-                    "pool_name": pool_name,
-                    "selected_prizes_dict": selected_dict,
-                }
+                    guaranteed_names.add(str(item.get("name", "") or ""))
 
             # 准备权重
             weights = []
+            remaining_counts = []
             for i, item in enumerate(items):
                 base_weight = float(item.get("weight", 1))
                 behind_scenes_weight = behind_scenes_weights[i]
-                weights.append(base_weight * behind_scenes_weight)
+                name = str(item.get("name", "") or "")
+                remaining = 1
+                if draw_type == 1:
+                    remaining = int(remaining_map.get(name, 1) or 1)
+                remaining_counts.append(remaining)
+                weights.append(base_weight * behind_scenes_weight * max(0, remaining))
 
-            draw = min(current_count, len(items))
-            selected = []
-            selected_dict = []
-            for _ in range(draw):
+            if guaranteed_names:
+                filtered_items = []
+                filtered_weights = []
+                filtered_remaining = []
+                filtered_bs_weights = []
+                for i, item in enumerate(items):
+                    name = str(item.get("name", "") or "")
+                    if name in guaranteed_names:
+                        if draw_type == 1:
+                            remaining_counts[i] = max(0, remaining_counts[i] - 1)
+                        continue
+                    filtered_items.append(item)
+                    filtered_weights.append(weights[i])
+                    filtered_remaining.append(remaining_counts[i])
+                    filtered_bs_weights.append(
+                        bs_weights[i] if i < len(bs_weights) else 1.0
+                    )
+                items = filtered_items
+                weights = filtered_weights
+                remaining_counts = filtered_remaining
+                bs_weights = filtered_bs_weights
+
+            remaining_to_draw = draw - len(selected_dict)
+            for _ in range(max(0, remaining_to_draw)):
                 if not items:
                     break
                 total_weight = sum(weights)
@@ -505,8 +586,24 @@ class LotteryUtils:
                     (chosen.get("id"), chosen.get("name"), chosen.get("exist", True))
                 )
                 selected_dict.append(chosen)
-                items.pop(idx)
-                weights.pop(idx)
+                if draw_type == 1:
+                    remaining_counts[idx] = max(0, int(remaining_counts[idx] or 0) - 1)
+                    if remaining_counts[idx] <= 0:
+                        items.pop(idx)
+                        weights.pop(idx)
+                        remaining_counts.pop(idx)
+                        bs_weights.pop(idx)
+                    else:
+                        base_weight = float(chosen.get("weight", 1))
+                        weights[idx] = (
+                            base_weight
+                            * float(bs_weights[idx] or 1.0)
+                            * remaining_counts[idx]
+                        )
+                else:
+                    items.pop(idx)
+                    weights.pop(idx)
+                    bs_weights.pop(idx)
             return {
                 "selected_prizes": selected,
                 "pool_name": pool_name,
@@ -543,15 +640,32 @@ class LotteryUtils:
         try:
             from app.common.data.list import get_pool_list
 
-            threshold = LotteryUtils._get_prize_draw_threshold(pool_name)
             items = [
                 item for item in get_pool_list(pool_name) if item.get("exist", True)
             ]
-            total = len(items)
-            if threshold is None:
-                return total
+            draw_type = LotteryUtils._get_prize_draw_type(pool_name)
             drawn_records = read_drawn_record_simple(pool_name)
             drawn_counts = {name: cnt for name, cnt in drawn_records}
+            if draw_type == 1:
+                remain = 0
+                for i in items:
+                    name = str(i.get("name", "") or "")
+                    try:
+                        base_limit = int(i.get("count", 1) or 0)
+                    except Exception:
+                        base_limit = 1
+                    if base_limit <= 0:
+                        continue
+                    try:
+                        drawn = int(drawn_counts.get(name, 0) or 0)
+                    except Exception:
+                        drawn = 0
+                    remain += max(0, base_limit - drawn)
+                return remain
+
+            threshold = LotteryUtils._get_prize_draw_threshold(pool_name)
+            if threshold is None:
+                return len(items)
             remain = 0
             for i in items:
                 name = i.get("name", "")

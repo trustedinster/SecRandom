@@ -182,16 +182,24 @@ class LotteryManager(QObject):
     def invalidate_total_count_cache(self):
         self._total_count_cache_pool = None
         self._total_count_cache_value = None
+        self._total_count_cache_draw_type = None
 
     def get_pool_total_count(self, pool_name: str, refresh: bool = False) -> int:
         if not pool_name:
             self._total_count_cache_pool = pool_name
             self._total_count_cache_value = 0
+            self._total_count_cache_draw_type = None
             return 0
+
+        try:
+            draw_type = int(read_lottery_setting(pool_name, "draw_type", 0) or 0)
+        except Exception:
+            draw_type = 0
 
         if (
             not refresh
             and self._total_count_cache_pool == pool_name
+            and getattr(self, "_total_count_cache_draw_type", None) == draw_type
             and isinstance(self._total_count_cache_value, int)
         ):
             return self._total_count_cache_value
@@ -199,6 +207,7 @@ class LotteryManager(QObject):
         total_count = LotteryUtils.get_prize_total_count(pool_name)
         self._total_count_cache_pool = pool_name
         self._total_count_cache_value = int(total_count or 0)
+        self._total_count_cache_draw_type = draw_type
         return self._total_count_cache_value
 
     def get_render_settings(self, pool_name: str | None = None, refresh: bool = False):
@@ -363,7 +372,10 @@ class LotteryManager(QObject):
         )
 
         threshold = LotteryUtils._get_prize_draw_threshold(self.current_pool_name)
-        save_temp = threshold is not None
+        save_temp = (
+            threshold is not None
+            or LotteryUtils._get_prize_draw_type(self.current_pool_name) == 1
+        )
 
         self.save_result(
             selected_items_dict,

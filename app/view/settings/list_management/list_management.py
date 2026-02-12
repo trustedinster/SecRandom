@@ -580,6 +580,14 @@ class lottery_list(GroupHeaderCardWidget):
             lambda: self.prize_weight_setting()
         )
 
+        # 奖品数量设置按钮
+        self.prize_count_setting_button = PushButton(
+            get_content_name_async("lottery_list", "prize_count_setting")
+        )
+        self.prize_count_setting_button.clicked.connect(
+            lambda: self.prize_count_setting()
+        )
+
         # 导出奖品名单按钮
         self.export_prize_button = PushButton(
             get_content_name_async("lottery_list", "export_prize_name")
@@ -616,6 +624,12 @@ class lottery_list(GroupHeaderCardWidget):
             get_content_name_async("lottery_list", "prize_weight_setting"),
             get_content_description_async("lottery_list", "prize_weight_setting"),
             self.prize_weight_setting_button,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_person_board_20_filled"),
+            get_content_name_async("lottery_list", "prize_count_setting"),
+            get_content_description_async("lottery_list", "prize_count_setting"),
+            self.prize_count_setting_button,
         )
         self.addGroup(
             get_theme_icon("ic_fluent_people_list_20_filled"),
@@ -751,6 +765,27 @@ class lottery_list(GroupHeaderCardWidget):
                 "notification",
                 "lottery",
                 "prize_weight_setting",
+                "content",
+                "name",
+            ),
+            duration=3000,
+        )
+        show_notification(NotificationType.INFO, config, parent=self)
+
+    def prize_count_setting(self):
+        create_prize_count_setting_window(list_name=self.pool_name_combo.currentText())
+        config = NotificationConfig(
+            title=get_any_position_value_async(
+                "notification",
+                "lottery",
+                "prize_count_setting",
+                "title",
+                "name",
+            ),
+            content=get_any_position_value_async(
+                "notification",
+                "lottery",
+                "prize_count_setting",
                 "content",
                 "name",
             ),
@@ -913,6 +948,15 @@ class lottery_list(GroupHeaderCardWidget):
                     self.prize_weight_setting_button.setEnabled(has_pool)
                 except RuntimeError:
                     pass  # 按钮已删除，跳过设置
+
+            if (
+                hasattr(self, "prize_count_setting_button")
+                and self.prize_count_setting_button is not None
+            ):
+                try:
+                    self.prize_count_setting_button.setEnabled(has_pool)
+                except RuntimeError:
+                    pass
 
             if (
                 hasattr(self, "export_prize_button")

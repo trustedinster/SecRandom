@@ -13,6 +13,7 @@ from app.view.another_window.prize.import_prize_name import ImportPrizeNameWindo
 from app.view.another_window.prize.set_pool_name import SetPoolNameWindow
 from app.view.another_window.prize.prize_name_setting import PrizeNameSettingWindow
 from app.view.another_window.prize.prize_weight_setting import PrizeWeightSettingWindow
+from app.view.another_window.prize.prize_count_setting import PrizeCountSettingWindow
 from app.view.another_window.remaining_list import RemainingListPage
 from app.view.another_window.current_config_viewer import CurrentConfigViewerWindow
 from app.view.another_window.log_viewer import LogViewerWindow
@@ -444,6 +445,38 @@ def create_prize_weight_setting_window(list_name=None):
         "prize_weight_setting",
         ("prize_weight_setting", "title"),
         lambda page_parent: prize_weight_setting_window_template(
+            parent=page_parent, list_name=list_name
+        ),
+        800,
+        600,
+    )
+    try:
+        if hasattr(window, "enable_close_guard"):
+            window.enable_close_guard(True)
+        else:
+            window.setProperty("srCloseGuard", True)
+    except Exception:
+        pass
+    return
+
+
+# ==================================================
+# 数量设置窗口
+# ==================================================
+class prize_count_setting_window_template(PageTemplate):
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return PrizeCountSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "PrizeCountSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
+
+
+def create_prize_count_setting_window(list_name=None):
+    window, _ = _create_reusable_window(
+        "prize_count_setting",
+        ("count_setting", "title"),
+        lambda page_parent: prize_count_setting_window_template(
             parent=page_parent, list_name=list_name
         ),
         800,

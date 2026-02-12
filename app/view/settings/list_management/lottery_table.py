@@ -18,6 +18,7 @@ from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.Language.obtain_language import *
 from app.common.data.list import *
+from app.tools.list_specific_settings_access import read_lottery_setting
 from .shared_file_watcher import get_shared_file_watcher
 
 
@@ -92,7 +93,7 @@ class lottery_table(GroupHeaderCardWidget):
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         self.table.setWordWrap(False)
-        self.table.setColumnCount(4)
+        self.table.setColumnCount(5)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
         self.table.setSortingEnabled(True)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -107,7 +108,7 @@ class lottery_table(GroupHeaderCardWidget):
         self.table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents
         )
-        for i in range(1, 4):
+        for i in range(1, 5):
             self.table.horizontalHeader().setSectionResizeMode(
                 i, QHeaderView.ResizeMode.Stretch
             )
@@ -214,6 +215,12 @@ class lottery_table(GroupHeaderCardWidget):
                 self.table.setRowCount(0)
                 return
 
+            try:
+                draw_type = int(read_lottery_setting(pool_name, "draw_type", 0) or 0)
+            except Exception:
+                draw_type = 0
+            self.table.setColumnHidden(4, draw_type != 1)
+
             # 设置表格行数
             self.table.setRowCount(len(pool))
 
@@ -247,12 +254,17 @@ class lottery_table(GroupHeaderCardWidget):
                 weight_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, 3, weight_item)
 
+                # 奖品数量
+                count_item = QTableWidgetItem(str(item.get("count", 1)))
+                count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(row, 4, count_item)
+
             # 调整列宽
             self.table.horizontalHeader().resizeSection(0, 80)
             self.table.horizontalHeader().setSectionResizeMode(
                 0, QHeaderView.ResizeMode.ResizeToContents
             )
-            for i in range(1, 4):
+            for i in range(1, 5):
                 self.table.horizontalHeader().setSectionResizeMode(
                     i, QHeaderView.ResizeMode.Stretch
                 )
@@ -319,6 +331,8 @@ class lottery_table(GroupHeaderCardWidget):
                 pool_data = new_pool_data
         elif col == 3:  # 奖品权重列
             pool_data[matched_key]["weight"] = float(new_value)
+        elif col == 4:  # 奖品数量列
+            pool_data[matched_key]["count"] = int(float(new_value))
         elif col == 0:  # "存在"勾选框列
             checkbox_item = self.table.item(row, 0)
             if checkbox_item:
@@ -335,7 +349,7 @@ class lottery_table(GroupHeaderCardWidget):
 
             # 保存成功后设置列宽
             self.table.blockSignals(True)
-            for i in range(1, 4):
+            for i in range(1, 5):
                 self.table.horizontalHeader().setSectionResizeMode(
                     i, QHeaderView.ResizeMode.Stretch
                 )
@@ -350,9 +364,10 @@ class lottery_table(GroupHeaderCardWidget):
             else:
                 original_value = ""
                 if matched_key:
-                    original_value = (
-                        pool_data[matched_key]["weight"] if col == 3 else ""
-                    )
+                    if col == 3:
+                        original_value = pool_data[matched_key].get("weight", 1)
+                    elif col == 4:
+                        original_value = pool_data[matched_key].get("count", 1)
                 item.setText(str(original_value))
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.blockSignals(False)  # 恢复信号

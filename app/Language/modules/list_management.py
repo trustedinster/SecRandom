@@ -169,6 +169,7 @@ lottery_list = {
         },
         "prize_setting": {"name": "设置奖品", "description": "设置奖品名称"},
         "prize_weight_setting": {"name": "设置权重", "description": "设置奖品中奖权重"},
+        "prize_count_setting": {"name": "设置数量", "description": "设置奖品中奖数量"},
         "export_prize_name": {
             "name": "导出奖品名单",
             "description": "将奖品名单导出到文件",
@@ -192,6 +193,10 @@ lottery_list = {
         "prize_weight_setting": {
             "name": "Weight settings",
             "description": "Set prize weight",
+        },
+        "prize_count_setting": {
+            "name": "Count settings",
+            "description": "Set prize count",
         },
         "export_prize_name": {
             "name": "Export prize list",
@@ -217,6 +222,10 @@ lottery_list = {
             "name": "重み設定",
             "description": "賞品の当選重みを設定",
         },
+        "prize_count_setting": {
+            "name": "数量設定",
+            "description": "賞品の当選数量を設定",
+        },
         "export_prize_name": {
             "name": "賞品リストをエクスポート",
             "description": "賞品リストをファイルにエクスポート",
@@ -233,7 +242,7 @@ lottery_table = {
             "description": "选择要显示的抽奖奖池",
         },
         "HeaderLabels": {
-            "name": ["存在", "序号", "奖品", "权重"],
+            "name": ["存在", "序号", "奖品", "权重", "数量"],
             "description": "抽奖表格的列标题",
         },
     },
@@ -244,7 +253,13 @@ lottery_table = {
             "description": "Select the pool to show",
         },
         "HeaderLabels": {
-            "name": {"0": "Exist", "1": "Serial", "2": "Prize", "3": "Weight"},
+            "name": {
+                "0": "Exist",
+                "1": "Serial",
+                "2": "Prize",
+                "3": "Weight",
+                "4": "Count",
+            },
             "description": "The column title of the lottery table",
         },
     },
@@ -255,7 +270,7 @@ lottery_table = {
             "description": "表示する抽選賞プールを選択",
         },
         "HeaderLabels": {
-            "name": ["存在", "番号", "賞品", "重み"],
+            "name": ["存在", "番号", "賞品", "重み", "数量"],
             "description": "抽選テーブルの列タイトル",
         },
     },
@@ -362,6 +377,16 @@ notification = {
                 "content": {
                     "name": "已打开奖品权重设置窗口",
                     "description": "奖品权重设置通知内容",
+                },
+            },
+            "prize_count_setting": {
+                "title": {
+                    "name": "奖品数量设置",
+                    "description": "奖品数量设置通知标题",
+                },
+                "content": {
+                    "name": "已打开奖品数量设置窗口",
+                    "description": "奖品数量设置通知内容",
                 },
             },
             "export": {
@@ -501,6 +526,16 @@ notification = {
                 "content": {
                     "name": "The prize weight setting window has been opened",
                     "description": "Prizes reset notification content",
+                },
+            },
+            "prize_count_setting": {
+                "title": {
+                    "name": "Prize count settings",
+                    "description": "Prize count settings notification title",
+                },
+                "content": {
+                    "name": "The prize count setting window has been opened",
+                    "description": "Prize count settings notification content",
                 },
             },
             "export": {
