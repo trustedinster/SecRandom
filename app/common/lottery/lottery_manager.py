@@ -36,7 +36,7 @@ from app.Language.obtain_language import (
     get_content_name_async,
     get_content_pushbutton_name_async,
 )
-from app.tools.variable import APP_INIT_DELAY
+from app.tools.variable import APP_INIT_DELAY, track_event
 
 system_random = SystemRandom()
 
@@ -694,6 +694,8 @@ class LotteryManager(QObject):
 
 
 def start_lottery_draw(widget):
+    track_event("lottery_draw")
+
     manager = widget.manager
     pool_name = widget.pool_list_combobox.currentText()
     class_name = widget.list_combobox.currentText()

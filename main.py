@@ -28,6 +28,7 @@ from app.tools.variable import (
     PROCESS_EXIT_WAIT_SECONDS,
     POSTHOG_API_KEY,
     POSTHOG_HOST,
+    set_posthog_client,
 )
 from app.core.single_instance import (
     check_single_instance,
@@ -137,13 +138,27 @@ def initialize_posthog():
         project_api_key=POSTHOG_API_KEY,
         host=POSTHOG_HOST,
     )
+    set_posthog_client(posthog)
     user_id = get_or_create_user_id()
-    logger.debug(f"PostHog 初始化: user_id={user_id}, host={POSTHOG_HOST}")
-    posthog.capture(
-        distinct_id=user_id,
-        event='app_started',
+    posthog.capture(distinct_id=user_id, event="app_started")
+
+    total_draw_count = readme_settings_async("user_info", "total_draw_count") or 0
+    roll_call_total_count = (
+        readme_settings_async("user_info", "roll_call_total_count") or 0
     )
-    return posthog
+    lottery_total_count = (
+        readme_settings_async("user_info", "lottery_total_count") or 0
+    )
+    first_use_time = readme_settings_async("user_info", "first_use_time") or ""
+    posthog.set(
+        distinct_id=user_id,
+        properties={
+            "total_draw_count": total_draw_count,
+            "roll_call_total_count": roll_call_total_count,
+            "lottery_total_count": lottery_total_count,
+            "first_use_time": first_use_time,
+        },
+    )
 
 
 # ==================================================
@@ -247,7 +262,7 @@ def initialize_application():
 
     if DEV_VERSION not in VERSION:
         initialize_sentry()
-        initialize_posthog()
+    initialize_posthog()
 
     wm.app_start_time = time.perf_counter()
 

@@ -37,7 +37,7 @@ from app.Language.obtain_language import (
     get_content_combo_name_async,
 )
 from app.tools.path_utils import get_data_path
-from app.tools.variable import APP_INIT_DELAY
+from app.tools.variable import APP_INIT_DELAY, track_event
 
 system_random = SystemRandom()
 
@@ -404,6 +404,8 @@ class RollCallManager(QObject):
 
 
 def start_roll_call_draw(widget):
+    track_event("roll_call_draw")
+
     manager = widget.manager
     class_name = widget.list_combobox.currentText()
     group_filter = widget.range_combobox.currentText()

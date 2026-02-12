@@ -350,3 +350,33 @@ PROCESS_EXIT_WAIT_SECONDS = 1  # 进程退出等待时间（秒）
 # ==================================================
 
 main_window = None  # 全局主窗口引用
+
+
+# ==================================================
+# PostHog 产品分析
+# ==================================================
+
+posthog_client = None  # 全局 PostHog 客户端
+
+
+def set_posthog_client(client):
+    """设置全局 PostHog 客户端"""
+    global posthog_client
+    posthog_client = client
+
+
+def track_event(event_name: str):
+    """上报事件到 PostHog
+
+    Args:
+        event_name: 事件名称
+    """
+    if posthog_client is None:
+        return
+    from app.tools.settings_access import get_or_create_user_id
+
+    user_id = get_or_create_user_id()
+    posthog_client.capture(
+        distinct_id=user_id,
+        event=event_name,
+    )
