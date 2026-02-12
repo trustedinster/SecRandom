@@ -561,9 +561,19 @@ class roll_call(QWidget):
     def draw_random(self):
         return roll_call_manager.draw_random(self)
 
-    def display_result(self, selected_students, class_name, display_settings=None):
+    def display_result(
+        self,
+        selected_students,
+        class_name,
+        display_settings=None,
+        selected_students_dict=None,
+    ):
         return roll_call_manager.display_result(
-            self, selected_students, class_name, display_settings
+            self,
+            selected_students,
+            class_name,
+            display_settings,
+            selected_students_dict=selected_students_dict,
         )
 
     def display_result_animated(self, selected_students, class_name):

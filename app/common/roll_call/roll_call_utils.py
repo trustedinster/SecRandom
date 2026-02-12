@@ -164,27 +164,43 @@ class RollCallUtils:
             # 使用 get_student_list 获取处理好的学生列表（List[Dict]），而不是直接加载原始JSON
             raw_students = get_student_list(class_name)
 
+            tags_by_id = {}
+            for s in raw_students or []:
+                if not isinstance(s, dict):
+                    continue
+                try:
+                    sid = int(s.get("id", 0) or 0)
+                except Exception:
+                    sid = 0
+                if sid <= 0:
+                    continue
+                tags_by_id[sid] = s.get("tags") or []
+
             students_data = filter_students_data(
                 raw_students, group_index, group_filter, gender_index, gender_filter
             )
 
-            RollCallUtils._student_data_cache[cache_key] = students_data
+            students_dict_list = []
+            for student_tuple in students_data or []:
+                student_id = student_tuple[0]
+                student_dict = {
+                    "id": student_id,
+                    "name": student_tuple[1],
+                    "gender": student_tuple[2],
+                    "group": student_tuple[3],
+                    "exist": student_tuple[4],
+                    "tags": tags_by_id.get(student_id, []),
+                }
+                students_dict_list.append(student_dict)
+
+            RollCallUtils._student_data_cache[cache_key] = students_dict_list
         else:
-            students_data = RollCallUtils._student_data_cache[cache_key]
+            students_dict_list = RollCallUtils._student_data_cache[cache_key]
 
-        students_dict_list = []
         if group_index == 1:
-            students_data = sorted(students_data, key=lambda x: x[3])
-
-        for student_tuple in students_data:
-            student_dict = {
-                "id": student_tuple[0],
-                "name": student_tuple[1],
-                "gender": student_tuple[2],
-                "group": student_tuple[3],
-                "exist": student_tuple[4],
-            }
-            students_dict_list.append(student_dict)
+            students_dict_list = sorted(
+                students_dict_list, key=lambda x: str(x.get("group", "") or "")
+            )
 
         return students_dict_list
 
@@ -631,6 +647,10 @@ class RollCallUtils:
                 "show_random",
                 readme_settings_async(settings_group, "show_random"),
             )
+            show_tags = display_settings.get(
+                "show_tags",
+                readme_settings_async(settings_group, "show_tags"),
+            )
         else:
             font_size = get_safe_font_size(settings_group, "font_size")
             animation_color = readme_settings_async(
@@ -643,6 +663,7 @@ class RollCallUtils:
                 settings_group, "student_image_position"
             )
             show_random = readme_settings_async(settings_group, "show_random")
+            show_tags = readme_settings_async(settings_group, "show_tags")
 
         return {
             "font_size": font_size,
@@ -652,6 +673,7 @@ class RollCallUtils:
             "show_student_image": show_student_image,
             "image_position": image_position,
             "show_random": show_random,
+            "show_tags": show_tags,
         }
 
     @staticmethod
@@ -663,6 +685,7 @@ class RollCallUtils:
         group_index,
         settings_group="roll_call_settings",
         display_settings=None,
+        selected_students_dict=None,
     ):
         """
         显示抽取结果
@@ -683,6 +706,7 @@ class RollCallUtils:
         student_labels = ResultDisplayUtils.create_student_label(
             class_name=class_name,
             selected_students=selected_students,
+            selected_students_dict=selected_students_dict,
             draw_count=draw_count,
             font_size=display_dict["font_size"],
             animation_color=display_dict["animation_color"],
@@ -693,6 +717,7 @@ class RollCallUtils:
             group_index=group_index,
             show_random=display_dict["show_random"],
             settings_group=settings_group,
+            show_tags=bool(display_dict.get("show_tags")),
         )
         cached_widgets = ResultDisplayUtils.collect_grid_widgets(result_grid)
         if cached_widgets and len(cached_widgets) == len(student_labels):

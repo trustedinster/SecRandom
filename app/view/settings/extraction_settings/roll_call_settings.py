@@ -446,6 +446,22 @@ class roll_call_display_settings(GroupHeaderCardWidget):
             )
         )
 
+        self.show_tags_switch = SwitchButton()
+        self.show_tags_switch.setOffText(
+            get_content_switchbutton_name_async(
+                "roll_call_settings", "show_tags", "disable"
+            )
+        )
+        self.show_tags_switch.setOnText(
+            get_content_switchbutton_name_async(
+                "roll_call_settings", "show_tags", "enable"
+            )
+        )
+        self.show_tags_switch.setChecked(bool(self._read_setting("show_tags")))
+        self.show_tags_switch.checkedChanged.connect(
+            lambda: self._write_setting("show_tags", self.show_tags_switch.isChecked())
+        )
+
         # 添加设置项到分组
         self.addGroup(
             get_theme_icon("ic_fluent_text_font_size_20_filled"),
@@ -482,6 +498,12 @@ class roll_call_display_settings(GroupHeaderCardWidget):
             get_content_name_async("roll_call_settings", "show_random"),
             get_content_description_async("roll_call_settings", "show_random"),
             self.show_random_format_combo,
+        )
+        self.addGroup(
+            get_theme_icon("ic_fluent_tag_20_filled"),
+            get_content_name_async("roll_call_settings", "show_tags"),
+            get_content_description_async("roll_call_settings", "show_tags"),
+            self.show_tags_switch,
         )
 
     def _read_setting(self, key: str, default=None):

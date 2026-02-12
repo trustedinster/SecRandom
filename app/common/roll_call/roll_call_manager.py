@@ -74,6 +74,7 @@ class RollCallManager(QObject):
     def __init__(self):
         super().__init__()
         self.students = []
+        self.tags_by_id = {}
         self.weights = []
         self.current_class_name = ""
         self.current_group_filter = ""
@@ -203,6 +204,19 @@ class RollCallManager(QObject):
 
             # 获取原始学生列表
             raw_students = get_student_list(class_name)
+
+            tags_by_id = {}
+            for s in raw_students or []:
+                if not isinstance(s, dict):
+                    continue
+                try:
+                    sid = int(s.get("id", 0) or 0)
+                except Exception:
+                    sid = 0
+                if sid <= 0:
+                    continue
+                tags_by_id[sid] = s.get("tags") or []
+            self.tags_by_id = tags_by_id
 
             # 过滤数据
             self.students = filter_students_data(
@@ -612,6 +626,9 @@ def stop_animation(widget):
                 widget.final_selected_students,
                 widget.final_class_name,
                 draw_count=actual_draw_count,
+                selected_students_dict=getattr(
+                    widget, "final_selected_students_dict", None
+                ),
             )
             RollCallUtils.show_notification_if_enabled(
                 class_name=widget.final_class_name,
@@ -685,20 +702,39 @@ def draw_random(widget):
 
         students = widget.manager.get_random_students(display_count)
         selected_students = []
+        selected_students_dict = []
         for s in students:
             exist = s[4] if len(s) > 4 else True
             selected_students.append((s[0], s[1], exist))
+            try:
+                sid = int(s[0] or 0)
+            except Exception:
+                sid = 0
+            selected_students_dict.append(
+                {
+                    "id": sid,
+                    "name": s[1],
+                    "exist": exist,
+                    "tags": (widget.manager.tags_by_id or {}).get(sid, []),
+                }
+            )
 
         display_result_animated(
             widget,
             selected_students,
             widget.manager.current_class_name,
             draw_count=display_count,
+            selected_students_dict=selected_students_dict,
         )
 
 
 def display_result(
-    widget, selected_students, class_name, display_settings=None, draw_count=None
+    widget,
+    selected_students,
+    class_name,
+    display_settings=None,
+    draw_count=None,
+    selected_students_dict=None,
 ):
     group_index = widget.range_combobox.currentIndex()
     settings_group = "quick_draw_settings" if display_settings else "roll_call_settings"
@@ -713,10 +749,13 @@ def display_result(
         group_index=group_index,
         settings_group=settings_group,
         display_settings=display_settings,
+        selected_students_dict=selected_students_dict,
     )
 
 
-def display_result_animated(widget, selected_students, class_name, draw_count=None):
+def display_result_animated(
+    widget, selected_students, class_name, draw_count=None, selected_students_dict=None
+):
     group_index = widget.range_combobox.currentIndex()
     display_dict = RollCallUtils.create_display_settings("roll_call_settings")
     if draw_count is None:
@@ -726,10 +765,12 @@ def display_result_animated(widget, selected_students, class_name, draw_count=No
         selected_students = RollCallUtils.render_group_display_students(
             class_name, selected_students, display_dict.get("show_random", 0)
         )
+        selected_students_dict = None
 
     student_labels = ResultDisplayUtils.create_student_label(
         class_name=class_name,
         selected_students=selected_students,
+        selected_students_dict=selected_students_dict,
         draw_count=draw_count,
         font_size=display_dict["font_size"],
         animation_color=display_dict["animation_color"],
@@ -739,6 +780,7 @@ def display_result_animated(widget, selected_students, class_name, draw_count=No
         group_index=group_index,
         show_random=display_dict["show_random"],
         settings_group="roll_call_settings",
+        show_tags=bool(display_dict.get("show_tags")),
     )
 
     cached_widgets = ResultDisplayUtils.collect_grid_widgets(widget.result_grid)

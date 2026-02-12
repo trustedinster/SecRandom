@@ -212,6 +212,19 @@ class ImportPrizeNameWindow(QWidget):
         count_row.addWidget(self.count_column_combo, 1)
         mapping_form.addLayout(count_row)
 
+        # 标签列选择（可选，第五个）
+        tags_row = QHBoxLayout()
+        tags_label = BodyLabel(
+            get_content_name_async("import_prize_name", "column_mapping_tags_column")
+        )
+        self.tags_column_combo = ComboBox()
+        self.tags_column_combo.currentIndexChanged.connect(
+            self.__on_column_mapping_changed
+        )
+        tags_row.addWidget(tags_label)
+        tags_row.addWidget(self.tags_column_combo, 1)
+        mapping_form.addLayout(tags_row)
+
         mapping_layout.addLayout(mapping_form)
 
         # 添加到主布局
@@ -279,6 +292,9 @@ class ImportPrizeNameWindow(QWidget):
         self.count_column_combo.currentIndexChanged.connect(
             self.__on_column_mapping_changed
         )
+        self.tags_column_combo.currentIndexChanged.connect(
+            self.__on_column_mapping_changed
+        )
 
         # 按钮事件
         self.import_btn.clicked.connect(self.__import_data)
@@ -294,6 +310,7 @@ class ImportPrizeNameWindow(QWidget):
         name_column = self.name_column_combo.currentText()
         weight_column = self.weight_column_combo.currentText()
         count_column = self.count_column_combo.currentText()
+        tags_column = self.tags_column_combo.currentText()
 
         # 检查是否选择了"无"选项
         if id_column == get_content_name_async(
@@ -312,6 +329,10 @@ class ImportPrizeNameWindow(QWidget):
             "import_prize_name", "column_mapping_none"
         ):
             count_column = ""
+        if tags_column == get_content_name_async(
+            "import_prize_name", "column_mapping_none"
+        ):
+            tags_column = ""
 
         has_id = bool(id_column)
         has_name = bool(name_column)
@@ -325,6 +346,7 @@ class ImportPrizeNameWindow(QWidget):
         self.name_column_combo.setEnabled(has_file)
         self.weight_column_combo.setEnabled(has_file)
         self.count_column_combo.setEnabled(has_file)
+        self.tags_column_combo.setEnabled(has_file)
 
         # 导入按钮需要同时有文件、序号映射和名称映射
         if hasattr(self, "import_btn"):
@@ -335,6 +357,8 @@ class ImportPrizeNameWindow(QWidget):
             self.weight_column_combo.setEnabled(has_file)
         if hasattr(self, "count_column_combo"):
             self.count_column_combo.setEnabled(has_file)
+        if hasattr(self, "tags_column_combo"):
+            self.tags_column_combo.setEnabled(has_file)
 
     def __on_column_mapping_changed(self):
         """列映射变化时的处理"""
@@ -460,6 +484,7 @@ class ImportPrizeNameWindow(QWidget):
         self.id_column_combo.clear()
         self.weight_column_combo.clear()
         self.count_column_combo.clear()
+        self.tags_column_combo.clear()
 
         # 为所有列添加"无"选项
         none_text = get_content_name_async("import_prize_name", "column_mapping_none")
@@ -467,6 +492,7 @@ class ImportPrizeNameWindow(QWidget):
         self.id_column_combo.addItem(none_text)
         self.weight_column_combo.addItem(none_text)
         self.count_column_combo.addItem(none_text)
+        self.tags_column_combo.addItem(none_text)
 
         # 添加所有列
         for column in self.columns:
@@ -474,6 +500,7 @@ class ImportPrizeNameWindow(QWidget):
             self.id_column_combo.addItem(column)
             self.weight_column_combo.addItem(column)
             self.count_column_combo.addItem(column)
+            self.tags_column_combo.addItem(column)
 
     def __auto_map_columns(self):
         """自动映射列"""
@@ -488,6 +515,7 @@ class ImportPrizeNameWindow(QWidget):
 
         # 数量列可能的关键词（优先级从高到低）
         count_keywords = ["数量", "count", "次数", "num", "number"]
+        tags_keywords = ["标签", "tag", "tags", "分类", "类别"]
 
         # 使用更精确的匹配方法
         def find_best_match(keywords, columns):
@@ -541,6 +569,12 @@ class ImportPrizeNameWindow(QWidget):
             if index >= 0:
                 self.count_column_combo.setCurrentIndex(index)
 
+        tags_match = find_best_match(tags_keywords, self.columns)
+        if tags_match:
+            index = self.tags_column_combo.findText(tags_match)
+            if index >= 0:
+                self.tags_column_combo.setCurrentIndex(index)
+
     def __update_preview(self):
         """更新预览"""
         if self.data is None:
@@ -550,6 +584,7 @@ class ImportPrizeNameWindow(QWidget):
         name_column = self.name_column_combo.currentText()
         weight_column = self.weight_column_combo.currentText()
         count_column = self.count_column_combo.currentText()
+        tags_column = self.tags_column_combo.currentText()
 
         # 检查是否选择了"无"选项（空字符串）
         if not id_column and not name_column:
@@ -571,6 +606,10 @@ class ImportPrizeNameWindow(QWidget):
             "import_prize_name", "column_mapping_none"
         ):
             count_column = None
+        if tags_column == get_content_name_async(
+            "import_prize_name", "column_mapping_none"
+        ):
+            tags_column = None
 
         if not id_column and not name_column and not weight_column:
             return
@@ -602,6 +641,10 @@ class ImportPrizeNameWindow(QWidget):
             preview_columns.append(count_column)
             preview_headers.append(get_content_name_async("import_prize_name", "count"))
 
+        if tags_column:
+            preview_columns.append(tags_column)
+            preview_headers.append(get_content_name_async("import_prize_name", "tags"))
+
         # 限制预览行数
         max_rows = min(3, len(self.data))
         preview_df = self.data[preview_columns].head(max_rows).reset_index(drop=True)
@@ -627,6 +670,7 @@ class ImportPrizeNameWindow(QWidget):
             name_column = self.name_column_combo.currentText()
             weight_column = self.weight_column_combo.currentText()
             count_column = self.count_column_combo.currentText()
+            tags_column = self.tags_column_combo.currentText()
 
             none_text = get_content_name_async(
                 "import_prize_name", "column_mapping_none"
@@ -639,6 +683,8 @@ class ImportPrizeNameWindow(QWidget):
                 weight_column = None
             if count_column == none_text:
                 count_column = None
+            if tags_column == none_text:
+                tags_column = None
 
             # 验证必选项：序号和奖池名称列都必须选择
             if not id_column:
@@ -673,11 +719,26 @@ class ImportPrizeNameWindow(QWidget):
                 if count_value < 0:
                     count_value = 0
 
+                if tags_column:
+                    raw_tags = str(row[tags_column]).strip()
+                    if raw_tags.lower() == "nan":
+                        raw_tags = ""
+                else:
+                    raw_tags = ""
+                for sep in ["，", ",", "；", ";", "|", "/", "\\", "\n", "\t"]:
+                    raw_tags = raw_tags.replace(sep, " ")
+                tags = []
+                for item in raw_tags.split(" "):
+                    item = item.strip()
+                    if item and item not in tags:
+                        tags.append(item)
+
                 row_data = {
                     "id": str(row[id_column]).strip(),
                     "name": str(row[name_column]).strip(),
                     "weight": weight_value,
                     "count": count_value,
+                    "tags": tags,
                     "exist": True,
                 }
 
@@ -766,6 +827,7 @@ class ImportPrizeNameWindow(QWidget):
                         "weight": row["weight"] if row["weight"] else 0,
                         "exist": row.get("exist", True),
                         "count": count_value,
+                        "tags": row.get("tags", []),
                     }
                 action = "overwrite"
             else:
@@ -787,6 +849,7 @@ class ImportPrizeNameWindow(QWidget):
                     "weight": row["weight"] if row["weight"] else 0,
                     "exist": row.get("exist", True),
                     "count": count_value,
+                    "tags": row.get("tags", []),
                 }
             action = "new"
 

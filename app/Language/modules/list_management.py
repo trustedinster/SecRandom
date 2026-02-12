@@ -45,6 +45,7 @@ roll_call_list = {
         "name_setting": {"name": "设置姓名", "description": "设置学生姓名"},
         "gender_setting": {"name": "设置性别", "description": "设置学生性别"},
         "group_setting": {"name": "设置小组", "description": "设置学生所属小组"},
+        "tag_setting": {"name": "标签设置", "description": "设置学生标签"},
         "export_student_name": {
             "name": "导出学生名单",
             "description": "将学生名单导出到文件",
@@ -76,6 +77,7 @@ roll_call_list = {
             "name": "Group settings",
             "description": "Set group of students",
         },
+        "tag_setting": {"name": "Tag settings", "description": "Set student tags"},
         "export_student_name": {
             "name": "Export student list",
             "description": "Export student list to file",
@@ -104,6 +106,7 @@ roll_call_list = {
             "name": "グループ設定",
             "description": "学生の所属グループを設定",
         },
+        "tag_setting": {"name": "タグ設定", "description": "学生のタグを設定"},
         "export_student_name": {
             "name": "学生リストをエクスポート",
             "description": "学生リストをファイルにエクスポート",
@@ -120,9 +123,27 @@ roll_call_table = {
             "description": "选择要显示的点名班级",
         },
         "HeaderLabels": {
-            "name": ["存在", "学号", "姓名", "性别", "小组"],
+            "name": ["存在", "学号", "姓名", "性别", "小组", "标签"],
             "description": "点名表格的列标题",
         },
+        "tag_setting_button": {
+            "name": "标签设置",
+            "description": "标签设置按钮文本",
+        },
+        "tag_setting_dialog_title": {
+            "name": "标签设置",
+            "description": "标签设置对话框标题",
+        },
+        "tag_setting_no_selection": {
+            "name": "请先在表格中选择一行",
+            "description": "未选择行提示",
+        },
+        "tag_setting_dialog_placeholder": {
+            "name": "用逗号/空格分隔多个标签",
+            "description": "标签输入框占位符",
+        },
+        "tag_setting_dialog_ok": {"name": "确定", "description": "确定按钮文本"},
+        "tag_setting_dialog_cancel": {"name": "取消", "description": "取消按钮文本"},
     },
     "EN_US": {
         "title": {"name": "Picking table", "description": "Show and manage name list"},
@@ -137,8 +158,30 @@ roll_call_table = {
                 "2": "Name",
                 "3": "Gender",
                 "4": "Group",
+                "5": "Tags",
             },
             "description": "The column title of the picking table",
+        },
+        "tag_setting_button": {
+            "name": "Tag settings",
+            "description": "Tag settings button text",
+        },
+        "tag_setting_dialog_title": {
+            "name": "Tag settings",
+            "description": "Tag settings dialog title",
+        },
+        "tag_setting_no_selection": {
+            "name": "Please select a row in the table first",
+            "description": "No selection hint",
+        },
+        "tag_setting_dialog_placeholder": {
+            "name": "Separate tags with comma/space",
+            "description": "Tag input placeholder",
+        },
+        "tag_setting_dialog_ok": {"name": "OK", "description": "OK button text"},
+        "tag_setting_dialog_cancel": {
+            "name": "Cancel",
+            "description": "Cancel button text",
         },
     },
     "JA_JP": {
@@ -148,8 +191,32 @@ roll_call_table = {
             "description": "表示する点呼クラスを選択",
         },
         "HeaderLabels": {
-            "name": ["存在", "学籍番号", "氏名", "性別", "グループ"],
+            "name": ["存在", "学籍番号", "氏名", "性別", "グループ", "タグ"],
             "description": "点呼テーブルの列タイトル",
+        },
+        "tag_setting_button": {
+            "name": "タグ設定",
+            "description": "タグ設定ボタンのテキスト",
+        },
+        "tag_setting_dialog_title": {
+            "name": "タグ設定",
+            "description": "タグ設定ダイアログのタイトル",
+        },
+        "tag_setting_no_selection": {
+            "name": "先にテーブルの行を選択してください",
+            "description": "未選択ヒント",
+        },
+        "tag_setting_dialog_placeholder": {
+            "name": "カンマ/スペースで区切る",
+            "description": "タグ入力プレースホルダー",
+        },
+        "tag_setting_dialog_ok": {
+            "name": "確定",
+            "description": "確定ボタンのテキスト",
+        },
+        "tag_setting_dialog_cancel": {
+            "name": "キャンセル",
+            "description": "キャンセルボタンのテキスト",
         },
     },
 }
@@ -169,6 +236,7 @@ lottery_list = {
         },
         "prize_setting": {"name": "设置奖品", "description": "设置奖品名称"},
         "prize_weight_setting": {"name": "设置权重", "description": "设置奖品中奖权重"},
+        "tag_setting": {"name": "标签设置", "description": "设置奖品标签"},
         "prize_count_setting": {"name": "设置数量", "description": "设置奖品中奖数量"},
         "export_prize_name": {
             "name": "导出奖品名单",
@@ -194,6 +262,7 @@ lottery_list = {
             "name": "Weight settings",
             "description": "Set prize weight",
         },
+        "tag_setting": {"name": "Tag settings", "description": "Set prize tags"},
         "prize_count_setting": {
             "name": "Count settings",
             "description": "Set prize count",
@@ -222,6 +291,7 @@ lottery_list = {
             "name": "重み設定",
             "description": "賞品の当選重みを設定",
         },
+        "tag_setting": {"name": "タグ設定", "description": "賞品のタグを設定"},
         "prize_count_setting": {
             "name": "数量設定",
             "description": "賞品の当選数量を設定",
@@ -242,9 +312,27 @@ lottery_table = {
             "description": "选择要显示的抽奖奖池",
         },
         "HeaderLabels": {
-            "name": ["存在", "序号", "奖品", "权重", "数量"],
+            "name": ["存在", "序号", "奖品", "权重", "标签", "数量"],
             "description": "抽奖表格的列标题",
         },
+        "tag_setting_button": {
+            "name": "标签设置",
+            "description": "标签设置按钮文本",
+        },
+        "tag_setting_dialog_title": {
+            "name": "标签设置",
+            "description": "标签设置对话框标题",
+        },
+        "tag_setting_no_selection": {
+            "name": "请先在表格中选择一行",
+            "description": "未选择行提示",
+        },
+        "tag_setting_dialog_placeholder": {
+            "name": "用逗号/空格分隔多个标签",
+            "description": "标签输入框占位符",
+        },
+        "tag_setting_dialog_ok": {"name": "确定", "description": "确定按钮文本"},
+        "tag_setting_dialog_cancel": {"name": "取消", "description": "取消按钮文本"},
     },
     "EN_US": {
         "title": {"name": "Lottery table", "description": "Show and manage prize list"},
@@ -258,9 +346,31 @@ lottery_table = {
                 "1": "Serial",
                 "2": "Prize",
                 "3": "Weight",
-                "4": "Count",
+                "4": "Tags",
+                "5": "Count",
             },
             "description": "The column title of the lottery table",
+        },
+        "tag_setting_button": {
+            "name": "Tag settings",
+            "description": "Tag settings button text",
+        },
+        "tag_setting_dialog_title": {
+            "name": "Tag settings",
+            "description": "Tag settings dialog title",
+        },
+        "tag_setting_no_selection": {
+            "name": "Please select a row in the table first",
+            "description": "No selection hint",
+        },
+        "tag_setting_dialog_placeholder": {
+            "name": "Separate tags with comma/space",
+            "description": "Tag input placeholder",
+        },
+        "tag_setting_dialog_ok": {"name": "OK", "description": "OK button text"},
+        "tag_setting_dialog_cancel": {
+            "name": "Cancel",
+            "description": "Cancel button text",
         },
     },
     "JA_JP": {
@@ -270,8 +380,32 @@ lottery_table = {
             "description": "表示する抽選賞プールを選択",
         },
         "HeaderLabels": {
-            "name": ["存在", "番号", "賞品", "重み", "数量"],
+            "name": ["存在", "番号", "賞品", "重み", "タグ", "数量"],
             "description": "抽選テーブルの列タイトル",
+        },
+        "tag_setting_button": {
+            "name": "タグ設定",
+            "description": "タグ設定ボタンのテキスト",
+        },
+        "tag_setting_dialog_title": {
+            "name": "タグ設定",
+            "description": "タグ設定ダイアログのタイトル",
+        },
+        "tag_setting_no_selection": {
+            "name": "先にテーブルの行を選択してください",
+            "description": "未選択ヒント",
+        },
+        "tag_setting_dialog_placeholder": {
+            "name": "カンマ/スペースで区切る",
+            "description": "タグ入力プレースホルダー",
+        },
+        "tag_setting_dialog_ok": {
+            "name": "確定",
+            "description": "確定ボタンのテキスト",
+        },
+        "tag_setting_dialog_cancel": {
+            "name": "キャンセル",
+            "description": "キャンセルボタンのテキスト",
         },
     },
 }
@@ -320,6 +454,13 @@ notification = {
                 "content": {
                     "name": "已打开小组设置窗口",
                     "description": "小组设置通知内容",
+                },
+            },
+            "tag_setting": {
+                "title": {"name": "标签设置", "description": "标签设置通知标题"},
+                "content": {
+                    "name": "已打开标签设置窗口",
+                    "description": "标签设置通知内容",
                 },
             },
             "export": {
@@ -377,6 +518,13 @@ notification = {
                 "content": {
                     "name": "已打开奖品权重设置窗口",
                     "description": "奖品权重设置通知内容",
+                },
+            },
+            "tag_setting": {
+                "title": {"name": "标签设置", "description": "标签设置通知标题"},
+                "content": {
+                    "name": "已打开标签设置窗口",
+                    "description": "标签设置通知内容",
                 },
             },
             "prize_count_setting": {
@@ -460,6 +608,16 @@ notification = {
                     "description": "Group settings notification content",
                 },
             },
+            "tag_setting": {
+                "title": {
+                    "name": "Tag settings",
+                    "description": "Tag settings notification title",
+                },
+                "content": {
+                    "name": "Tag settings window opened",
+                    "description": "Tag settings notification content",
+                },
+            },
             "export": {
                 "title": {
                     "success": {
@@ -526,6 +684,16 @@ notification = {
                 "content": {
                     "name": "The prize weight setting window has been opened",
                     "description": "Prizes reset notification content",
+                },
+            },
+            "tag_setting": {
+                "title": {
+                    "name": "Tag settings",
+                    "description": "Tag settings notification title",
+                },
+                "content": {
+                    "name": "Tag settings window opened",
+                    "description": "Tag settings notification content",
                 },
             },
             "prize_count_setting": {

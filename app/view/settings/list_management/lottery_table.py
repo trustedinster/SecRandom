@@ -93,7 +93,7 @@ class lottery_table(GroupHeaderCardWidget):
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         self.table.setWordWrap(False)
-        self.table.setColumnCount(5)
+        self.table.setColumnCount(6)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
         self.table.setSortingEnabled(True)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -108,7 +108,7 @@ class lottery_table(GroupHeaderCardWidget):
         self.table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents
         )
-        for i in range(1, 5):
+        for i in range(1, self.table.columnCount()):
             self.table.horizontalHeader().setSectionResizeMode(
                 i, QHeaderView.ResizeMode.Stretch
             )
@@ -219,7 +219,7 @@ class lottery_table(GroupHeaderCardWidget):
                 draw_type = int(read_lottery_setting(pool_name, "draw_type", 0) or 0)
             except Exception:
                 draw_type = 0
-            self.table.setColumnHidden(4, draw_type != 1)
+            self.table.setColumnHidden(5, draw_type != 1)
 
             # 设置表格行数
             self.table.setRowCount(len(pool))
@@ -254,17 +254,26 @@ class lottery_table(GroupHeaderCardWidget):
                 weight_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, 3, weight_item)
 
-                # 奖品数量
+                tags_value = item.get("tags", [])
+                tags_text = (
+                    ", ".join([str(t).strip() for t in tags_value if str(t).strip()])
+                    if isinstance(tags_value, list)
+                    else str(tags_value or "")
+                )
+                tags_item = QTableWidgetItem(tags_text)
+                tags_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(row, 4, tags_item)
+
                 count_item = QTableWidgetItem(str(item.get("count", 1)))
                 count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 4, count_item)
+                self.table.setItem(row, 5, count_item)
 
             # 调整列宽
             self.table.horizontalHeader().resizeSection(0, 80)
             self.table.horizontalHeader().setSectionResizeMode(
                 0, QHeaderView.ResizeMode.ResizeToContents
             )
-            for i in range(1, 5):
+            for i in range(1, self.table.columnCount()):
                 self.table.horizontalHeader().setSectionResizeMode(
                     i, QHeaderView.ResizeMode.Stretch
                 )
@@ -331,7 +340,17 @@ class lottery_table(GroupHeaderCardWidget):
                 pool_data = new_pool_data
         elif col == 3:  # 奖品权重列
             pool_data[matched_key]["weight"] = float(new_value)
-        elif col == 4:  # 奖品数量列
+        elif col == 4:  # 标签列
+            raw = str(new_value or "").strip()
+            for sep in ["，", ",", "；", ";", "|", "/", "\\", "\n", "\t"]:
+                raw = raw.replace(sep, " ")
+            tags = []
+            for item in raw.split(" "):
+                item = item.strip()
+                if item and item not in tags:
+                    tags.append(item)
+            pool_data[matched_key]["tags"] = tags
+        elif col == 5:  # 奖品数量列
             pool_data[matched_key]["count"] = int(float(new_value))
         elif col == 0:  # "存在"勾选框列
             checkbox_item = self.table.item(row, 0)
@@ -349,7 +368,7 @@ class lottery_table(GroupHeaderCardWidget):
 
             # 保存成功后设置列宽
             self.table.blockSignals(True)
-            for i in range(1, 5):
+            for i in range(1, self.table.columnCount()):
                 self.table.horizontalHeader().setSectionResizeMode(
                     i, QHeaderView.ResizeMode.Stretch
                 )
@@ -366,8 +385,12 @@ class lottery_table(GroupHeaderCardWidget):
                 if matched_key:
                     if col == 3:
                         original_value = pool_data[matched_key].get("weight", 1)
-                    elif col == 4:
+                    elif col == 5:
                         original_value = pool_data[matched_key].get("count", 1)
+                    elif col == 4:
+                        original_value = ", ".join(
+                            pool_data[matched_key].get("tags", [])
+                        )
                 item.setText(str(original_value))
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.blockSignals(False)  # 恢复信号

@@ -94,6 +94,11 @@ roll_call_settings = {
             "description": "设置随机组员显示格式",
             "combo_items": ["不显示", "组名[换行]姓名", "组名[短横杠]姓名"],
         },
+        "show_tags": {
+            "name": "显示标签",
+            "description": "设置是否在结果中显示标签",
+            "switchbutton_name": {"enable": "", "disable": ""},
+        },
         "animation": {
             "name": "动画模式",
             "description": "设置点名抽取动画效果",
@@ -243,6 +248,11 @@ roll_call_settings = {
                 "1": "Group[New line]Name",
                 "2": "Group name[Dash]name",
             },
+        },
+        "show_tags": {
+            "name": "Show tags",
+            "description": "Whether to show tags in results",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "animation": {
             "name": "Animation mode",
@@ -404,6 +414,11 @@ roll_call_settings = {
                 "2": "グループ[ダッシュ]氏名",
             },
         },
+        "show_tags": {
+            "name": "タグ表示",
+            "description": "結果にタグを表示するか設定",
+            "switchbutton_name": {"enable": "", "disable": ""},
+        },
         "animation": {
             "name": "アニメーションモード",
             "description": "点呼アニメーションを設定",
@@ -541,6 +556,11 @@ quick_draw_settings = {
             "description": "设置随机组员显示格式",
             "combo_items": ["不显示", "组名[换行]姓名", "组名[短横杠]姓名"],
         },
+        "show_tags": {
+            "name": "显示标签",
+            "description": "设置是否在结果中显示标签",
+            "switchbutton_name": {"enable": "", "disable": ""},
+        },
         "animation": {
             "name": "动画模式",
             "description": "设置闪抽抽取动画效果",
@@ -666,6 +686,11 @@ quick_draw_settings = {
                 "1": "Group[New line]Name",
                 "2": "Group name[Dash]name",
             },
+        },
+        "show_tags": {
+            "name": "Show tags",
+            "description": "Whether to show tags in results",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "animation": {
             "name": "Animation mode",
@@ -815,6 +840,11 @@ quick_draw_settings = {
                 "1": "グループ[改行]氏名",
                 "2": "グループ[ダッシュ]氏名",
             },
+        },
+        "show_tags": {
+            "name": "タグ表示",
+            "description": "結果にタグを表示するか設定",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "animation": {
             "name": "アニメーションモード",
@@ -967,6 +997,11 @@ lottery_settings = {
                 "奖品[换行]小组",
                 "奖品[短横杠]小组",
             ],
+        },
+        "show_tags": {
+            "name": "显示标签",
+            "description": "设置是否在结果中显示标签",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "animation": {
             "name": "动画模式",
@@ -1126,6 +1161,11 @@ lottery_settings = {
                 "10": "Name[New line]Prize",
                 "11": "Name[Dash]Prize",
             },
+        },
+        "show_tags": {
+            "name": "Show tags",
+            "description": "Whether to show tags in results",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "animation": {
             "name": "Animation mode",
@@ -1304,6 +1344,11 @@ lottery_settings = {
                 "10": "氏名[改行]賞品",
                 "11": "氏名[ダッシュ]賞品",
             },
+        },
+        "show_tags": {
+            "name": "タグ表示",
+            "description": "結果にタグを表示するか設定",
+            "switchbutton_name": {"enable": "", "disable": ""},
         },
         "animation": {
             "name": "アニメーションモード",

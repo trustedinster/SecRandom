@@ -237,6 +237,7 @@ class LotteryManager(QObject):
                     pool_name, "lottery_image_position"
                 ),
                 "show_random": read_lottery_setting(pool_name, "show_random"),
+                "show_tags": read_lottery_setting(pool_name, "show_tags"),
             }
 
         return self._render_settings_cache
@@ -996,6 +997,7 @@ def stop_animation(widget):
             widget.final_selected_students,
             widget.final_pool_name,
             draw_count=actual_draw_count,
+            selected_students_dict=widget.final_selected_students_dict,
         )
 
         settings = widget.manager.get_notification_settings(
@@ -1142,16 +1144,20 @@ def draw_random(widget):
             widget.manager.current_pool_name,
             draw_count=display_count,
             ipc_selected_students=ipc_selected_students,
+            selected_students_dict=prizes,
         )
 
 
-def display_result(widget, selected_students, pool_name, draw_count=None):
+def display_result(
+    widget, selected_students, pool_name, draw_count=None, selected_students_dict=None
+):
     render_settings = widget.manager.get_render_settings(pool_name, refresh=True)
     if draw_count is None:
         draw_count = widget.current_count
     student_labels = ResultDisplayUtils.create_student_label(
         pool_name,
         selected_students=selected_students,
+        selected_students_dict=selected_students_dict,
         draw_count=draw_count,
         font_size=render_settings["font_size"],
         animation_color=render_settings["animation_color"],
@@ -1162,6 +1168,7 @@ def display_result(widget, selected_students, pool_name, draw_count=None):
         group_index=0,
         show_random=render_settings["show_random"],
         settings_group="lottery_settings",
+        show_tags=bool(render_settings.get("show_tags")),
     )
     cached_widgets = ResultDisplayUtils.collect_grid_widgets(widget.result_grid)
     if cached_widgets and len(cached_widgets) == len(student_labels):
@@ -1179,7 +1186,12 @@ def display_result(widget, selected_students, pool_name, draw_count=None):
 
 
 def display_result_animated(
-    widget, selected_students, pool_name, draw_count=None, ipc_selected_students=None
+    widget,
+    selected_students,
+    pool_name,
+    draw_count=None,
+    ipc_selected_students=None,
+    selected_students_dict=None,
 ):
     render_settings = widget.manager.get_render_settings(pool_name, refresh=False)
     if draw_count is None:
@@ -1188,6 +1200,7 @@ def display_result_animated(
     student_labels = ResultDisplayUtils.create_student_label(
         class_name=pool_name,
         selected_students=selected_students,
+        selected_students_dict=selected_students_dict,
         draw_count=draw_count,
         font_size=render_settings["font_size"],
         animation_color=render_settings["animation_color"],
@@ -1198,6 +1211,7 @@ def display_result_animated(
         group_index=0,
         show_random=render_settings["show_random"],
         settings_group="lottery_settings",
+        show_tags=bool(render_settings.get("show_tags")),
     )
     cached_widgets = ResultDisplayUtils.collect_grid_widgets(widget.result_grid)
     if cached_widgets and len(cached_widgets) == len(student_labels):

@@ -8,6 +8,38 @@ from loguru import logger
 from app.tools.path_utils import *
 
 
+def _normalize_tags(value) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        tags = []
+        for item in value:
+            item = str(item).strip()
+            if item and item not in tags:
+                tags.append(item)
+        return tags
+    raw = str(value).strip()
+    if not raw or raw.lower() == "nan":
+        return []
+    for sep in ["，", ",", "；", ";", "|", "/", "\\", "\n", "\t"]:
+        raw = raw.replace(sep, " ")
+    tags = []
+    for item in raw.split(" "):
+        item = item.strip()
+        if item and item not in tags:
+            tags.append(item)
+    return tags
+
+
+def _format_tags_for_export(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ",".join([str(x).strip() for x in value if str(x).strip()])
+    raw = str(value).strip()
+    return "" if raw.lower() == "nan" else raw
+
+
 # ==================================================
 # 班级列表管理函数
 # ==================================================
@@ -83,6 +115,7 @@ def get_student_list(class_name: str) -> List[Dict[str, Any]]:
                 "gender": info.get("gender", "未知"),
                 "group": info.get("group", "未分组"),
                 "exist": info.get("exist", True),
+                "tags": _normalize_tags(info.get("tags", [])),
             }
             student_list.append(student)
 
@@ -250,6 +283,7 @@ def get_pool_list(pool_name: str) -> List[Dict[str, Any]]:
                 "weight": info.get("weight", 1),
                 "exist": info.get("exist", True),
                 "count": count,
+                "tags": _normalize_tags(info.get("tags", [])),
             }
             pool_list.append(pool)
 
@@ -492,13 +526,15 @@ def _generic_export_txt(names: List[str], file_path: str) -> Tuple[bool, str]:
 def _prepare_student_export_data(data: Dict[str, Any]) -> List[Dict]:
     """准备学生导出数据"""
     export_data = []
+
     for name, info in data.items():
         export_data.append(
             {
-                "学号": info["id"],
+                "学号": info.get("id", ""),
                 "姓名": name,
-                "性别": info["gender"],
-                "所处小组": info["group"],
+                "性别": info.get("gender", ""),
+                "所处小组": info.get("group", ""),
+                "标签": _format_tags_for_export(info.get("tags", "")),
             }
         )
     return export_data
@@ -507,15 +543,63 @@ def _prepare_student_export_data(data: Dict[str, Any]) -> List[Dict]:
 def _prepare_prize_export_data(data: Dict[str, Any]) -> List[Dict]:
     """准备奖品导出数据"""
     export_data = []
+
     for prize_name, prize_info in data.items():
         export_data.append(
             {
-                "ID": prize_info["id"],
+                "ID": prize_info.get("id", ""),
                 "奖品名称": prize_name,
-                "权重": prize_info["weight"],
+                "权重": prize_info.get("weight", 0),
+                "标签": _format_tags_for_export(prize_info.get("tags", "")),
+                "数量": prize_info.get("count", 1),
             }
         )
     return export_data
+
+
+def export_prize_data(
+    pool_name: str, file_path: str, export_format: str
+) -> Tuple[bool, str]:
+    try:
+        lottery_list_dir = get_data_path("list/lottery_list")
+        pool_file_path = lottery_list_dir / f"{pool_name}.json"
+
+        if not pool_file_path.exists():
+            error_msg = f"奖池文件 '{pool_name}.json' 不存在"
+            logger.error(error_msg)
+            return False, error_msg
+
+        with open(pool_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if not data:
+            error_msg = "当前奖池没有奖品数据"
+            logger.warning(error_msg)
+            return False, error_msg
+
+        if export_format.lower() == "excel":
+            return _export_prize_to_excel(data, file_path)
+        if export_format.lower() == "csv":
+            return _export_prize_to_csv(data, file_path)
+        if export_format.lower() == "txt":
+            return _export_prize_to_txt(data, file_path)
+
+        error_msg = f"不支持的导出格式: {export_format}"
+        logger.error(error_msg)
+        return False, error_msg
+
+    except FileNotFoundError:
+        error_msg = f"奖池文件 '{pool_name}.json' 不存在"
+        logger.error(error_msg)
+        return False, error_msg
+    except json.JSONDecodeError:
+        error_msg = f"奖池文件 '{pool_name}.json' 格式错误"
+        logger.error(error_msg)
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"导出奖品名单时出错: {str(e)}"
+        logger.exception(error_msg)
+        return False, error_msg
 
 
 def _export_to_excel(data: Dict[str, Any], file_path: str) -> Tuple[bool, str]:

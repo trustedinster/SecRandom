@@ -263,7 +263,13 @@ class NameSettingWindow(QWidget):
                     new_data[name] = existing_data[name]
                 else:
                     # 新增的姓名，分配新的学号和默认值
-                    new_data[name] = {"id": i, "gender": "", "group": "", "exist": True}
+                    new_data[name] = {
+                        "id": i,
+                        "gender": "",
+                        "group": "",
+                        "exist": True,
+                        "tags": [],
+                    }
 
             # 保存到文件
             with open_file(list_file, "w", encoding="utf-8") as f:

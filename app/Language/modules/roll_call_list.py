@@ -404,12 +404,17 @@ import_student_name = {
             "name": "小组列 (可选):",
             "description": "小组列标签",
         },
+        "column_mapping_tags_column": {
+            "name": "标签列 (可选):",
+            "description": "标签列标签",
+        },
         "column_mapping_none": {"name": "无", "description": "无选项文本"},
         "data_preview_title": {"name": "数据预览", "description": "数据预览区域标题"},
         "student_id": {"name": "学号", "description": "学号列标题"},
         "name": {"name": "姓名", "description": "姓名列标题"},
         "gender": {"name": "性别", "description": "性别列标题"},
         "group": {"name": "小组", "description": "小组列标题"},
+        "tags": {"name": "标签", "description": "标签列标题"},
         "buttons_import": {"name": "导入", "description": "导入按钮文本"},
         "file_loaded_title": {
             "name": "文件已加载",
@@ -548,6 +553,10 @@ import_student_name = {
             "name": "Group column (optional):",
             "description": "Column label of group",
         },
+        "column_mapping_tags_column": {
+            "name": "Tags column (optional):",
+            "description": "Column label of tags",
+        },
         "column_mapping_none": {"name": "Noneh", "description": "Text of None"},
         "data_preview_title": {
             "name": "Data preview",
@@ -560,6 +569,7 @@ import_student_name = {
         "name": {"name": "Name", "description": "Column title of Name"},
         "gender": {"name": "Gender", "description": "Column title of Gender"},
         "group": {"name": "Group", "description": "Column title of Group"},
+        "tags": {"name": "Tags", "description": "Column title of Tags"},
         "buttons_import": {"name": "Import", "description": "Button text of Import"},
         "file_loaded_title": {
             "name": "File loaded",
@@ -704,6 +714,10 @@ import_student_name = {
             "name": "グループ列（オプション）:",
             "description": "グループ列ラベル",
         },
+        "column_mapping_tags_column": {
+            "name": "タグ列（オプション）:",
+            "description": "タグ列ラベル",
+        },
         "column_mapping_none": {
             "name": "なし",
             "description": "なしオプションのテキスト",
@@ -728,6 +742,7 @@ import_student_name = {
             "name": "グループ",
             "description": "グループ列タイトル",
         },
+        "tags": {"name": "タグ", "description": "タグ列タイトル"},
         "buttons_import": {
             "name": "インポート",
             "description": "インポートボタンのテキスト",
@@ -1875,6 +1890,139 @@ group_setting = {
         "group_deleted_message": {
             "name": "グループオプション '{group}' が入力ボックスから削除されたことが検出されました。変更を保存して永久に削除してください",
             "description": "グループオプション削除ヒントの内容",
+        },
+    },
+}
+
+# 标签设置窗口
+tag_setting = {
+    "ZH_CN": {
+        "title": {"name": "标签设置", "description": "学生标签设置窗口标题"},
+        "description": {
+            "name": "在此窗口中，您可以为学生设置标签\n双击“标签”列进行编辑，多个标签可用空格或逗号分隔",
+            "description": "学生标签设置窗口描述",
+        },
+        "header_labels": {
+            "name": ["学号", "姓名", "标签"],
+            "description": "表格表头",
+        },
+        "save_button": {"name": "保存", "description": "保存按钮文本"},
+        "error_title": {"name": "错误", "description": "错误消息标题"},
+        "success_title": {"name": "成功", "description": "成功消息标题"},
+        "no_list_selected": {
+            "name": "请先选择班级",
+            "description": "未选择班级提示",
+        },
+        "list_file_missing": {
+            "name": "班级名单文件不存在",
+            "description": "名单文件不存在提示",
+        },
+        "success_message": {
+            "name": "标签已保存",
+            "description": "保存成功提示",
+        },
+        "save_error": {
+            "name": "保存标签失败",
+            "description": "保存失败前缀",
+        },
+        "unsaved_changes_title": {
+            "name": "未保存的更改",
+            "description": "未保存更改对话框标题",
+        },
+        "unsaved_changes_message": {
+            "name": "您有未保存的更改，确定要关闭窗口吗？",
+            "description": "未保存更改对话框内容",
+        },
+        "discard_button": {"name": "放弃更改", "description": "放弃更改按钮文本"},
+        "continue_editing_button": {
+            "name": "继续编辑",
+            "description": "继续编辑按钮文本",
+        },
+    },
+    "EN_US": {
+        "title": {"name": "Tag settings", "description": "Student tag settings title"},
+        "description": {
+            "name": "Edit student tags in this window\nDouble click the “Tags” column to edit. Separate multiple tags with spaces or commas",
+            "description": "Student tag settings description",
+        },
+        "header_labels": {
+            "name": ["ID", "Name", "Tags"],
+            "description": "Table headers",
+        },
+        "save_button": {"name": "Save", "description": "Save button text"},
+        "error_title": {"name": "Error", "description": "Error title"},
+        "success_title": {"name": "Success", "description": "Success title"},
+        "no_list_selected": {
+            "name": "Please select a class first",
+            "description": "No class selected hint",
+        },
+        "list_file_missing": {
+            "name": "Class list file not found",
+            "description": "Missing list file hint",
+        },
+        "success_message": {"name": "Tags saved", "description": "Save success hint"},
+        "save_error": {
+            "name": "Failed to save tags",
+            "description": "Save error prefix",
+        },
+        "unsaved_changes_title": {
+            "name": "Unsaved changes",
+            "description": "Unsaved changes dialog title",
+        },
+        "unsaved_changes_message": {
+            "name": "You have unsaved changes. Close this window?",
+            "description": "Unsaved changes dialog content",
+        },
+        "discard_button": {"name": "Discard", "description": "Discard button text"},
+        "continue_editing_button": {
+            "name": "Continue editing",
+            "description": "Continue editing button text",
+        },
+    },
+    "JA_JP": {
+        "title": {
+            "name": "タグ設定",
+            "description": "学生タグ設定ウィンドウのタイトル",
+        },
+        "description": {
+            "name": "このウィンドウでは学生のタグを設定できます\n「タグ」列をダブルクリックして編集し、複数のタグは空白またはカンマで区切ります",
+            "description": "学生タグ設定ウィンドウの説明",
+        },
+        "header_labels": {
+            "name": ["ID", "氏名", "タグ"],
+            "description": "テーブルヘッダー",
+        },
+        "save_button": {"name": "保存", "description": "保存ボタンのテキスト"},
+        "error_title": {"name": "エラー", "description": "エラータイトル"},
+        "success_title": {"name": "成功", "description": "成功タイトル"},
+        "no_list_selected": {
+            "name": "先にクラスを選択してください",
+            "description": "クラス未選択のヒント",
+        },
+        "list_file_missing": {
+            "name": "クラスリストファイルが見つかりません",
+            "description": "リストファイル不存在のヒント",
+        },
+        "success_message": {
+            "name": "タグを保存しました",
+            "description": "保存成功のヒント",
+        },
+        "save_error": {
+            "name": "タグの保存に失敗しました",
+            "description": "保存失敗の前置き",
+        },
+        "unsaved_changes_title": {
+            "name": "未保存の変更",
+            "description": "未保存変更ダイアログのタイトル",
+        },
+        "unsaved_changes_message": {
+            "name": "未保存の変更があります。ウィンドウを閉じますか？",
+            "description": "未保存変更ダイアログの内容",
+        },
+        "discard_button": {"name": "破棄", "description": "破棄ボタンのテキスト"},
+        "continue_editing_button": {
+            "name": "編集を続ける",
+            "description": "編集を続けるボタンのテキスト",
         },
     },
 }

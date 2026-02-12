@@ -356,6 +356,22 @@ class QuickDrawAnimation(QObject):
             students = self.roll_call_widget.manager.get_random_students(current_count)
 
             self.final_selected_students = self._build_selected_students(students)
+            self.final_selected_students_dict = []
+            tags_by_id = getattr(self.roll_call_widget.manager, "tags_by_id", {}) or {}
+            for s in students or []:
+                try:
+                    sid = int(s[0] or 0)
+                except Exception:
+                    sid = 0
+                exist = s[4] if len(s) > 4 else True
+                self.final_selected_students_dict.append(
+                    {
+                        "id": sid,
+                        "name": s[1],
+                        "exist": exist,
+                        "tags": tags_by_id.get(sid, []),
+                    }
+                )
             self.final_class_name = self.roll_call_widget.manager.current_class_name
         else:
             # 非动画状态（直接抽取），执行最终抽取
@@ -435,6 +451,7 @@ class QuickDrawAnimation(QObject):
                     )(),
                     settings_group="quick_draw_settings",
                     display_settings=quick_draw_settings,
+                    selected_students_dict=self.final_selected_students_dict,
                 )
 
                 self._record_drawn_student(quick_draw_settings)
@@ -509,7 +526,12 @@ class QuickDrawAnimation(QObject):
             logger.exception(f"_update_floating_notification: 更新浮窗通知失败: {e}")
 
     def display_result_animated(
-        self, selected_students, class_name, display_settings, draw_count
+        self,
+        selected_students,
+        class_name,
+        display_settings,
+        draw_count,
+        selected_students_dict=None,
     ):
         """动画过程中显示结果
 
@@ -519,9 +541,17 @@ class QuickDrawAnimation(QObject):
             display_settings: 显示设置字典
             draw_count: 抽取人数
         """
+        if selected_students_dict is None:
+            selected_students_dict = getattr(self, "final_selected_students_dict", None)
+        show_tags = bool(
+            (display_settings or {}).get(
+                "show_tags", readme_settings_async("quick_draw_settings", "show_tags")
+            )
+        )
         student_labels = ResultDisplayUtils.create_student_label(
             class_name=class_name,
             selected_students=selected_students,
+            selected_students_dict=selected_students_dict,
             draw_count=draw_count,
             font_size=display_settings["font_size"],
             animation_color=display_settings["animation_color_theme"],
@@ -533,6 +563,7 @@ class QuickDrawAnimation(QObject):
             )(),
             show_random=display_settings["show_random"],
             settings_group="quick_draw_settings",
+            show_tags=show_tags,
         )
 
         cached_widgets = ResultDisplayUtils.collect_grid_widgets(

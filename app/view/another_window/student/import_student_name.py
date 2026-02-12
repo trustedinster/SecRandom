@@ -208,6 +208,19 @@ class ImportStudentNameWindow(QWidget):
         group_row.addWidget(self.group_column_combo, 1)
         mapping_form.addLayout(group_row)
 
+        # 标签列选择（可选，第五个）
+        tags_row = QHBoxLayout()
+        tags_label = BodyLabel(
+            get_content_name_async("import_student_name", "column_mapping_tags_column")
+        )
+        self.tags_column_combo = ComboBox()
+        self.tags_column_combo.currentIndexChanged.connect(
+            self.__on_column_mapping_changed
+        )
+        tags_row.addWidget(tags_label)
+        tags_row.addWidget(self.tags_column_combo, 1)
+        mapping_form.addLayout(tags_row)
+
         mapping_layout.addLayout(mapping_form)
 
         # 添加到主布局
@@ -275,6 +288,9 @@ class ImportStudentNameWindow(QWidget):
         self.group_column_combo.currentIndexChanged.connect(
             self.__on_column_mapping_changed
         )
+        self.tags_column_combo.currentIndexChanged.connect(
+            self.__on_column_mapping_changed
+        )
 
         # 按钮事件
         self.import_btn.clicked.connect(self.__import_data)
@@ -311,6 +327,7 @@ class ImportStudentNameWindow(QWidget):
         self.name_column_combo.setEnabled(has_file)
         self.gender_column_combo.setEnabled(has_file)
         self.group_column_combo.setEnabled(has_file)
+        self.tags_column_combo.setEnabled(has_file)
 
         # 导入按钮需要同时有文件、学号映射和姓名映射
         if hasattr(self, "import_btn"):
@@ -440,11 +457,13 @@ class ImportStudentNameWindow(QWidget):
         self.id_column_combo.clear()
         self.gender_column_combo.clear()
         self.group_column_combo.clear()
+        self.tags_column_combo.clear()
 
         # 为所有列添加"无"选项
         none_text = get_content_name_async("import_student_name", "column_mapping_none")
         self.gender_column_combo.addItem(none_text)
         self.group_column_combo.addItem(none_text)
+        self.tags_column_combo.addItem(none_text)
 
         # 添加所有列
         for column in self.columns:
@@ -452,6 +471,7 @@ class ImportStudentNameWindow(QWidget):
             self.id_column_combo.addItem(column)
             self.gender_column_combo.addItem(column)
             self.group_column_combo.addItem(column)
+            self.tags_column_combo.addItem(column)
 
     def __auto_map_columns(self):
         """自动映射列"""
@@ -466,6 +486,7 @@ class ImportStudentNameWindow(QWidget):
 
         # 小组列可能的关键词（优先级从高到低）
         group_keywords = ["小组", "分组", "组别", "队伍", "group", "team"]
+        tags_keywords = ["标签", "tag", "tags", "分类", "类别"]
 
         # 使用更精确的匹配方法
         def find_best_match(keywords, columns):
@@ -519,6 +540,12 @@ class ImportStudentNameWindow(QWidget):
             if index >= 0:
                 self.group_column_combo.setCurrentIndex(index)
 
+        tags_match = find_best_match(tags_keywords, self.columns)
+        if tags_match:
+            index = self.tags_column_combo.findText(tags_match)
+            if index >= 0:
+                self.tags_column_combo.setCurrentIndex(index)
+
     def __update_preview(self):
         """更新预览"""
         if self.data is None:
@@ -528,6 +555,7 @@ class ImportStudentNameWindow(QWidget):
         name_column = self.name_column_combo.currentText()
         gender_column = self.gender_column_combo.currentText()
         group_column = self.group_column_combo.currentText()
+        tags_column = self.tags_column_combo.currentText()
 
         # 检查是否选择了"无"选项（空字符串）
         if not id_column and not name_column:
@@ -549,6 +577,10 @@ class ImportStudentNameWindow(QWidget):
             "import_student_name", "column_mapping_none"
         ):
             group_column = None
+        if tags_column == get_content_name_async(
+            "import_student_name", "column_mapping_none"
+        ):
+            tags_column = None
 
         if not id_column and not name_column:
             return
@@ -582,6 +614,12 @@ class ImportStudentNameWindow(QWidget):
                 get_content_name_async("import_student_name", "group")
             )
 
+        if tags_column:
+            preview_columns.append(tags_column)
+            preview_headers.append(
+                get_content_name_async("import_student_name", "tags")
+            )
+
         # 限制预览行数
         max_rows = min(3, len(self.data))
         preview_df = self.data[preview_columns].head(max_rows).reset_index(drop=True)
@@ -607,6 +645,7 @@ class ImportStudentNameWindow(QWidget):
             name_column = self.name_column_combo.currentText()
             gender_column = self.gender_column_combo.currentText()
             group_column = self.group_column_combo.currentText()
+            tags_column = self.tags_column_combo.currentText()
 
             # 验证必选项：学号和姓名列都必须选择
             if not id_column:
@@ -628,15 +667,33 @@ class ImportStudentNameWindow(QWidget):
                 "import_student_name", "column_mapping_none"
             ):
                 group_column = None
+            if tags_column == get_content_name_async(
+                "import_student_name", "column_mapping_none"
+            ):
+                tags_column = None
 
             # 提取数据
             student_data = []
             for _, row in self.data.iterrows():
+                if tags_column:
+                    raw_tags = str(row[tags_column]).strip()
+                    if raw_tags.lower() == "nan":
+                        raw_tags = ""
+                else:
+                    raw_tags = ""
+                for sep in ["，", ",", "；", ";", "|", "/", "\\", "\n", "\t"]:
+                    raw_tags = raw_tags.replace(sep, " ")
+                tags = []
+                for item in raw_tags.split(" "):
+                    item = item.strip()
+                    if item and item not in tags:
+                        tags.append(item)
                 student_info = {
                     "id": str(row[id_column]).strip(),
                     "name": str(row[name_column]).strip(),
                     "gender": str(row[gender_column]).strip() if gender_column else "",
                     "group": str(row[group_column]).strip() if group_column else "",
+                    "tags": tags,
                     "exist": True,
                 }
 
@@ -721,6 +778,7 @@ class ImportStudentNameWindow(QWidget):
                         "gender": student["gender"] if student["gender"] else "",
                         "group": student["group"] if student["group"] else "",
                         "exist": student.get("exist", True),
+                        "tags": student.get("tags", []),
                     }
                 action = "overwrite"
             else:
@@ -739,6 +797,7 @@ class ImportStudentNameWindow(QWidget):
                     "gender": student["gender"] if student["gender"] else "",
                     "group": student["group"] if student["group"] else "",
                     "exist": student.get("exist", True),
+                    "tags": student.get("tags", []),
                 }
             action = "new"
 

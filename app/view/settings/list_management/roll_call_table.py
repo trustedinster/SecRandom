@@ -87,7 +87,7 @@ class roll_call_table(GroupHeaderCardWidget):
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         self.table.setWordWrap(False)
-        self.table.setColumnCount(5)
+        self.table.setColumnCount(6)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
         self.table.setSortingEnabled(True)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -102,7 +102,7 @@ class roll_call_table(GroupHeaderCardWidget):
         self.table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents
         )
-        for i in range(1, 5):
+        for i in range(1, self.table.columnCount()):
             self.table.horizontalHeader().setSectionResizeMode(
                 i, QHeaderView.ResizeMode.Stretch
             )
@@ -247,12 +247,22 @@ class roll_call_table(GroupHeaderCardWidget):
                 group_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, 4, group_item)
 
+                tags_value = student.get("tags", [])
+                tags_text = (
+                    ", ".join([str(t).strip() for t in tags_value if str(t).strip()])
+                    if isinstance(tags_value, list)
+                    else str(tags_value or "")
+                )
+                tags_item = QTableWidgetItem(tags_text)
+                tags_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(row, 5, tags_item)
+
             # 调整列宽
             self.table.horizontalHeader().resizeSection(0, 80)
             self.table.horizontalHeader().setSectionResizeMode(
                 0, QHeaderView.ResizeMode.ResizeToContents
             )
-            for i in range(1, 5):
+            for i in range(1, self.table.columnCount()):
                 self.table.horizontalHeader().setSectionResizeMode(
                     i, QHeaderView.ResizeMode.Stretch
                 )
@@ -324,6 +334,16 @@ class roll_call_table(GroupHeaderCardWidget):
             student_data[matched_key]["gender"] = new_value
         elif col == 4:  # 小组列
             student_data[matched_key]["group"] = new_value
+        elif col == 5:  # 标签列
+            raw = str(new_value or "").strip()
+            for sep in ["，", ",", "；", ";", "|", "/", "\\", "\n", "\t"]:
+                raw = raw.replace(sep, " ")
+            tags = []
+            for item in raw.split(" "):
+                item = item.strip()
+                if item and item not in tags:
+                    tags.append(item)
+            student_data[matched_key]["tags"] = tags
         elif col == 0:  # "是否在班级"勾选框列
             checkbox_item = self.table.item(row, 0)
             if checkbox_item:
@@ -340,7 +360,7 @@ class roll_call_table(GroupHeaderCardWidget):
 
             # 保存成功后设置列宽
             self.table.blockSignals(True)
-            for i in range(1, 5):
+            for i in range(1, self.table.columnCount()):
                 self.table.horizontalHeader().setSectionResizeMode(
                     i, QHeaderView.ResizeMode.Stretch
                 )
@@ -360,6 +380,8 @@ class roll_call_table(GroupHeaderCardWidget):
                         if col == 3
                         else student_data[matched_key]["group"]
                         if col == 4
+                        else ", ".join(student_data[matched_key].get("tags", []))
+                        if col == 5
                         else ""
                     )
                 item.setText(str(original_value))

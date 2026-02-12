@@ -9,11 +9,13 @@ from app.view.another_window.student.set_class_name import SetClassNameWindow
 from app.view.another_window.student.name_setting import NameSettingWindow
 from app.view.another_window.student.gender_setting import GenderSettingWindow
 from app.view.another_window.student.group_setting import GroupSettingWindow
+from app.view.another_window.student.tag_setting import StudentTagSettingWindow
 from app.view.another_window.prize.import_prize_name import ImportPrizeNameWindow
 from app.view.another_window.prize.set_pool_name import SetPoolNameWindow
 from app.view.another_window.prize.prize_name_setting import PrizeNameSettingWindow
 from app.view.another_window.prize.prize_weight_setting import PrizeWeightSettingWindow
 from app.view.another_window.prize.prize_count_setting import PrizeCountSettingWindow
+from app.view.another_window.prize.tag_setting import PrizeTagSettingWindow
 from app.view.another_window.remaining_list import RemainingListPage
 from app.view.another_window.current_config_viewer import CurrentConfigViewerWindow
 from app.view.another_window.log_viewer import LogViewerWindow
@@ -300,6 +302,39 @@ def create_group_setting_window(list_name=None, parent=None):
 
 
 # ==================================================
+# 标签设置窗口
+# ==================================================
+class student_tag_setting_window_template(PageTemplate):
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return StudentTagSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "StudentTagSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
+
+
+def create_student_tag_setting_window(list_name=None, parent=None):
+    window, _ = _create_reusable_window(
+        "student_tag_setting",
+        ("tag_setting", "title"),
+        lambda page_parent: student_tag_setting_window_template(
+            parent=page_parent, list_name=list_name
+        ),
+        900,
+        650,
+        parent=parent,
+    )
+    try:
+        if hasattr(window, "enable_close_guard"):
+            window.enable_close_guard(True)
+        else:
+            window.setProperty("srCloseGuard", True)
+    except Exception:
+        pass
+    return
+
+
+# ==================================================
 # 奖池名称设置窗口
 # ==================================================
 class set_pool_name_window_template(PageTemplate):
@@ -449,6 +484,38 @@ def create_prize_weight_setting_window(list_name=None):
         ),
         800,
         600,
+    )
+    try:
+        if hasattr(window, "enable_close_guard"):
+            window.enable_close_guard(True)
+        else:
+            window.setProperty("srCloseGuard", True)
+    except Exception:
+        pass
+    return
+
+
+# ==================================================
+# 奖品标签设置窗口
+# ==================================================
+class prize_tag_setting_window_template(PageTemplate):
+    def __init__(self, parent=None, list_name=None):
+        def factory(parent):
+            return PrizeTagSettingWindow(parent=parent, list_name=list_name)
+
+        factory.__name__ = "PrizeTagSettingWindow"
+        super().__init__(content_widget_class=factory, parent=parent)
+
+
+def create_prize_tag_setting_window(list_name=None):
+    window, _ = _create_reusable_window(
+        "prize_tag_setting",
+        ("prize_tag_setting", "title"),
+        lambda page_parent: prize_tag_setting_window_template(
+            parent=page_parent, list_name=list_name
+        ),
+        900,
+        650,
     )
     try:
         if hasattr(window, "enable_close_guard"):

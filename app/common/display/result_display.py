@@ -6,10 +6,23 @@ import colorsys
 import weakref
 from loguru import logger
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QMenu, QSizePolicy
+from PySide6.QtWidgets import (
+    QWidget,
+    QHBoxLayout,
+    QVBoxLayout,
+    QMenu,
+    QSizePolicy,
+    QLabel,
+)
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtCore import Qt, QPoint, QTimer, QEvent
-from qfluentwidgets import BodyLabel, AvatarWidget, ElevatedCardWidget, qconfig
+from qfluentwidgets import (
+    BodyLabel,
+    CaptionLabel,
+    AvatarWidget,
+    ElevatedCardWidget,
+    qconfig,
+)
 
 from app.tools.variable import (
     STUDENT_ID_FORMAT,
@@ -373,6 +386,7 @@ class ResultDisplayUtils:
         animation_color,
         settings_group="roll_call_settings",
         custom_font_family="",
+        style_sheet=None,
     ):
         """
         应用标签样式
@@ -384,22 +398,17 @@ class ResultDisplayUtils:
             settings_group: 设置组名称，默认为roll_call_settings
             custom_font_family: 自定义字体族
         """
-        # 检查是否使用全局字体
-        use_global_font = readme_settings_async(settings_group, "use_global_font")
-        custom_font = None
-        if use_global_font == 1:  # 不使用全局字体，使用自定义字体
-            custom_font = readme_settings_async(settings_group, "custom_font")
-
-        # 如果传入了自定义字体族，则使用传入的字体族
-        if custom_font_family:
-            custom_font = custom_font_family
-
-        fixed_color = readme_settings_async(settings_group, "animation_fixed_color")
-        color_str = ResultDisplayUtils._get_style_color(animation_color, fixed_color)
-
-        style_sheet = f"font-size: {font_size}pt; color: {color_str} !important;"
-        if custom_font and use_global_font == 1:
-            style_sheet = f"font-family: '{custom_font}'; {style_sheet}"
+        if style_sheet is None:
+            fixed_color = readme_settings_async(settings_group, "animation_fixed_color")
+            color_str = ResultDisplayUtils._get_style_color(
+                animation_color, fixed_color
+            )
+            style_sheet = ResultDisplayUtils._build_text_style_sheet(
+                font_size,
+                color_str,
+                settings_group,
+                custom_font_family=custom_font_family,
+            )
 
         def apply_to_widget(widget):
             if isinstance(widget, BodyLabel):
@@ -418,6 +427,26 @@ class ResultDisplayUtils:
             apply_to_widget(label)
 
     @staticmethod
+    def _build_text_style_sheet(
+        font_size,
+        color_str,
+        settings_group="roll_call_settings",
+        *,
+        custom_font_family="",
+    ):
+        use_global_font = readme_settings_async(settings_group, "use_global_font")
+        custom_font = None
+        if use_global_font == 1:
+            custom_font = readme_settings_async(settings_group, "custom_font")
+        if custom_font_family:
+            custom_font = custom_font_family
+
+        style_sheet = f"font-size: {font_size}pt; color: {color_str} !important;"
+        if custom_font and use_global_font == 1:
+            style_sheet = f"font-family: '{custom_font}'; {style_sheet}"
+        return style_sheet
+
+    @staticmethod
     def _find_student_image(image_dir, image_name):
         """查找学生图片"""
         for ext in SUPPORTED_IMAGE_EXTENSIONS:
@@ -430,6 +459,7 @@ class ResultDisplayUtils:
     def create_student_label(
         class_name,
         selected_students,
+        selected_students_dict=None,
         draw_count=1,
         font_size=50,
         animation_color=0,
@@ -441,6 +471,7 @@ class ResultDisplayUtils:
         show_random=0,
         settings_group="roll_call_settings",
         custom_font_family="",
+        show_tags=False,
     ):
         """
         创建学生显示标签
@@ -496,6 +527,8 @@ class ResultDisplayUtils:
             image_position = int(image_position)
         except Exception:
             image_position = 0
+
+        fixed_color = readme_settings_async(settings_group, "animation_fixed_color")
 
         for i, (num, selected, exist) in enumerate(selected_students):
             current_image_path = None
@@ -554,6 +587,58 @@ class ResultDisplayUtils:
                 label = BodyLabel(text)
                 label.setAttribute(Qt.WA_DeleteOnClose)  # 自动清理
 
+            color_str = ResultDisplayUtils._get_style_color(
+                animation_color, fixed_color
+            )
+            main_style_sheet = ResultDisplayUtils._build_text_style_sheet(
+                font_size,
+                color_str,
+                settings_group,
+                custom_font_family=custom_font_family,
+            )
+
+            tag_text = ""
+            if show_tags and selected_students_dict and i < len(selected_students_dict):
+                current_item = selected_students_dict[i]
+                if isinstance(current_item, dict):
+                    tags = current_item.get("tags") or []
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    if isinstance(tags, (list, tuple)):
+                        normalized = []
+                        for t in tags:
+                            t = str(t or "").strip()
+                            if t:
+                                normalized.append(t)
+                        if normalized:
+                            tag_text = " · ".join(normalized)
+
+            if tag_text:
+                try:
+                    tag_font_size = max(1, int(int(font_size) / 2.5))
+                except Exception:
+                    tag_font_size = 1
+                tag_label = CaptionLabel(tag_text)
+                tag_label.setAttribute(Qt.WA_DeleteOnClose)
+                tag_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                tag_label.setStyleSheet(
+                    ResultDisplayUtils._build_text_style_sheet(
+                        tag_font_size,
+                        color_str,
+                        settings_group,
+                        custom_font_family=custom_font_family,
+                    )
+                )
+
+                wrapper = QWidget()
+                wrapper.setAttribute(Qt.WA_DeleteOnClose)
+                wrapper_layout = QVBoxLayout(wrapper)
+                wrapper_layout.setContentsMargins(0, 0, 0, 0)
+                wrapper_layout.setSpacing(2)
+                wrapper_layout.addWidget(label, 0, Qt.AlignmentFlag.AlignCenter)
+                wrapper_layout.addWidget(tag_label, 0, Qt.AlignmentFlag.AlignCenter)
+                label = wrapper
+
             card_widget = None
             if display_style == 1:
                 card_widget = ElevatedCardWidget()
@@ -565,7 +650,12 @@ class ResultDisplayUtils:
                 label = card_widget
 
             ResultDisplayUtils._apply_label_style(
-                label, font_size, animation_color, settings_group, custom_font_family
+                label,
+                font_size,
+                animation_color,
+                settings_group,
+                custom_font_family,
+                style_sheet=main_style_sheet,
             )
 
             if card_widget is not None:
@@ -771,6 +861,11 @@ class ResultDisplayUtils:
                     if isinstance(old_obj, BodyLabel) and isinstance(
                         new_obj, BodyLabel
                     ):
+                        old_obj.setText(new_obj.text())
+                        old_obj.setStyleSheet(new_obj.styleSheet())
+                        return True
+
+                    if isinstance(old_obj, QLabel) and isinstance(new_obj, QLabel):
                         old_obj.setText(new_obj.text())
                         old_obj.setStyleSheet(new_obj.styleSheet())
                         return True

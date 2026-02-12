@@ -504,12 +504,22 @@ class Lottery(QWidget):
     def draw_random(self):
         return lottery_manager.draw_random(self)
 
-    def display_result(self, selected_students, pool_name):
-        return lottery_manager.display_result(self, selected_students, pool_name)
+    def display_result(self, selected_students, pool_name, selected_students_dict=None):
+        return lottery_manager.display_result(
+            self,
+            selected_students,
+            pool_name,
+            selected_students_dict=selected_students_dict,
+        )
 
-    def display_result_animated(self, selected_students, pool_name):
+    def display_result_animated(
+        self, selected_students, pool_name, selected_students_dict=None
+    ):
         return lottery_manager.display_result_animated(
-            self, selected_students, pool_name
+            self,
+            selected_students,
+            pool_name,
+            selected_students_dict=selected_students_dict,
         )
 
     def _do_reset_count(self):
