@@ -275,7 +275,7 @@ DEFAULT_SETTINGS = {
         "floating_window_opacity": {"default_value": 0.8},
         "floating_window_topmost_mode": {"default_value": 1},
         "extend_quick_draw_component": {"default_value": False},
-        "floating_window_button_control": ["roll_call", "quick_draw"],
+        "floating_window_button_control": {"default_value": ["roll_call", "quick_draw"]},
         "floating_window_placement": {"default_value": 1},
         "floating_window_display_style": {"default_value": 0},
         "floating_window_theme": {"default_value": 0},

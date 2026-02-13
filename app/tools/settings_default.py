@@ -148,13 +148,15 @@ def manage_settings_file():
 
             for second_level_key, second_level_value in first_level_value.items():
                 if second_level_key not in updated_settings[first_level_key]:
-                    # 如果默认值为 None，则不添加到设置文件
-                    if second_level_value["default_value"] is not None:
-                        updated_settings[first_level_key][second_level_key] = (
-                            second_level_value["default_value"]
-                        )
+                    # 处理两种格式：{"default_value": xxx} 或直接值
+                    if isinstance(second_level_value, dict) and "default_value" in second_level_value:
+                        default_val = second_level_value["default_value"]
+                    else:
+                        default_val = second_level_value
+
+                    if default_val is not None:
+                        updated_settings[first_level_key][second_level_key] = default_val
                         settings_updated = True
-                        # logger.debug(f"添加缺失的设置项: {first_level_key}.{second_level_key} = {second_level_value['default_value']}")
 
         # 移除多余的设置项
         for first_level_key in list(current_settings.keys()):

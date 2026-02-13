@@ -24,7 +24,7 @@ from app.common.safety.secure_store import (
     read_behind_scenes_settings,
     write_behind_scenes_settings,
 )
-from app.common.history import get_all_history_names, load_history_data
+from app.core.app_init import calculate_total_draw_counts
 from app.view.components.center_flow_layout import CenterFlowLayout
 import app.core.window_manager as wm
 
@@ -466,34 +466,7 @@ class user_info_card(HeaderCardWidget):
         return total_draw_count, roll_call_total_count, lottery_total_count
 
     def _calculate_usage_stats(self):
-        roll_call_total = 0
-        for class_name in get_all_history_names("roll_call"):
-            data = load_history_data("roll_call", class_name)
-            roll_call_total += int(data.get("total_rounds", 0) or 0)
-
-        lottery_total = 0
-        for pool_name in get_all_history_names("lottery"):
-            data = load_history_data("lottery", pool_name)
-            lotterys = data.get("lotterys", {})
-            if not isinstance(lotterys, dict):
-                continue
-            draw_times = set()
-            for entry in lotterys.values():
-                if not isinstance(entry, dict):
-                    continue
-                hist = entry.get("history", [])
-                if not isinstance(hist, list):
-                    continue
-                for record in hist:
-                    if not isinstance(record, dict):
-                        continue
-                    draw_time = record.get("draw_time")
-                    if draw_time:
-                        draw_times.add(draw_time)
-            lottery_total += len(draw_times)
-
-        total_draw = roll_call_total + lottery_total
-        return total_draw, roll_call_total, lottery_total
+        return calculate_total_draw_counts()
 
     def _normalize_count(self, value):
         if value is None:

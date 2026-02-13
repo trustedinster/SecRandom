@@ -12,6 +12,43 @@ from app.core.font_manager import (
 )
 from app.core.window_manager import WindowManager
 from app.core.utils import safe_execute
+from app.common.history.file_utils import load_history_data, get_all_history_names
+
+
+def calculate_total_draw_counts():
+    """计算总抽取次数
+
+    Returns:
+        tuple: (总抽取次数, 点名总次数, 抽奖总次数)
+    """
+    roll_call_total = 0
+    for class_name in get_all_history_names("roll_call"):
+        data = load_history_data("roll_call", class_name)
+        roll_call_total += int(data.get("total_rounds", 0) or 0)
+
+    lottery_total = 0
+    for pool_name in get_all_history_names("lottery"):
+        data = load_history_data("lottery", pool_name)
+        lotterys = data.get("lotterys", {})
+        if not isinstance(lotterys, dict):
+            continue
+        draw_times = set()
+        for entry in lotterys.values():
+            if not isinstance(entry, dict):
+                continue
+            hist = entry.get("history", [])
+            if not isinstance(hist, list):
+                continue
+            for record in hist:
+                if not isinstance(record, dict):
+                    continue
+                draw_time = record.get("draw_time")
+                if draw_time:
+                    draw_times.add(draw_time)
+        lottery_total += len(draw_times)
+
+    total_draw_count = roll_call_total + lottery_total
+    return total_draw_count, roll_call_total, lottery_total
 
 
 class AppInitializer:

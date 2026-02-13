@@ -15,7 +15,8 @@ from loguru import logger
 from app.tools.path_utils import get_app_root
 from app.tools.config import configure_logging
 from app.tools.settings_default import manage_settings_file
-from app.tools.settings_access import readme_settings_async, get_or_create_user_id
+from app.tools.settings_access import readme_settings_async, get_or_create_user_id, update_settings
+from app.core.app_init import calculate_total_draw_counts
 from app.tools.variable import (
     APP_QUIT_ON_LAST_WINDOW_CLOSED,
     VERSION,
@@ -142,21 +143,14 @@ def initialize_posthog():
     user_id = get_or_create_user_id()
     posthog.capture(distinct_id=user_id, event="app_started")
 
-    total_draw_count = readme_settings_async("user_info", "total_draw_count") or 0
-    roll_call_total_count = (
-        readme_settings_async("user_info", "roll_call_total_count") or 0
-    )
-    lottery_total_count = (
-        readme_settings_async("user_info", "lottery_total_count") or 0
-    )
-    first_use_time = readme_settings_async("user_info", "first_use_time") or ""
+    total_draw_count, roll_call_total, lottery_total = calculate_total_draw_counts()
+
     posthog.set(
         distinct_id=user_id,
         properties={
             "total_draw_count": total_draw_count,
-            "roll_call_total_count": roll_call_total_count,
-            "lottery_total_count": lottery_total_count,
-            "first_use_time": first_use_time,
+            "roll_call_total_count": roll_call_total,
+            "lottery_total_count": lottery_total,
         },
     )
 
