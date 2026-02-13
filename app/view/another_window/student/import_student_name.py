@@ -477,17 +477,91 @@ class ImportStudentNameWindow(QWidget):
     def __auto_map_columns(self):
         """自动映射列"""
         # 学号列可能的关键词（优先级从高到低）
-        id_keywords = ["学号", "学生ID", "student id", "编号", "id", "no"]
+        id_keywords = [
+            "学号",
+            "学籍号",
+            "学籍番号",
+            "学生番号",
+            "学生ID",
+            "student id",
+            "student_id",
+            "student number",
+            "student no",
+            "roll no",
+            "roll number",
+            "学员编号",
+            "编号",
+            "座号",
+            "座位号",
+            "出席番号",
+            "sid",
+            "id",
+            "no",
+        ]
 
         # 姓名列可能的关键词（优先级从高到低）
-        name_keywords = ["姓名", "学生姓名", "名字", "student name", "名", "name"]
+        name_keywords = [
+            "姓名",
+            "学生姓名",
+            "名字",
+            "氏名",
+            "名前",
+            "生徒名",
+            "学生名",
+            "student name",
+            "student_name",
+            "full name",
+            "fullname",
+            "名",
+            "name",
+        ]
 
         # 性别列可能的关键词（优先级从高到低）
-        gender_keywords = ["性别", "男女", "gender", "sex"]
+        gender_keywords = [
+            "性别",
+            "性別",
+            "男女",
+            "ジェンダー",
+            "gender",
+            "sex",
+            "male",
+            "female",
+            "m/f",
+            "男",
+            "女",
+        ]
 
         # 小组列可能的关键词（优先级从高到低）
-        group_keywords = ["小组", "分组", "组别", "队伍", "group", "team"]
-        tags_keywords = ["标签", "tag", "tags", "分类", "类别"]
+        group_keywords = [
+            "小组",
+            "分组",
+            "组别",
+            "队伍",
+            "班",
+            "组",
+            "グループ",
+            "グループ名",
+            "チーム",
+            "team",
+            "team name",
+            "group",
+            "group name",
+        ]
+
+        # 标签列可能的关键词（优先级从高到低）
+        tags_keywords = [
+            "标签",
+            "tag",
+            "tags",
+            "タグ",
+            "ラベル",
+            "分類",
+            "类别",
+            "分类",
+            "カテゴリ",
+            "カテゴリー",
+            "category",
+        ]
 
         # 使用更精确的匹配方法
         def find_best_match(keywords, columns):

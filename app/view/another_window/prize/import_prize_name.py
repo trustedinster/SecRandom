@@ -506,17 +506,78 @@ class ImportPrizeNameWindow(QWidget):
     def __auto_map_columns(self):
         """自动映射列"""
         # 奖品列可能的关键词（优先级从高到低）
-        id_keywords = ["序号", "编号", "id", "no"]
+        id_keywords = [
+            "序号",
+            "编号",
+            "番號",
+            "番号",
+            "id",
+            "no",
+            "no.",
+            "index",
+        ]
 
         # 姓名列可能的关键词（优先级从高到低）
-        name_keywords = ["奖品", "奖品名称", "奖池名称", "名称", "name"]
+        name_keywords = [
+            "奖品",
+            "奖品名称",
+            "奖品名",
+            "奖池名称",
+            "名称",
+            "賞品",
+            "景品",
+            "商品",
+            "商品名",
+            "品名",
+            "prize",
+            "prize name",
+            "gift",
+            "item",
+            "name",
+        ]
 
         # 体重列可能的关键词（优先级从高到低）
-        weight_keywords = ["权重", "weight", "概率"]
+        weight_keywords = [
+            "权重",
+            "概率",
+            "weight",
+            "probability",
+            "chance",
+            "rate",
+            "ratio",
+            "確率",
+            "重み",
+            "ウェイト",
+        ]
 
         # 数量列可能的关键词（优先级从高到低）
-        count_keywords = ["数量", "count", "次数", "num", "number"]
-        tags_keywords = ["标签", "tag", "tags", "分类", "类别"]
+        count_keywords = [
+            "数量",
+            "次数",
+            "count",
+            "num",
+            "number",
+            "qty",
+            "quantity",
+            "個数",
+            "数",
+            "回数",
+        ]
+
+        # 标签列可能的关键词（优先级从高到低）
+        tags_keywords = [
+            "标签",
+            "tag",
+            "tags",
+            "タグ",
+            "ラベル",
+            "分類",
+            "分类",
+            "类别",
+            "カテゴリ",
+            "カテゴリー",
+            "category",
+        ]
 
         # 使用更精确的匹配方法
         def find_best_match(keywords, columns):
