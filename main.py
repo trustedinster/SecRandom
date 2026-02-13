@@ -256,7 +256,7 @@ def initialize_application():
 
     if DEV_VERSION not in VERSION:
         initialize_sentry()
-    initialize_posthog()
+        initialize_posthog()
 
     wm.app_start_time = time.perf_counter()
 
