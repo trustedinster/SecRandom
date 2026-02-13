@@ -372,6 +372,8 @@ basic_settings = {
             "export_warning_content": {
                 "name": "即将导出所有数据，包括:\n\n软件版本、设置配置\n点名名单、抽奖名单\n历史记录、日志文件\n\n注意: 导出的数据可能包含敏感信息，请妥善保管。\n\n是否继续导出?"
             },
+            "export_confirm_button": {"name": "确认导出"},
+            "export_cancel_button": {"name": "取消导出"},
         },
         "diagnostic_data_export": {
             "export_confirm_button": {"name": "确认导出"},
@@ -766,6 +768,8 @@ basic_settings = {
             "export_warning_content": {
                 "name": "All data will soon be exported, including:\n\nsoftware version, settings,\nname list, prize list,\nhistory, log file\n\nNOTE: exported data may contain sensitive information, please keep it safe.\n\nContinue exporting?"
             },
+            "export_confirm_button": {"name": "Confirm export"},
+            "export_cancel_button": {"name": "Cancel export"},
         },
         "diagnostic_data_export": {
             "export_confirm_button": {"name": "Confirm Export"},
@@ -1201,6 +1205,8 @@ basic_settings = {
             "export_warning_content": {
                 "name": "まもなくすべてのデータをエクスポートします、以下を含みます:\n\nソフトウェアバージョン、設定\n点呼リスト、抽選リスト\n履歴記録、ログファイル\n\n注意: エクスポートされたデータは機密情報を含む可能性があるため、適切に保管してください。\n\nエクスポートを続行しますか?"
             },
+            "export_confirm_button": {"name": "エクスポートを確認"},
+            "export_cancel_button": {"name": "エクスポートをキャンセル"},
         },
         "diagnostic_data_export": {
             "export_confirm_button": {"name": "エクスポートを確認"},

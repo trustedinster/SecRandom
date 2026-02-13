@@ -6,6 +6,76 @@ import importlib
 
 from app.Language.obtain_language import get_content_name_async
 
+try:
+    from pypinyin import Style, lazy_pinyin
+except Exception:
+    Style = None
+    lazy_pinyin = None
+
+
+def _compact_text(text: str) -> str:
+    s = str(text or "").lower()
+    out = []
+    for ch in s:
+        if ch.isalnum() or ("\u4e00" <= ch <= "\u9fff"):
+            out.append(ch)
+    return "".join(out)
+
+
+def _to_pinyin(text: str) -> str:
+    if lazy_pinyin is None or Style is None:
+        return ""
+    parts = lazy_pinyin(str(text or ""), style=Style.NORMAL, errors=lambda x: [x])
+    return _compact_text("".join(parts))
+
+
+def _to_pinyin_initials(text: str) -> str:
+    if lazy_pinyin is None or Style is None:
+        return ""
+    parts = lazy_pinyin(str(text or ""), style=Style.FIRST_LETTER, errors=lambda x: [x])
+    return _compact_text("".join(parts))
+
+
+def _subsequence_positions(needle: str, haystack: str) -> Optional[List[int]]:
+    n = str(needle or "")
+    h = str(haystack or "")
+    if not n or not h:
+        return None
+    pos = []
+    j = 0
+    for i, ch in enumerate(h):
+        if j < len(n) and ch == n[j]:
+            pos.append(i)
+            j += 1
+            if j >= len(n):
+                return pos
+    return None
+
+
+def _score_fuzzy_match(query: str, target: str) -> int:
+    q = str(query or "")
+    t = str(target or "")
+    if not q or not t:
+        return 0
+
+    if q == t:
+        return 4000
+    if t.startswith(q):
+        return 3000 - max(0, len(t) - len(q))
+    if q in t:
+        return 2000 + min(40, t.count(q)) * 5
+
+    pos = _subsequence_positions(q, t)
+    if not pos:
+        return 0
+
+    span = pos[-1] - pos[0] + 1
+    gaps = max(0, span - len(q))
+    score = 1000 - gaps
+    if score <= 0:
+        return 1
+    return score
+
 
 def get_default_settings_route_map() -> Dict[str, Dict[str, Any]]:
     return {
@@ -188,11 +258,16 @@ def build_settings_language_search_index(
                 continue
 
             extracted = extract_language_strings(value)
+            title_strings = extracted.get("title") or []
             for second_key, strings in extracted.items():
                 if second_key == "title":
                     continue
 
-                search_blob = " ".join(s for s in strings if s).strip().lower()
+                search_blob = (
+                    " ".join(s for s in (list(title_strings) + list(strings)) if s)
+                    .strip()
+                    .lower()
+                )
                 if not search_blob:
                     continue
 
@@ -206,6 +281,10 @@ def build_settings_language_search_index(
                 except Exception:
                     item_title = second_key
 
+                search_compact = _compact_text(search_blob)
+                search_pinyin = _to_pinyin(search_blob)
+                search_pinyin_initials = _to_pinyin_initials(search_blob)
+
                 index.append(
                     {
                         "first": var_name,
@@ -213,6 +292,9 @@ def build_settings_language_search_index(
                         "page_route": route.get("page_route"),
                         "pivot": _resolve_entry_pivot(var_name, second_key, route),
                         "search": search_blob,
+                        "search_compact": search_compact,
+                        "search_pinyin": search_pinyin,
+                        "search_pinyin_initials": search_pinyin_initials,
                         "display": f"{module_title} - {item_title}",
                     }
                 )
@@ -223,17 +305,49 @@ def build_settings_language_search_index(
 def search_settings_language_index(
     index: List[Dict[str, Any]], query: str, limit: int = 12
 ) -> List[Dict[str, Any]]:
-    q = str(query or "").strip().lower()
-    if not q:
+    q_raw = str(query or "").strip()
+    if not q_raw:
         return []
+
+    q_compact = _compact_text(q_raw)
+    if not q_compact:
+        return []
+
+    query_tokens = [_compact_text(t) for t in q_raw.split() if _compact_text(t)]
 
     scored = []
     for entry in index or []:
-        blob = entry.get("search") or ""
-        if q not in blob:
+        best = 0
+        candidates = [
+            entry.get("search_compact") or _compact_text(entry.get("search") or ""),
+            entry.get("search_pinyin") or "",
+            entry.get("search_pinyin_initials") or "",
+        ]
+
+        for c in candidates:
+            s = _score_fuzzy_match(q_compact, c)
+            if s > best:
+                best = s
+
+        if len(query_tokens) > 1:
+            token_sum = 0
+            for token in query_tokens:
+                token_best = 0
+                for c in candidates:
+                    ts = _score_fuzzy_match(token, c)
+                    if ts > token_best:
+                        token_best = ts
+                if token_best <= 0:
+                    token_sum = 0
+                    break
+                token_sum += token_best
+            if token_sum > 0:
+                best = max(best, 800 + token_sum // len(query_tokens))
+
+        if best <= 0:
             continue
-        score = blob.count(q)
-        scored.append((score, entry))
+
+        scored.append((best, entry))
 
     scored.sort(key=lambda x: (-x[0], x[1].get("display") or ""))
     return [e for _, e in scored[: int(limit or 12)]]
