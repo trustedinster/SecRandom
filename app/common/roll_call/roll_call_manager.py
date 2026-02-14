@@ -37,7 +37,8 @@ from app.Language.obtain_language import (
     get_content_combo_name_async,
 )
 from app.tools.path_utils import get_data_path
-from app.tools.variable import APP_INIT_DELAY, track_event
+from app.tools.variable import APP_INIT_DELAY
+from app.tools.config import track_event
 
 system_random = SystemRandom()
 

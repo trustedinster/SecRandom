@@ -13,9 +13,13 @@ from PySide6.QtWidgets import QApplication
 from loguru import logger
 
 from app.tools.path_utils import get_app_root
-from app.tools.config import configure_logging
+from app.tools.config import (
+    configure_logging,
+    set_posthog_client,
+    create_sentry_before_send_filter,
+)
 from app.tools.settings_default import manage_settings_file
-from app.tools.settings_access import readme_settings_async, get_or_create_user_id, update_settings
+from app.tools.settings_access import readme_settings_async, get_or_create_user_id
 from app.core.app_init import calculate_total_draw_counts
 from app.tools.variable import (
     APP_QUIT_ON_LAST_WINDOW_CLOSED,
@@ -29,7 +33,6 @@ from app.tools.variable import (
     PROCESS_EXIT_WAIT_SECONDS,
     POSTHOG_API_KEY,
     POSTHOG_HOST,
-    set_posthog_client,
 )
 from app.core.single_instance import (
     check_single_instance,
@@ -51,65 +54,6 @@ import app.core.window_manager as wm
 # ==================================================
 # Sentry 相关函数
 # ==================================================
-
-
-def create_sentry_before_send_filter():
-    """创建 Sentry 事件过滤器
-
-    过滤掉不需要上报的错误，如第三方库错误和常见的无害错误
-    """
-
-    def before_send(event, hint):
-        # 1. 检查是否有堆栈信息
-        has_stacktrace = False
-        if "exception" in event:
-            values = event.get("exception", {}).get("values", [])
-            for val in values:
-                if val.get("stacktrace"):
-                    has_stacktrace = True
-                    break
-
-        if not has_stacktrace and "threads" in event:
-            values = event.get("threads", {}).get("values", [])
-            for val in values:
-                if val.get("stacktrace"):
-                    has_stacktrace = True
-                    break
-
-        # 检查 loguru 的 log_record
-        log_record = hint.get("log_record")
-        if log_record:
-            if getattr(log_record, "exception", None):
-                has_stacktrace = True
-            elif hasattr(log_record, "extra") and log_record.extra.get("exc_info"):
-                has_stacktrace = True
-
-        # 如果没有堆栈信息，且是错误/严重级别，则丢弃 (logger.info 等低级别不会被丢弃，除非 event_level 设置)
-        if not has_stacktrace and event.get("level") in ("error", "fatal"):
-            return None
-
-        # 2. 过滤特定的错误类型或模块
-        if "exception" in event:
-            exceptions = event.get("exception", {}).get("values", [])
-            for exc in exceptions:
-                module = exc.get("module", "")
-                type_ = exc.get("type", "")
-                value = exc.get("value", "")
-
-                # 过滤 Qt 常见无害错误 (通常是由于对象在 C++ 侧已销毁但 Python 侧仍在尝试访问)
-                if type_ == "RuntimeError" and (
-                    "Internal C++ object" in str(value)
-                    or "has been deleted" in str(value)
-                ):
-                    return None
-
-                # 过滤 COM 相关
-                if type_ == "COMError" and "没有注册类" in str(value):
-                    return None
-
-        return event
-
-    return before_send
 
 
 def initialize_sentry():

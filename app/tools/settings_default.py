@@ -149,13 +149,18 @@ def manage_settings_file():
             for second_level_key, second_level_value in first_level_value.items():
                 if second_level_key not in updated_settings[first_level_key]:
                     # 处理两种格式：{"default_value": xxx} 或直接值
-                    if isinstance(second_level_value, dict) and "default_value" in second_level_value:
+                    if (
+                        isinstance(second_level_value, dict)
+                        and "default_value" in second_level_value
+                    ):
                         default_val = second_level_value["default_value"]
                     else:
                         default_val = second_level_value
 
                     if default_val is not None:
-                        updated_settings[first_level_key][second_level_key] = default_val
+                        updated_settings[first_level_key][second_level_key] = (
+                            default_val
+                        )
                         settings_updated = True
 
         # 移除多余的设置项
