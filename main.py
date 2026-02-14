@@ -93,7 +93,7 @@ def initialize_posthog():
         distinct_id=user_id,
         event="app_started",
         properties={
-            "location": geoip_properties,
+            **geoip_properties,
             "$set": {
                 "total_draw_count": total_draw_count,
                 "roll_call_total_count": roll_call_total,

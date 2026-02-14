@@ -10,7 +10,6 @@ from datetime import datetime
 import platform
 import sys
 import time
-from functools import lru_cache
 import psutil
 import requests
 
@@ -164,279 +163,61 @@ def track_event(event_name: str):
     )
 
 
+_GEOIP_COUNTRY_NAME_KEY = "$geoip_country_name"
+_GEOIP_SUBDIVISION_1_NAME_KEY = "$geoip_subdivision_1_name"
+_GEOIP_CITY_NAME_KEY = "$geoip_city_name"
+_GEOIP_IP_KEY = "$geoip_ip"
+_GEOIP_ISP_KEY = "$geoip_isp"
+
+
 def get_geoip_properties_zh_cn(timeout_seconds: float = 1.5) -> dict:
-    providers = (
-        ("系统位置信息", _get_system_location_properties_zh_cn),
-        ("IP33 位置信息", _get_ip33_location_properties),
-    )
-    for provider_name, provider in providers:
-        properties = provider(timeout_seconds=timeout_seconds)
-        if properties:
-            logger.debug(f"获取到{provider_name}: {properties}")
-            return properties
-    return {}
+    headers = {"User-Agent": f"SecRandom/{SPECIAL_VERSION}"}
+    timeout_seconds = max(0.2, float(timeout_seconds or 0))
 
+    try:
+        response = requests.get(
+            "https://ip9.com.cn/get",
+            headers=headers,
+            timeout=timeout_seconds,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except Exception:
+        return {}
 
-_GEOIP_COUNTRY_KEY = "$geoip_country_name"
-_GEOIP_CITY_KEY = "$geoip_city_name"
-_COUNTRY_NAME_ZH_CN_MAP = {
-    "China": "中国",
-    "People's Republic of China": "中国",
-    "PRC": "中国",
-    "中华人民共和国": "中国",
-}
-_COUNTRY_REGION_ZH_CN_MAP = {
-    "CN": "中国",
-    "HK": "中国香港",
-    "MO": "中国澳门",
-    "TW": "中国台湾",
-}
-_IP33_AREA_CITY_RE = re.compile(
-    r"^(?P<prefix>.+?(?:省|自治区|特别行政区|市))(?P<rest>.*)$"
-)
+    if not isinstance(data, dict) or data.get("ret") != 200:
+        return {}
 
-
-def _build_geoip_properties(country: str = "", city: str = "") -> dict:
-    country = (country or "").strip()
-    city = (city or "").strip()
-
-    country = _COUNTRY_NAME_ZH_CN_MAP.get(country, country)
+    geo_data = data.get("data")
+    if not isinstance(geo_data, dict):
+        return {}
 
     properties = {}
+
+    country = (geo_data.get("country") or "").strip()
     if country:
-        properties[_GEOIP_COUNTRY_KEY] = country
+        properties[_GEOIP_COUNTRY_NAME_KEY] = country
+
+    prov = (geo_data.get("prov") or "").strip()
+    if prov:
+        properties[_GEOIP_SUBDIVISION_1_NAME_KEY] = prov
+
+    city = (geo_data.get("city") or "").strip()
     if city:
-        properties[_GEOIP_CITY_KEY] = city
-    return properties
+        properties[_GEOIP_CITY_NAME_KEY] = city
 
+    ip = (geo_data.get("ip") or "").strip()
+    if ip:
+        properties[_GEOIP_IP_KEY] = ip
 
-@lru_cache(maxsize=1)
-def _map_country_region_to_zh_cn(country_region: str) -> str:
-    country_region = (country_region or "").strip().upper()
-    if not country_region:
-        return ""
+    isp = (geo_data.get("isp") or "").strip()
+    if isp:
+        properties[_GEOIP_ISP_KEY] = isp
 
-    return _COUNTRY_REGION_ZH_CN_MAP.get(country_region, country_region)
-
-
-def _get_windows_geo_country_region() -> tuple[str, str]:
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-
-        GEOCLASS_NATION = 16
-        GEOID_NOT_AVAILABLE = 0
-        GEO_ISO2 = 4
-        GEO_FRIENDLYNAME = 8
-
-        kernel32.GetUserGeoID.argtypes = [wintypes.DWORD]
-        kernel32.GetUserGeoID.restype = wintypes.INT
-        kernel32.GetGeoInfoW.argtypes = [
-            wintypes.INT,
-            wintypes.DWORD,
-            wintypes.LPWSTR,
-            wintypes.INT,
-            wintypes.LANGID,
-        ]
-        kernel32.GetGeoInfoW.restype = wintypes.INT
-
-        geo_id = int(kernel32.GetUserGeoID(GEOCLASS_NATION))
-        if geo_id in (GEOID_NOT_AVAILABLE, -1):
-            return "", ""
-
-        def _get_geoinfo(geo_type: int) -> str:
-            buf = ctypes.create_unicode_buffer(256)
-            size = int(kernel32.GetGeoInfoW(geo_id, geo_type, buf, len(buf), 0))
-            if size <= 0:
-                return ""
-            return (buf.value or "").strip()
-
-        iso2 = _get_geoinfo(GEO_ISO2).upper()
-        friendly = _get_geoinfo(GEO_FRIENDLYNAME)
-        return iso2, friendly
-    except Exception:
-        return "", ""
-
-
-def _get_windows_location_properties_via_winrt_zh_cn(timeout_seconds: float) -> dict:
-    try:
-        import concurrent.futures
-        import asyncio
-
-        import winrt.windows.devices.geolocation as geolocation
-    except Exception:
-        return {}
-
-    timeout_seconds = max(0.2, float(timeout_seconds or 0))
-
-    def _worker() -> dict:
-        async def _get() -> dict:
-            locator = geolocation.Geolocator()
-            position = await asyncio.wait_for(
-                locator.get_geoposition_async(), timeout_seconds
-            )
-            address = getattr(position, "civic_address", None)
-            if address is None:
-                return {}
-
-            city = (getattr(address, "city", "") or "").strip()
-            state_province = (getattr(address, "state", "") or "").strip()
-            if not state_province:
-                state_province = (getattr(address, "state_province", "") or "").strip()
-
-            country_region = (
-                (getattr(address, "country_code", "") or "").strip().upper()
-            )
-            country = (getattr(address, "country", "") or "").strip()
-
-            if not country and country_region:
-                country = _map_country_region_to_zh_cn(country_region)
-            else:
-                country = _COUNTRY_NAME_ZH_CN_MAP.get(country, country)
-
-            if not city:
-                city = state_province
-
-            return _build_geoip_properties(country=country, city=city)
-
-        return asyncio.run(_get())
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_worker)
-        try:
-            return future.result(timeout=timeout_seconds + 0.3)
-        except Exception:
-            return {}
-
-
-def _get_windows_timezone_key_name() -> str:
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        class _SYSTEMTIME(ctypes.Structure):
-            _fields_ = [
-                ("wYear", wintypes.WORD),
-                ("wMonth", wintypes.WORD),
-                ("wDayOfWeek", wintypes.WORD),
-                ("wDay", wintypes.WORD),
-                ("wHour", wintypes.WORD),
-                ("wMinute", wintypes.WORD),
-                ("wSecond", wintypes.WORD),
-                ("wMilliseconds", wintypes.WORD),
-            ]
-
-        class _TIME_DYNAMIC_ZONE_INFORMATION(ctypes.Structure):
-            _fields_ = [
-                ("Bias", wintypes.LONG),
-                ("StandardName", wintypes.WCHAR * 32),
-                ("StandardDate", _SYSTEMTIME),
-                ("StandardBias", wintypes.LONG),
-                ("DaylightName", wintypes.WCHAR * 32),
-                ("DaylightDate", _SYSTEMTIME),
-                ("DaylightBias", wintypes.LONG),
-                ("TimeZoneKeyName", wintypes.WCHAR * 128),
-                ("DynamicDaylightTimeDisabled", wintypes.BOOL),
-            ]
-
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel32.GetDynamicTimeZoneInformation.argtypes = [
-            ctypes.POINTER(_TIME_DYNAMIC_ZONE_INFORMATION)
-        ]
-        kernel32.GetDynamicTimeZoneInformation.restype = wintypes.DWORD
-
-        info = _TIME_DYNAMIC_ZONE_INFORMATION()
-        kernel32.GetDynamicTimeZoneInformation(ctypes.byref(info))
-        return (info.TimeZoneKeyName or "").strip()
-    except Exception:
-        return ""
-
-
-def _guess_city_from_timezone(country_region: str, tz_key_name: str) -> str:
-    country_region = (country_region or "").strip().upper()
-    tz_key_name = (tz_key_name or "").strip()
-    if not country_region or not tz_key_name:
-        return ""
-
-    if country_region == "TW" and tz_key_name == "Taipei Standard Time":
-        return "台北"
-
-    if country_region in {"CN", "HK", "MO"} and tz_key_name == "China Standard Time":
-        return "北京"
-
-    return ""
-
-
-def _get_system_location_properties_zh_cn(timeout_seconds: float = 1.5) -> dict:
-    if sys.platform != "win32":
-        return {}
-
-    properties = _get_windows_location_properties_via_winrt_zh_cn(
-        timeout_seconds=timeout_seconds
-    )
     if properties:
-        return properties
+        logger.debug(f"获取到地理位置信息: {properties}")
 
-    country_region, friendly = _get_windows_geo_country_region()
-    if not country_region and not friendly:
-        return {}
-
-    country = ()
-    if not country:
-        country = friendly
-
-    city = ""
-    if country_region:
-        city = _guess_city_from_timezone(
-            country_region, _get_windows_timezone_key_name()
-        )
-
-    return _build_geoip_properties(country=country, city=city)
-
-
-def _get_ip33_location_properties(timeout_seconds: float = 1.5) -> dict:
-    headers = {"User-Agent": f"SecRandom/{SPECIAL_VERSION}"}
-
-    timeout_seconds = max(0.2, float(timeout_seconds or 0))
-    for url in ("https://api.ip33.com/ip/search", "http://api.ip33.com/ip/search"):
-        try:
-            response = requests.get(url, headers=headers, timeout=timeout_seconds)
-            response.raise_for_status()
-            data = response.json()
-            properties = _parse_ip33_response_to_properties(data)
-            if properties:
-                return properties
-        except Exception:
-            continue
-    return {}
-
-
-def _parse_ip33_response_to_properties(data: dict) -> dict:
-    if not isinstance(data, dict):
-        return {}
-
-    area = (data.get("area") or "").strip()
-    if not area:
-        return {}
-
-    area_main = area.split()[0].strip()
-    if not area_main:
-        return {}
-
-    city = ""
-    m = _IP33_AREA_CITY_RE.match(area_main)
-    if m:
-        rest = (m.group("rest") or "").strip()
-        if rest:
-            city = rest
-        else:
-            city = (m.group("prefix") or "").strip()
-    else:
-        city = area_main
-
-    return _build_geoip_properties(country="中国", city=city)
+    return properties
 
 
 # ==================== 通知模块 ====================
