@@ -1,6 +1,6 @@
 <img width="1800" height="766" alt="新版本" src="https://github.com/SECTL/SecRandom/blob/master/data/assets/icon/secrandom-release.png" />
 
-v2.3 - Shiroko (砂狼白子) release 1
+v2.3 - Shiroko (砂狼白子) release 3
 
 ## 🚀 主要更新
 
