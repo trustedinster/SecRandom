@@ -137,23 +137,6 @@ about = {
         "roll_call_total_count": {"name": "点名总次数"},
         "lottery_total_count": {"name": "抽奖总次数"},
         "copy_user_info": {"name": "复制用户信息"},
-        "sectl_alipay_password": {
-            "name": "SECTL 支付宝口令",
-            "description": "活动时间内自动解锁显示",
-        },
-        "sectl_alipay_password_item": {
-            "name": "支付宝口令",
-            "description": "自动校时解锁并支持复制",
-        },
-        "sectl_alipay_loading": {"name": "正在获取活动信息…"},
-        "sectl_alipay_syncing_time": {"name": "正在与 ntp1.aliyun.com 同步时间…"},
-        "sectl_alipay_fetch_failed": {"name": "活动信息获取失败：{error}"},
-        "sectl_alipay_countdown": {"name": "距离开放：{countdown}"},
-        "sectl_alipay_ended": {"name": "活动已结束"},
-        "sectl_alipay_revealed": {"name": "口令：{password}"},
-        "sectl_alipay_decrypt_failed": {"name": "口令解密失败"},
-        "sectl_alipay_penalty_active": {"name": "检测到异常，口令已锁定：{countdown}"},
-        "sectl_alipay_copy_password": {"name": "复制口令"},
     },
     "EN_US": {
         "title": {"name": "About", "description": "APP about page"},
@@ -209,25 +192,6 @@ about = {
         "roll_call_total_count": {"name": "Pick Draws"},
         "lottery_total_count": {"name": "Lottery Draws"},
         "copy_user_info": {"name": "Copy User Info"},
-        "sectl_alipay_password": {
-            "name": "SECTL Alipay Password",
-            "description": "Auto-unlocks during the event window",
-        },
-        "sectl_alipay_password_item": {
-            "name": "Alipay Password",
-            "description": "Auto time sync, unlock, and copy",
-        },
-        "sectl_alipay_loading": {"name": "Fetching event info…"},
-        "sectl_alipay_syncing_time": {"name": "Syncing time with ntp1.aliyun.com…"},
-        "sectl_alipay_fetch_failed": {"name": "Failed to fetch event info: {error}"},
-        "sectl_alipay_countdown": {"name": "Unlocks in: {countdown}"},
-        "sectl_alipay_ended": {"name": "Event ended"},
-        "sectl_alipay_revealed": {"name": "Password: {password}"},
-        "sectl_alipay_decrypt_failed": {"name": "Failed to decrypt password"},
-        "sectl_alipay_penalty_active": {
-            "name": "Abnormal detected, locked for: {countdown}"
-        },
-        "sectl_alipay_copy_password": {"name": "Copy"},
     },
     "JA_JP": {
         "title": {"name": "について", "description": "アプリについてページ情報"},
@@ -289,25 +253,6 @@ about = {
         "roll_call_total_count": {"name": "点呼総回数"},
         "lottery_total_count": {"name": "抽選総回数"},
         "copy_user_info": {"name": "ユーザー情報をコピー"},
-        "sectl_alipay_password": {
-            "name": "SECTL 支払い口令",
-            "description": "イベント期間中に自動で解放して表示します",
-        },
-        "sectl_alipay_password_item": {
-            "name": "支払い口令",
-            "description": "時刻同期で解放し、コピーできます",
-        },
-        "sectl_alipay_loading": {"name": "イベント情報を取得中…"},
-        "sectl_alipay_syncing_time": {"name": "ntp1.aliyun.com と時刻同期中…"},
-        "sectl_alipay_fetch_failed": {"name": "イベント情報の取得に失敗：{error}"},
-        "sectl_alipay_countdown": {"name": "解放まで：{countdown}"},
-        "sectl_alipay_ended": {"name": "イベントは終了しました"},
-        "sectl_alipay_revealed": {"name": "口令：{password}"},
-        "sectl_alipay_decrypt_failed": {"name": "口令の復号に失敗しました"},
-        "sectl_alipay_penalty_active": {
-            "name": "異常を検出、口令はロック中：{countdown}"
-        },
-        "sectl_alipay_copy_password": {"name": "コピー"},
     },
 }
 

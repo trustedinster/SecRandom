@@ -30,10 +30,7 @@ from app.tools.settings_access import (
     readme_settings_async,
     update_settings,
 )
-from app.page_building.window_template import (
-    BackgroundLayer,
-    install_spring_festival_titlebar_overlay,
-)
+from app.page_building.window_template import BackgroundLayer
 from app.Language.obtain_language import get_content_name_async
 from app.common.IPC_URL.url_command_handler import URLCommandHandler
 from app.common.search.settings_search_controller import SettingsSearchController
@@ -112,10 +109,6 @@ class SettingsWindow(FluentWindow):
         self.setWindowIcon(
             QIcon(str(get_data_path("assets/icon", "secrandom-icon-paper.png")))
         )
-        try:
-            install_spring_festival_titlebar_overlay(self)
-        except Exception:
-            pass
         self._setup_background_layer()
         self._setup_settings_listener()
         self._setup_sidebar_scroll()

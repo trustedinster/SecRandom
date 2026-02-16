@@ -40,10 +40,7 @@ from app.page_building.main_window_page import (
 from app.view.tray.tray import Tray
 from app.view.floating_window.levitation import LevitationWindow
 from app.common.IPC_URL.url_command_handler import URLCommandHandler
-from app.page_building.window_template import (
-    BackgroundLayer,
-    install_spring_festival_titlebar_overlay,
-)
+from app.page_building.window_template import BackgroundLayer
 from app.page_building.another_window import create_countdown_timer_window
 
 
@@ -157,10 +154,6 @@ class MainWindow(FluentWindow):
         self.setWindowIcon(
             QIcon(str(get_data_path("assets/icon", "secrandom-icon-paper.png")))
         )
-        try:
-            install_spring_festival_titlebar_overlay(self)
-        except Exception:
-            pass
         self._position_window()
         self._setup_general_settings_listener()
         self._apply_topmost_mode()

@@ -701,7 +701,7 @@ class basic_settings_personalised(GroupHeaderCardWidget):
             self.dpiScale,
         )
         # 添加卡片到布局
-        # self.vBoxLayout.addWidget(self.themeColorCard)
+        self.vBoxLayout.addWidget(self.themeColorCard)
 
     def __on_open_theme_management(self):
         try:

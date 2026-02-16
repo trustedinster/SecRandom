@@ -391,12 +391,6 @@ jobs:
           # 创建CHANGELOG.md文件（如果不存在）
           touch ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "**国内 下载链接**" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "| 平台/打包方式 | 支持架构  | 便携版 | 安装程序 |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "| --- | --- | --- | --- |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "| Windows | x64 | [下载](https://www.123684.com/s/9529jv-U4Fxh) | [下载](https://www.123684.com/s/9529jv-U4Fxh) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "| Linux | amd64 | [下载](https://www.123684.com/s/9529jv-U4Fxh) | [下载](https://www.123684.com/s/9529jv-U4Fxh) |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
-          echo "" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "**Github 镜像 下载链接**" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| 镜像源 | 平台 | 支持架构 | 便携版 | 安装程序 |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           echo "| --- | --- | --- | --- | --- |" >> ../CHANGELOG/${{ github.ref_name }}/CHANGELOG.md

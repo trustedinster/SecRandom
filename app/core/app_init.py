@@ -109,7 +109,9 @@ class AppInitializer:
         QTimer.singleShot(
             APP_INIT_DELAY,
             lambda: safe_execute(
-                lambda: setThemeColor("#ff231f"),
+                lambda: setThemeColor(
+                    readme_settings_async("basic_settings", "theme_color")
+                ),
                 error_message="加载主题颜色失败",
             ),
         )
