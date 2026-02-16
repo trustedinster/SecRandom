@@ -26,6 +26,7 @@ from app.common.safety.secure_store import (
 )
 from app.core.app_init import calculate_total_draw_counts
 from app.view.components.center_flow_layout import CenterFlowLayout
+from app.view.components.alipay_password_card import AlipayPasswordCard
 import app.core.window_manager as wm
 
 from app.page_building.another_window import create_contributor_window
@@ -52,6 +53,9 @@ class about(QWidget):
 
         self.user_info_card_widget = user_info_card(self)
         self.vBoxLayout.addWidget(self.user_info_card_widget)
+
+        self.alipay_password_card_widget = AlipayPasswordCard(self)
+        self.vBoxLayout.addWidget(self.alipay_password_card_widget)
 
 
 # ==================================================

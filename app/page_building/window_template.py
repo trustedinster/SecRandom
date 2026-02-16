@@ -21,6 +21,294 @@ from app.tools.personalised import *
 from app.Language.obtain_language import *
 
 
+class SpringFestivalTitleBarOverlay(QWidget):
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        self._is_dark = False
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+        self.setStyleSheet("background: transparent;")
+
+    def setDark(self, is_dark: bool) -> None:
+        self._is_dark = bool(is_dark)
+        self.update()
+
+    def _draw_lantern(self, painter: QPainter, x: int, y: int, size: int) -> None:
+        painter.save()
+        painter.translate(x, y)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        red = QColor("#C61C1C") if not self._is_dark else QColor("#B01818")
+        gold = QColor("#F4D160") if not self._is_dark else QColor("#EBCB62")
+        shadow = QColor(0, 0, 0, 55) if not self._is_dark else QColor(0, 0, 0, 85)
+
+        body_w = max(8, int(size * 0.72))
+        body_h = max(10, int(size * 0.9))
+        cap_h = max(2, int(size * 0.18))
+        tassel_h = max(3, int(size * 0.28))
+        r = max(3, int(size * 0.22))
+
+        body_x = int((size - body_w) / 2)
+        body_y = cap_h
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(shadow)
+        painter.drawRoundedRect(
+            QRectF(body_x + 1.2, body_y + 1.2, body_w, body_h),
+            r,
+            r,
+        )
+
+        painter.setBrush(red)
+        painter.drawRoundedRect(QRectF(body_x, body_y, body_w, body_h), r, r)
+
+        pen = QPen(gold)
+        pen.setWidthF(1.2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(body_x, body_y, body_w, body_h), r, r)
+
+        painter.setPen(QPen(QColor(gold.red(), gold.green(), gold.blue(), 190), 1.0))
+        for i in (-2, 0, 2):
+            xi = body_x + int(body_w / 2) + i
+            painter.drawLine(QPointF(xi, body_y + 2), QPointF(xi, body_y + body_h - 2))
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(gold)
+        painter.drawRoundedRect(
+            QRectF(body_x + int(body_w * 0.15), 0, int(body_w * 0.7), cap_h),
+            r,
+            r,
+        )
+        painter.drawRoundedRect(
+            QRectF(
+                body_x + int(body_w * 0.18),
+                body_y + body_h - 1,
+                int(body_w * 0.64),
+                max(2, int(cap_h * 0.85)),
+            ),
+            r,
+            r,
+        )
+
+        painter.setPen(QPen(gold, 1.0))
+        cx = body_x + int(body_w / 2)
+        bottom_y = body_y + body_h + max(1, int(cap_h * 0.45))
+        painter.drawLine(QPointF(cx, bottom_y), QPointF(cx, bottom_y + tassel_h))
+        painter.drawLine(
+            QPointF(cx, bottom_y + tassel_h),
+            QPointF(
+                cx - max(2, int(size * 0.12)),
+                bottom_y + tassel_h + max(2, int(size * 0.12)),
+            ),
+        )
+        painter.drawLine(
+            QPointF(cx, bottom_y + tassel_h),
+            QPointF(
+                cx + max(2, int(size * 0.12)),
+                bottom_y + tassel_h + max(2, int(size * 0.12)),
+            ),
+        )
+
+        painter.restore()
+
+    def paintEvent(self, event) -> None:
+        w = int(self.width() or 0)
+        h = int(self.height() or 0)
+        if w <= 0 or h <= 0:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        ribbon_h = 2.0
+        g = QLinearGradient(0, h - ribbon_h, w, h - ribbon_h)
+        g.setColorAt(0.0, QColor("#C61C1C"))
+        g.setColorAt(0.35, QColor("#F4D160"))
+        g.setColorAt(0.7, QColor("#C61C1C"))
+        g.setColorAt(1.0, QColor("#F4D160"))
+        painter.fillRect(QRectF(0, h - ribbon_h, w, ribbon_h), g)
+
+        lantern_size = min(18, max(12, int(h * 0.62)))
+        self._draw_lantern(
+            painter, 10, max(2, int((h - lantern_size) / 2) - 1), lantern_size
+        )
+
+
+class SpringFestivalPageBanner(QWidget):
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        try:
+            self._is_dark = bool(is_dark_theme(qconfig))
+        except Exception:
+            self._is_dark = False
+        self.setFixedHeight(26)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+        self.setStyleSheet("background: transparent;")
+        try:
+            qconfig.themeChanged.connect(self._on_theme_changed)
+        except Exception:
+            pass
+
+    def _on_theme_changed(self):
+        try:
+            self.setDark(is_dark_theme(qconfig))
+        except Exception:
+            self.setDark(False)
+
+    def setDark(self, is_dark: bool) -> None:
+        self._is_dark = bool(is_dark)
+        self.update()
+
+    def _draw_lantern(self, painter: QPainter, x: int, y: int, size: int) -> None:
+        painter.save()
+        painter.translate(x, y)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        red = QColor("#C61C1C") if not self._is_dark else QColor("#B01818")
+        gold = QColor("#F4D160") if not self._is_dark else QColor("#EBCB62")
+        shadow = QColor(0, 0, 0, 55) if not self._is_dark else QColor(0, 0, 0, 85)
+
+        body_w = max(8, int(size * 0.72))
+        body_h = max(10, int(size * 0.9))
+        cap_h = max(2, int(size * 0.18))
+        tassel_h = max(3, int(size * 0.28))
+        r = max(3, int(size * 0.22))
+
+        body_x = int((size - body_w) / 2)
+        body_y = cap_h
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(shadow)
+        painter.drawRoundedRect(
+            QRectF(body_x + 1.2, body_y + 1.2, body_w, body_h),
+            r,
+            r,
+        )
+
+        painter.setBrush(red)
+        painter.drawRoundedRect(QRectF(body_x, body_y, body_w, body_h), r, r)
+
+        pen = QPen(gold)
+        pen.setWidthF(1.2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(body_x, body_y, body_w, body_h), r, r)
+
+        painter.setPen(QPen(QColor(gold.red(), gold.green(), gold.blue(), 190), 1.0))
+        for i in (-2, 0, 2):
+            xi = body_x + int(body_w / 2) + i
+            painter.drawLine(QPointF(xi, body_y + 2), QPointF(xi, body_y + body_h - 2))
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(gold)
+        painter.drawRoundedRect(
+            QRectF(body_x + int(body_w * 0.15), 0, int(body_w * 0.7), cap_h),
+            r,
+            r,
+        )
+        painter.drawRoundedRect(
+            QRectF(
+                body_x + int(body_w * 0.18),
+                body_y + body_h - 1,
+                int(body_w * 0.64),
+                max(2, int(cap_h * 0.85)),
+            ),
+            r,
+            r,
+        )
+
+        painter.setPen(QPen(gold, 1.0))
+        cx = body_x + int(body_w / 2)
+        bottom_y = body_y + body_h + max(1, int(cap_h * 0.45))
+        painter.drawLine(QPointF(cx, bottom_y), QPointF(cx, bottom_y + tassel_h))
+        painter.drawLine(
+            QPointF(cx, bottom_y + tassel_h),
+            QPointF(
+                cx - max(2, int(size * 0.12)),
+                bottom_y + tassel_h + max(2, int(size * 0.12)),
+            ),
+        )
+        painter.drawLine(
+            QPointF(cx, bottom_y + tassel_h),
+            QPointF(
+                cx + max(2, int(size * 0.12)),
+                bottom_y + tassel_h + max(2, int(size * 0.12)),
+            ),
+        )
+
+        painter.restore()
+
+    def paintEvent(self, event) -> None:
+        w = int(self.width() or 0)
+        h = int(self.height() or 0)
+        if w <= 0 or h <= 0:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        red = QColor("#C61C1C") if not self._is_dark else QColor("#B01818")
+        gold = QColor("#F4D160") if not self._is_dark else QColor("#EBCB62")
+
+        ribbon_h = 3.0
+        g = QLinearGradient(0, h - ribbon_h, w, h - ribbon_h)
+        g.setColorAt(0.0, red)
+        g.setColorAt(0.5, gold)
+        g.setColorAt(1.0, red)
+        painter.fillRect(QRectF(0, h - ribbon_h, w, ribbon_h), g)
+        self._draw_lantern(painter, 10, max(1, int((h - 18) / 2) - 1), 18)
+
+
+class _SpringFestivalTitleBarEventFilter(QObject):
+    def __init__(self, overlay: SpringFestivalTitleBarOverlay, title_bar: QWidget):
+        super().__init__(title_bar)
+        self._overlay = overlay
+        self._title_bar = title_bar
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        try:
+            if watched is self._title_bar and event.type() in (
+                QEvent.Type.Resize,
+                QEvent.Type.Show,
+            ):
+                self._overlay.setGeometry(self._title_bar.rect())
+                self._overlay.raise_()
+        except Exception:
+            pass
+        return False
+
+
+def install_spring_festival_titlebar_overlay(window: QWidget) -> None:
+    title_bar = getattr(window, "titleBar", None)
+    if title_bar is None or not isinstance(title_bar, QWidget):
+        return
+
+    overlay = getattr(window, "_sr_spring_festival_titlebar_overlay", None)
+    if overlay is None or not isinstance(overlay, SpringFestivalTitleBarOverlay):
+        overlay = SpringFestivalTitleBarOverlay(title_bar)
+        window._sr_spring_festival_titlebar_overlay = overlay
+        filt = _SpringFestivalTitleBarEventFilter(overlay, title_bar)
+        window._sr_spring_festival_titlebar_filter = filt
+        try:
+            title_bar.installEventFilter(filt)
+        except Exception:
+            pass
+
+    try:
+        overlay.setDark(is_dark_theme(qconfig))
+    except Exception:
+        overlay.setDark(False)
+    try:
+        overlay.setGeometry(title_bar.rect())
+        overlay.raise_()
+        overlay.show()
+    except Exception:
+        pass
+
+
 class BackgroundLayer(QWidget):
     def __init__(self, parent: QWidget, target: str):
         super().__init__(parent)
@@ -595,7 +883,16 @@ class SimpleWindowTemplate(FramelessWindow):
             if getattr(self, "_sr_title_overlay", None) is None:
                 return
             self._sr_title_overlay.adjustSize()
-            x = int(self._TITLEBAR_LEFT_OFFSET_PX)
+            extra = 0
+            try:
+                if (
+                    getattr(self, "_sr_spring_festival_titlebar_overlay", None)
+                    is not None
+                ):
+                    extra = 22
+            except Exception:
+                extra = 0
+            x = int(self._TITLEBAR_LEFT_OFFSET_PX) + int(extra)
             y = max(
                 0, int((self.titleBar.height() - self._sr_title_overlay.height()) / 2)
             )
@@ -704,6 +1001,7 @@ class SimpleWindowTemplate(FramelessWindow):
         self.titleBar.raise_()
         self._apply_titlebar_font()
         self._rebuild_titlebar_title_and_icon()
+        install_spring_festival_titlebar_overlay(self)
 
         # 确保在设置标题栏后应用当前主题和自定义字体
         self._apply_current_theme()
