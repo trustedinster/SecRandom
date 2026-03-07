@@ -39,6 +39,7 @@ DEFAULT_SETTINGS = {
         "language": {"default_value": "ZH_CN"},
         "guide_completed": {"default_value": False},
         "offline_user_id": {"default_value": ""},
+        "show_version_notice": {"default_value": True},
     },
     "backup": {
         "auto_backup_enabled": {"default_value": True},

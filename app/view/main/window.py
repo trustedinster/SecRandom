@@ -940,6 +940,8 @@ class MainWindow(FluentWindow):
                 "font_size",
             ),
             "display_format": read_quick_draw_setting(list_name, "display_format"),
+            "display_style": read_quick_draw_setting(list_name, "display_style"),
+            "show_tags": read_quick_draw_setting(list_name, "show_tags"),
             "animation": read_quick_draw_setting(list_name, "animation"),
             "animation_interval": read_quick_draw_setting(
                 list_name, "animation_interval"

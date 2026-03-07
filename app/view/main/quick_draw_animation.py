@@ -187,6 +187,7 @@ class QuickDrawAnimation(QObject):
         logger.debug(f"start_animation: 开始闪抽动画，设置: {quick_draw_settings}")
 
         self.roll_call_widget.is_quick_draw = True
+        self.roll_call_widget.manager.settings_group = "quick_draw_settings"
 
         class_name, group_index, group_filter, gender_index, gender_filter = (
             self._get_default_filters()
@@ -250,6 +251,8 @@ class QuickDrawAnimation(QObject):
         class_name = self.active_class_name
         current_count = read_quick_draw_setting(class_name, "draw_count")
         result = self.roll_call_widget.manager.draw_final_students(current_count)
+
+        self.roll_call_widget.manager.settings_group = "roll_call_settings"
 
         if result.get("reset_required"):
             self._reset_records(
@@ -413,6 +416,7 @@ class QuickDrawAnimation(QObject):
             else:
                 # 无动画模式，直接抽取
                 self.roll_call_widget.is_quick_draw = True
+                self.roll_call_widget.manager.settings_group = "quick_draw_settings"
                 # 使用独立的抽取逻辑
                 success = self.draw_random_students()
                 if success:
@@ -423,6 +427,7 @@ class QuickDrawAnimation(QObject):
                         quick_draw_settings,
                     )
                 self.roll_call_widget.is_quick_draw = False
+                self.roll_call_widget.manager.settings_group = "roll_call_settings"
                 self.animation_finished.emit()
 
         except Exception as e:
@@ -548,6 +553,10 @@ class QuickDrawAnimation(QObject):
                 "show_tags", readme_settings_async("quick_draw_settings", "show_tags")
             )
         )
+        display_style = (display_settings or {}).get(
+            "display_style",
+            readme_settings_async("quick_draw_settings", "display_style", 0),
+        )
         student_labels = ResultDisplayUtils.create_student_label(
             class_name=class_name,
             selected_students=selected_students,
@@ -556,7 +565,7 @@ class QuickDrawAnimation(QObject):
             font_size=display_settings["font_size"],
             animation_color=display_settings["animation_color_theme"],
             display_format=display_settings["display_format"],
-            display_style=0,
+            display_style=display_style,
             show_student_image=display_settings["student_image"],
             group_index=getattr(
                 self.roll_call_widget.range_combobox, "currentIndex", lambda: 0
