@@ -476,7 +476,9 @@ class LotteryManager(QObject):
         invalid_options.update(
             get_content_combo_name_async("lottery", "list_combobox") or []
         )
-        invalid_options.add(get_content_name_async("roll_call_list", "select_class_name"))
+        invalid_options.add(
+            get_content_name_async("roll_call_list", "select_class_name")
+        )
 
         normalized_class_name = context.class_name
         if invalid_options and normalized_class_name in invalid_options:
@@ -515,9 +517,7 @@ class LotteryManager(QObject):
                         ),
                         plan=self._create_draw_plan(context.pool_name),
                         prizes=list(self.prizes),
-                        enable_student_assignment=bool(
-                            self.enable_student_assignment
-                        ),
+                        enable_student_assignment=bool(self.enable_student_assignment),
                     )
                 )
             except Exception as e:
@@ -543,12 +543,16 @@ class LotteryManager(QObject):
                     self.signals.failed.emit(request_id, str(e))
 
         def _prepare():
-            class_text = str(normalized_class_name).strip() if normalized_class_name else ""
+            class_text = (
+                str(normalized_class_name).strip() if normalized_class_name else ""
+            )
             enable_student_assignment = bool(
                 class_text and class_text not in invalid_options
             )
             prizes = [
-                item for item in get_pool_list(context.pool_name) if item.get("exist", True)
+                item
+                for item in get_pool_list(context.pool_name)
+                if item.get("exist", True)
             ]
             return LotteryPreparedState(
                 context=LotteryDrawContext(
@@ -579,9 +583,7 @@ class LotteryManager(QObject):
             )
             self._draw_data_cache[cache_key] = {
                 "prizes": list(self.prizes),
-                "enable_student_assignment": bool(
-                    self.enable_student_assignment
-                ),
+                "enable_student_assignment": bool(self.enable_student_assignment),
             }
             on_ready(prepared_state)
 
@@ -1707,8 +1709,8 @@ def get_total_count(widget):
 
 
 def update_many_count_label(widget):
-    total_count, remaining_count, formatted_text = widget.manager.get_many_count_summary(
-        widget.pool_list_combobox.currentText()
+    total_count, remaining_count, formatted_text = (
+        widget.manager.get_many_count_summary(widget.pool_list_combobox.currentText())
     )
 
     widget.remaining_count = remaining_count
@@ -1900,8 +1902,10 @@ def populate_lists(widget):
         finally:
             widget.range_combobox.blockSignals(False)
 
-        total_count, remaining_count, formatted_text = widget.manager.get_many_count_summary(
-            widget.pool_list_combobox.currentText()
+        total_count, remaining_count, formatted_text = (
+            widget.manager.get_many_count_summary(
+                widget.pool_list_combobox.currentText()
+            )
         )
 
         widget.remaining_count = remaining_count

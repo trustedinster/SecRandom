@@ -183,9 +183,9 @@ class lottery_table(GroupHeaderCardWidget):
         if end_row < len(pool):
             QTimer.singleShot(
                 0,
-                lambda rid=request_id, data=pool, offset=end_row: self._populate_pool_batch(
-                    rid, data, offset
-                ),
+                lambda rid=request_id,
+                data=pool,
+                offset=end_row: self._populate_pool_batch(rid, data, offset),
             )
             return
         self._finish_refresh(request_id)

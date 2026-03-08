@@ -1082,7 +1082,9 @@ class SettingsWindow(FluentWindow):
 
                 def create_page():
                     try:
-                        logger.debug(f"正在创建页面 {name}，预览模式: {self.is_preview}")
+                        logger.debug(
+                            f"正在创建页面 {name}，预览模式: {self.is_preview}"
+                        )
                         real_page = factory(is_preview=self.is_preview)
                         self._clear_placeholder_layout(widget)
                         widget.layout().addWidget(real_page)
@@ -1095,9 +1097,7 @@ class SettingsWindow(FluentWindow):
                             f"设置页面已按需创建: {name}, 预览模式: {self.is_preview}"
                         )
                     except Exception as e:
-                        self._set_placeholder_loading(
-                            widget, f"页面加载失败: {name}"
-                        )
+                        self._set_placeholder_loading(widget, f"页面加载失败: {name}")
                         logger.exception(f"延迟创建设置页面 {name} 失败: {e}")
                     finally:
                         self._pending_page_loads.discard(name)

@@ -168,7 +168,9 @@ class roll_call_table(GroupHeaderCardWidget):
         self.table.setSortingEnabled(True)
         self.table.blockSignals(False)
 
-    def _populate_students_batch(self, request_id: int, students: list, start_row: int = 0):
+    def _populate_students_batch(
+        self, request_id: int, students: list, start_row: int = 0
+    ):
         if request_id != self._populate_request_id:
             return
         end_row = min(start_row + self._batch_size, len(students))
@@ -177,9 +179,9 @@ class roll_call_table(GroupHeaderCardWidget):
         if end_row < len(students):
             QTimer.singleShot(
                 0,
-                lambda rid=request_id, data=students, offset=end_row: self._populate_students_batch(
-                    rid, data, offset
-                ),
+                lambda rid=request_id,
+                data=students,
+                offset=end_row: self._populate_students_batch(rid, data, offset),
             )
             return
         self._finish_refresh(request_id)

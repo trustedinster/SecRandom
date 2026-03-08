@@ -6,8 +6,10 @@ from PySide6.QtCore import (
     QFileSystemWatcher,
     QThreadPool,
     QRunnable,
+    Qt,
 )
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QLabel
 from dataclasses import dataclass
 from loguru import logger
 from random import SystemRandom
@@ -172,7 +174,9 @@ class RollCallManager(QObject):
             self._display_settings_cache_version = self._settings_version
         return dict(self._display_settings_cache or {})
 
-    def get_total_count(self, class_name: str, group_index: int, group_filter: str) -> int:
+    def get_total_count(
+        self, class_name: str, group_index: int, group_filter: str
+    ) -> int:
         cache_key = (
             "total",
             class_name,
@@ -1329,12 +1333,14 @@ def get_total_count(widget):
 
 
 def update_many_count_label(widget):
-    total_count, remaining_count, formatted_text = widget.manager.get_many_count_summary(
-        widget.list_combobox.currentText(),
-        widget.range_combobox.currentIndex(),
-        widget.range_combobox.currentText(),
-        widget.gender_combobox.currentText(),
-        read_roll_call_setting(widget.list_combobox.currentText(), "half_repeat"),
+    total_count, remaining_count, formatted_text = (
+        widget.manager.get_many_count_summary(
+            widget.list_combobox.currentText(),
+            widget.range_combobox.currentIndex(),
+            widget.range_combobox.currentText(),
+            widget.gender_combobox.currentText(),
+            read_roll_call_setting(widget.list_combobox.currentText(), "half_repeat"),
+        )
     )
 
     widget.remaining_count = remaining_count
@@ -1516,12 +1522,14 @@ def _populate_gender_combobox(widget):
 
 
 def _update_count_label(widget):
-    total_count, remaining_count, formatted_text = widget.manager.get_many_count_summary(
-        widget.list_combobox.currentText(),
-        widget.range_combobox.currentIndex(),
-        widget.range_combobox.currentText(),
-        widget.gender_combobox.currentText(),
-        read_roll_call_setting(widget.list_combobox.currentText(), "half_repeat"),
+    total_count, remaining_count, formatted_text = (
+        widget.manager.get_many_count_summary(
+            widget.list_combobox.currentText(),
+            widget.range_combobox.currentIndex(),
+            widget.range_combobox.currentText(),
+            widget.gender_combobox.currentText(),
+            read_roll_call_setting(widget.list_combobox.currentText(), "half_repeat"),
+        )
     )
 
     widget.remaining_count = remaining_count
