@@ -438,9 +438,9 @@ class voice_announcement_main(GroupHeaderCardWidget):
             cleaned_items, audio_data = self._load_data_in_background(class_name)
             QTimer.singleShot(
                 0,
-                lambda rid=request_id, items=cleaned_items, data=audio_data: self._on_data_loaded(
-                    rid, items, data
-                ),
+                lambda rid=request_id,
+                items=cleaned_items,
+                data=audio_data: self._on_data_loaded(rid, items, data),
             )
         except Exception as e:
             logger.exception(f"语音播报后台加载失败: {e}")

@@ -56,7 +56,9 @@ class _QuickDrawPanelWorker(QRunnable):
                 "class_list": class_list,
                 "class_name": selected_class,
                 "group_list": get_group_list(selected_class) if selected_class else [],
-                "gender_list": get_gender_list(selected_class) if selected_class else [],
+                "gender_list": get_gender_list(selected_class)
+                if selected_class
+                else [],
             }
             self.signals.loaded.emit(self.request_id, payload)
         except Exception as e:
@@ -1876,7 +1878,9 @@ class LevitationWindow(QWidget):
             saved_class, {}
         )
         if cached_class_list and (cached_filters or not saved_class):
-            self._apply_quick_draw_class_items(class_combo, cached_class_list, saved_class)
+            self._apply_quick_draw_class_items(
+                class_combo, cached_class_list, saved_class
+            )
             current_class = class_combo.currentText() if class_combo.count() > 0 else ""
             self._apply_quick_draw_filter_items(
                 range_combo,
@@ -1900,7 +1904,9 @@ class LevitationWindow(QWidget):
     ) -> None:
         self._update_quick_draw_setting("quick_draw_class_name", class_name)
         self._quick_draw_saved_class = class_name
-        cached_filters = self._quick_draw_extend_cache.get("filters", {}).get(class_name)
+        cached_filters = self._quick_draw_extend_cache.get("filters", {}).get(
+            class_name
+        )
         if cached_filters is not None:
             self._apply_quick_draw_filter_items(
                 range_combo,
@@ -1917,7 +1923,9 @@ class LevitationWindow(QWidget):
     def _refresh_quick_draw_extend_filters(
         self, class_name: str, range_combo: ComboBox, gender_combo: ComboBox
     ) -> None:
-        cached_filters = self._quick_draw_extend_cache.get("filters", {}).get(class_name)
+        cached_filters = self._quick_draw_extend_cache.get("filters", {}).get(
+            class_name
+        )
         if cached_filters is not None:
             self._apply_quick_draw_filter_items(
                 range_combo,
@@ -1938,7 +1946,9 @@ class LevitationWindow(QWidget):
         combo.blockSignals(True)
         combo.clear()
         combo.setEnabled(False)
-        combo.setPlaceholderText(get_content_name_async("roll_call", "default_empty_item"))
+        combo.setPlaceholderText(
+            get_content_name_async("roll_call", "default_empty_item")
+        )
         combo.blockSignals(False)
 
     def _apply_quick_draw_class_items(

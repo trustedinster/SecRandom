@@ -134,7 +134,9 @@ def build_roll_call_history_payload(
                 row.append(str(student.get("gender", "")))
             if has_group:
                 row.append(str(student.get("group", "")))
-            row.append(str(student.get("total_count_str", student.get("total_count", 0))))
+            row.append(
+                str(student.get("total_count_str", student.get("total_count", 0)))
+            )
             row.append(str(format_weight(weight_value)))
             rows.append(row)
         return HistoryTablePayload(

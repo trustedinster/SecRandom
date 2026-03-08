@@ -510,7 +510,9 @@ class behind_scenes_settings_table(GroupHeaderCardWidget):
                 self.table.blockSignals(False)
                 return
 
-            pool_name = self.pool_comboBox.currentText() if self.current_mode == 1 else ""
+            pool_name = (
+                self.pool_comboBox.currentText() if self.current_mode == 1 else ""
+            )
             row_models = []
             for row, student in enumerate(students):
                 student_name = student.get("name", "")

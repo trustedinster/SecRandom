@@ -1064,7 +1064,9 @@ class roll_call_history_table(GroupHeaderCardWidget):
         trace.log("first_feedback")
         self._history_request_id += 1
         request_id = self._history_request_id
-        self.current_mode = self.mode_comboBox.currentIndex() if hasattr(self, "mode_comboBox") else 0
+        self.current_mode = (
+            self.mode_comboBox.currentIndex() if hasattr(self, "mode_comboBox") else 0
+        )
         settings_snapshot = get_settings_snapshot()
         selected_name = (
             self.mode_comboBox.currentText()

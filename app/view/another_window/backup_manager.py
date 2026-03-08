@@ -94,9 +94,9 @@ class _RestoreListWorker(QRunnable):
                 try:
                     file_stat = file_path.stat()
                     try:
-                        mtime_text = datetime.fromtimestamp(file_stat.st_mtime).strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        )
+                        mtime_text = datetime.fromtimestamp(
+                            file_stat.st_mtime
+                        ).strftime("%Y-%m-%d %H:%M:%S")
                     except Exception:
                         mtime_text = "--"
                     size_text = format_size(file_stat.st_size)
@@ -474,7 +474,9 @@ class BackupManagerWindow(QWidget):
                 )
             )
             delete_button.clicked.connect(
-                lambda _checked=False, fp=row["path"]: self._on_restore_delete_clicked(fp)
+                lambda _checked=False, fp=row["path"]: self._on_restore_delete_clicked(
+                    fp
+                )
             )
             self.restore_table.setCellWidget(row_index, 3, delete_button)
 
@@ -561,7 +563,9 @@ class BackupManagerWindow(QWidget):
         show_notification(
             NotificationType.SUCCESS,
             NotificationConfig(
-                title=get_content_name_async("basic_settings", "backup_restore_refresh"),
+                title=get_content_name_async(
+                    "basic_settings", "backup_restore_refresh"
+                ),
                 content=str(content),
             ),
             parent=self.window(),
