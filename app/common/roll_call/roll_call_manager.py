@@ -63,6 +63,15 @@ class RollCallDrawPlan:
     result_music: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class RollCallPreparedState:
+    context: RollCallDrawContext
+    plan: RollCallDrawPlan
+    students: list[tuple]
+    tags_by_id: dict[int, list[str]]
+    weights: list[float]
+
+
 class RollCallManager(QObject):
     """
     点名业务逻辑管理器
@@ -94,6 +103,7 @@ class RollCallManager(QObject):
         self._option_cache = {}
         self._display_settings_cache = None
         self._display_settings_cache_version = -1
+        self._prepare_request_id = 0
         try:
             get_settings_signals().settingChanged.connect(self._on_setting_changed)
         except Exception:
@@ -215,6 +225,36 @@ class RollCallManager(QObject):
         self._count_summary_cache[cache_key] = summary
         return summary
 
+    def _create_draw_plan(self, class_name: str) -> RollCallDrawPlan:
+        animation = read_roll_call_setting(class_name, "animation")
+        autoplay_count = read_roll_call_setting(class_name, "autoplay_count")
+        animation_interval = read_roll_call_setting(class_name, "animation_interval")
+        animation_music = read_roll_call_setting(class_name, "animation_music")
+        result_music = read_roll_call_setting(class_name, "result_music")
+
+        try:
+            animation = int(animation or 0)
+        except Exception:
+            animation = 0
+
+        try:
+            autoplay_count = int(autoplay_count or 0)
+        except Exception:
+            autoplay_count = 0
+
+        try:
+            animation_interval = int(animation_interval or 0)
+        except Exception:
+            animation_interval = 0
+
+        return RollCallDrawPlan(
+            animation=animation,
+            autoplay_count=autoplay_count,
+            animation_interval=animation_interval,
+            animation_music=animation_music or None,
+            result_music=result_music or None,
+        )
+
     def build_draw_context(
         self,
         class_name: str,
@@ -247,37 +287,136 @@ class RollCallManager(QObject):
             context.gender_index,
             context.half_repeat,
         )
+        return self._create_draw_plan(context.class_name)
 
-        animation = read_roll_call_setting(context.class_name, "animation")
-        autoplay_count = read_roll_call_setting(context.class_name, "autoplay_count")
-        animation_interval = read_roll_call_setting(
-            context.class_name, "animation_interval"
+    def prepare_draw_async(self, context: RollCallDrawContext, on_ready, on_error=None):
+        self._prepare_request_id += 1
+        request_id = self._prepare_request_id
+        cache_key = self._build_draw_data_cache_key(
+            context.class_name,
+            context.group_filter,
+            context.gender_filter,
+            context.group_index,
+            context.gender_index,
+            context.half_repeat,
         )
-        animation_music = read_roll_call_setting(context.class_name, "animation_music")
-        result_music = read_roll_call_setting(context.class_name, "result_music")
+        cached = self._draw_data_cache.get(cache_key)
+        if isinstance(cached, dict):
+            self.current_class_name = context.class_name
+            self.current_group_filter = context.group_filter
+            self.current_gender_filter = context.gender_filter
+            self.current_group_index = context.group_index
+            self.current_gender_index = context.gender_index
+            self.half_repeat = context.half_repeat
+            self.students = list(cached.get("students") or [])
+            self.tags_by_id = dict(cached.get("tags_by_id") or {})
+            self.weights = list(cached.get("weights") or [])
+            try:
+                on_ready(
+                    RollCallPreparedState(
+                        context=context,
+                        plan=self._create_draw_plan(context.class_name),
+                        students=list(self.students),
+                        tags_by_id=dict(self.tags_by_id),
+                        weights=list(self.weights),
+                    )
+                )
+            except Exception as e:
+                if callable(on_error):
+                    on_error(str(e))
+            return request_id
 
-        try:
-            animation = int(animation or 0)
-        except Exception:
-            animation = 0
+        class _Signals(QObject):
+            finished = Signal(int, object)
+            failed = Signal(int, str)
 
-        try:
-            autoplay_count = int(autoplay_count or 0)
-        except Exception:
-            autoplay_count = 0
+        class _Worker(QRunnable):
+            def __init__(self, fn, signals):
+                super().__init__()
+                self.fn = fn
+                self.signals = signals
 
-        try:
-            animation_interval = int(animation_interval or 0)
-        except Exception:
-            animation_interval = 0
+            def run(self):
+                try:
+                    self.signals.finished.emit(request_id, self.fn())
+                except Exception as e:
+                    logger.exception(f"点名抽取准备失败: {e}")
+                    self.signals.failed.emit(request_id, str(e))
 
-        return RollCallDrawPlan(
-            animation=animation,
-            autoplay_count=autoplay_count,
-            animation_interval=animation_interval,
-            animation_music=animation_music or None,
-            result_music=result_music or None,
-        )
+        def _prepare():
+            raw_students = get_student_list(context.class_name)
+            tags_by_id = {}
+            for student in raw_students or []:
+                if not isinstance(student, dict):
+                    continue
+                try:
+                    sid = int(student.get("id", 0) or 0)
+                except Exception:
+                    sid = 0
+                if sid <= 0:
+                    continue
+                tags_by_id[sid] = student.get("tags") or []
+
+            students = filter_students_data(
+                raw_students,
+                context.group_index,
+                context.group_filter,
+                context.gender_index,
+                context.gender_filter,
+            )
+            weighted_students = calculate_weight(
+                [
+                    {
+                        "id": s[0],
+                        "name": s[1],
+                        "gender": s[2],
+                        "group": s[3],
+                        "exist": s[4],
+                    }
+                    for s in students
+                ],
+                context.class_name,
+            )
+            weights = [item.get("next_weight", 1.0) for item in weighted_students]
+            return RollCallPreparedState(
+                context=context,
+                plan=self._create_draw_plan(context.class_name),
+                students=list(students),
+                tags_by_id=tags_by_id,
+                weights=weights,
+            )
+
+        def _handle_finished(finished_request_id, prepared_state):
+            if finished_request_id != self._prepare_request_id:
+                return
+            prepared_state = prepared_state
+            self.current_class_name = prepared_state.context.class_name
+            self.current_group_filter = prepared_state.context.group_filter
+            self.current_gender_filter = prepared_state.context.gender_filter
+            self.current_group_index = prepared_state.context.group_index
+            self.current_gender_index = prepared_state.context.gender_index
+            self.half_repeat = prepared_state.context.half_repeat
+            self.students = list(prepared_state.students)
+            self.tags_by_id = dict(prepared_state.tags_by_id)
+            self.weights = list(prepared_state.weights)
+            self._draw_data_cache[cache_key] = {
+                "students": list(self.students),
+                "tags_by_id": dict(self.tags_by_id),
+                "weights": list(self.weights),
+            }
+            on_ready(prepared_state)
+
+        def _handle_failed(failed_request_id, message):
+            if failed_request_id != self._prepare_request_id:
+                return
+            if callable(on_error):
+                on_error(message)
+
+        signals = _Signals()
+        signals.finished.connect(_handle_finished)
+        signals.failed.connect(_handle_failed)
+        QThreadPool.globalInstance().start(_Worker(_prepare, signals))
+        return request_id
 
     def finalize_draw(self, count: int, *, parent=None):
         result = self.draw_final_students(count)
@@ -561,6 +700,9 @@ class RollCallManager(QObject):
 def start_roll_call_draw(widget):
     trace = start_interaction("roll_call.draw")
     track_event("roll_call_draw")
+    if getattr(widget, "_draw_prepare_in_progress", False):
+        trace.log("ignored_while_preparing")
+        return
 
     manager = widget.manager
     class_name = widget.list_combobox.currentText()
@@ -579,10 +721,98 @@ def start_roll_call_draw(widget):
         half_repeat,
     )
     trace.log("context_ready")
-    widget._draw_plan = manager.prepare_draw(context)
-    trace.log("prepare_ready")
+    _set_roll_call_prepare_state(widget, True)
+    widget.start_button.setText("准备中...")
+    _show_roll_call_loading_placeholder(widget, "正在准备抽取数据...")
+    trace.log("loading_visible")
 
-    widget._cached_display_dict = manager.get_display_settings(refresh=False)
+    def _ready(prepared_state: RollCallPreparedState):
+        _set_roll_call_prepare_state(widget, False)
+        widget._draw_plan = prepared_state.plan
+        trace.log("prepare_ready")
+        _begin_roll_call_draw(widget, trace=trace)
+
+    def _failed(message: str):
+        _set_roll_call_prepare_state(widget, False)
+        widget.start_button.setText(
+            get_content_pushbutton_name_async("roll_call", "start_button")
+        )
+        widget.start_button.setEnabled(True)
+        _show_roll_call_loading_placeholder(
+            widget, f"抽取准备失败: {message or '未知错误'}"
+        )
+        trace.log("prepare_failed")
+
+    manager.prepare_draw_async(context, on_ready=_ready, on_error=_failed)
+
+
+def init_file_watcher(widget):
+    widget.file_watcher = QFileSystemWatcher()
+    setup_file_watcher(widget)
+
+
+def init_long_press(widget):
+    widget.press_timer = QTimer()
+    widget.press_timer.timeout.connect(widget.handle_long_press)
+    widget.long_press_interval = 100
+    widget.long_press_delay = 500
+    widget.is_long_pressing = False
+    widget.long_press_direction = 0
+
+
+def init_tts(widget):
+    widget.tts_handler = TTSHandler()
+
+
+def init_animation_state(widget):
+    widget.is_animating = False
+    widget._draw_plan = None
+    widget._draw_prepare_in_progress = False
+
+
+def _show_roll_call_loading_placeholder(widget, text: str):
+    try:
+        ResultDisplayUtils.clear_grid(widget.result_grid)
+    except Exception:
+        pass
+
+    label = QLabel(text)
+    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    label.setObjectName("rollCallLoadingLabel")
+    if hasattr(widget, "_set_widget_font"):
+        try:
+            widget._set_widget_font(label, 14)
+        except Exception:
+            pass
+    widget.result_grid.addWidget(label)
+
+
+def _set_roll_call_prepare_state(widget, preparing: bool):
+    widget._draw_prepare_in_progress = preparing
+    for attr_name in (
+        "start_button",
+        "reset_button",
+        "minus_button",
+        "plus_button",
+        "list_combobox",
+        "range_combobox",
+        "gender_combobox",
+        "remaining_button",
+    ):
+        control = getattr(widget, attr_name, None)
+        if control is None:
+            continue
+        try:
+            if attr_name == "start_button":
+                control.setEnabled(not preparing)
+                continue
+            control.setEnabled(not preparing)
+        except Exception:
+            pass
+
+
+def _begin_roll_call_draw(widget, trace=None):
+    widget._cached_display_dict = widget.manager.get_display_settings(refresh=False)
     widget._cached_animation_widgets = None
     widget._cached_show_random = widget._cached_display_dict.get("show_random", 0)
 
@@ -596,7 +826,8 @@ def start_roll_call_draw(widget):
         logger.exception("Error disconnecting start_button clicked (ignored): {}", e)
 
     widget.draw_random()
-    trace.log("first_feedback_ready")
+    if trace is not None:
+        trace.log("first_feedback_ready")
 
     plan = widget._draw_plan
     animation = plan.animation if plan else 0
@@ -604,7 +835,7 @@ def start_roll_call_draw(widget):
     animation_interval = plan.animation_interval if plan else 0
     animation_music = plan.animation_music if plan else None
     if animation in [0, 1]:
-        manager.start_precompute_final(widget.current_count)
+        widget.manager.start_precompute_final(widget.current_count)
 
     if animation == 0:
         if animation_music:
@@ -647,29 +878,6 @@ def start_roll_call_draw(widget):
     elif animation == 2:
         widget.stop_animation()
         widget.start_button.clicked.connect(lambda: widget.start_draw())
-
-
-def init_file_watcher(widget):
-    widget.file_watcher = QFileSystemWatcher()
-    setup_file_watcher(widget)
-
-
-def init_long_press(widget):
-    widget.press_timer = QTimer()
-    widget.press_timer.timeout.connect(widget.handle_long_press)
-    widget.long_press_interval = 100
-    widget.long_press_delay = 500
-    widget.is_long_pressing = False
-    widget.long_press_direction = 0
-
-
-def init_tts(widget):
-    widget.tts_handler = TTSHandler()
-
-
-def init_animation_state(widget):
-    widget.is_animating = False
-    widget._draw_plan = None
 
 
 def handle_long_press(widget):
