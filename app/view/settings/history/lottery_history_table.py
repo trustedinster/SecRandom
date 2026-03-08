@@ -18,6 +18,7 @@ from app.tools.settings_access import *
 from app.tools.interaction_perf import start_interaction
 from app.Language.obtain_language import *
 from app.common.history import *
+from app.common.history.background_loader import build_lottery_history_payload
 from app.common.history.history_reader import (
     get_lottery_pool_list,
     get_lottery_history_data,
@@ -25,6 +26,27 @@ from app.common.history.history_reader import (
     get_lottery_session_data,
     get_lottery_prize_stats_data,
 )
+
+
+class _HistoryLoadSignals(QObject):
+    loaded = Signal(int, object)
+    failed = Signal(int, str)
+
+
+class _HistoryLoadWorker(QRunnable):
+    def __init__(self, request_id: int, build_payload):
+        super().__init__()
+        self.request_id = request_id
+        self._build_payload = build_payload
+        self.signals = _HistoryLoadSignals()
+
+    def run(self):
+        try:
+            payload = self._build_payload()
+            self.signals.loaded.emit(self.request_id, payload)
+        except Exception as e:
+            logger.exception(f"抽奖历史后台加载失败: {e}")
+            self.signals.failed.emit(self.request_id, str(e))
 
 
 # ==================================================
@@ -57,6 +79,9 @@ class lottery_history_table(GroupHeaderCardWidget):
         self.cached_sessions_data = []  # 缓存的会话数据列表
         self.cached_stats_data = []  # 缓存的统计数据列表
         self.force_load_all = False
+        self._history_request_id = 0
+        self._cached_row_models = []
+        self._active_refresh_worker = None
 
         # 创建奖池选择区域
         QTimer.singleShot(APPLY_DELAY, self.create_pool_selection)
@@ -348,44 +373,27 @@ class lottery_history_table(GroupHeaderCardWidget):
             return
 
         self.is_loading = True
+        try:
+            new_row_count = min(self.current_row + self.batch_size, self.total_rows)
+            self.table.setRowCount(new_row_count)
 
-        # 计算新的行数
-        new_row_count = min(self.current_row + self.batch_size, self.total_rows)
+            for row in range(self.current_row, new_row_count):
+                if row >= len(self._cached_row_models):
+                    break
+                row_data = self._cached_row_models[row]
+                for col, cell in enumerate(row_data):
+                    self.table.setItem(row, col, create_table_item(cell))
 
-        # 增加表格行数
-        self.table.setRowCount(new_row_count)
-
-        # 根据当前模式加载数据，与refresh_data方法保持一致
-        if hasattr(self, "mode_comboBox"):
-            self.current_mode = self.mode_comboBox.currentIndex()
-        else:
-            self.current_mode = 0
-
-        if self.current_mode == 0:
-            self._load_more_lotterys_data()
-        elif self.current_mode == 1:
-            self._load_more_sessions_data()
-        else:
-            # 当模式值大于等于2时，表示选择了特定的奖品名称
-            if hasattr(self, "mode_comboBox"):
-                self.current_lottery_name = self.mode_comboBox.currentText()
-            else:
-                # 如果没有mode_comboBox，从设置中获取奖品名称
-                self.current_lottery_name = readme_settings_async(
-                    "lottery_history_table", "select_lottery_name"
-                )
-            self._load_more_stats_data(self.current_lottery_name)
-
-        # 数据加载完成后启用排序
-        if self.current_row >= self.total_rows:
-            self.table.setSortingEnabled(True)
-            if self.sort_column >= 0:
-                self.table.horizontalHeader().setSortIndicator(
-                    self.sort_column, self.sort_order
-                )
-                self.table.horizontalHeader().setSortIndicatorShown(True)
-
-        self.is_loading = False
+            self.current_row = new_row_count
+            if self.current_row >= self.total_rows:
+                self.table.setSortingEnabled(True)
+                if self.sort_column >= 0:
+                    self.table.horizontalHeader().setSortIndicator(
+                        self.sort_column, self.sort_order
+                    )
+                    self.table.horizontalHeader().setSortIndicatorShown(True)
+        finally:
+            self.is_loading = False
 
     def _load_more_lotterys_data(self):
         """加载更多奖品数据"""
@@ -709,6 +717,7 @@ class lottery_history_table(GroupHeaderCardWidget):
 
         # 更新当前奖池名称
         self.current_pool_name = self.pool_comboBox.currentText()
+        self._update_mode_options()
 
         # 刷新表格数据
         self.refresh_data()
@@ -731,9 +740,6 @@ class lottery_history_table(GroupHeaderCardWidget):
             return
         self.current_pool_name = pool_name
 
-        # 更新课程列表
-        self._update_subject_list()
-
         # 重置课程记录标志
         self.has_class_record = False
 
@@ -744,137 +750,33 @@ class lottery_history_table(GroupHeaderCardWidget):
         self.is_loading = False
         self.table.setRowCount(0)
         self.table.setSortingEnabled(False)
-        self.table.blockSignals(True)
         trace.log("first_feedback")
+        self._history_request_id += 1
+        request_id = self._history_request_id
+        self.current_mode = (
+            self.mode_comboBox.currentIndex() if hasattr(self, "mode_comboBox") else 0
+        )
+        selected_name = (
+            self.mode_comboBox.currentText()
+            if self.current_mode >= 2 and hasattr(self, "mode_comboBox")
+            else readme_settings_async("lottery_history_table", "select_lottery_name")
+        )
 
-        try:
-            if not hasattr(self, "mode_comboBox"):
-                self.current_mode = 0
-                if self.current_mode == 0:
-                    # 获取奖品记录数量
-                    lotterys_count = get_name_history("lottery", pool_name)
-                    if lotterys_count:
-                        self.total_rows = lotterys_count
-                        # 设置初始行数为批次大小或总行数，取较小值
-                        initial_rows = (
-                            self.total_rows
-                            if self.force_load_all
-                            else min(self.batch_size, self.total_rows)
-                        )
-                        self.table.setRowCount(initial_rows)
-                        # 加载第一批数据
-                        self._load_more_lotterys_data()
-                elif self.current_mode == 1:
-                    # 获取会话记录数量
-                    sessions_count = get_draw_sessions_history("lottery", pool_name)
-                    if sessions_count:
-                        self.total_rows = sessions_count
-                        # 设置初始行数为批次大小或总行数，取较小值
-                        initial_rows = (
-                            self.total_rows
-                            if self.force_load_all
-                            else min(self.batch_size, self.total_rows)
-                        )
-                        self.table.setRowCount(initial_rows)
-                        # 加载第一批数据
-                        self._load_more_sessions_data()
-                    self._ensure_scrollable_rows()
-                else:
-                    # 当模式值大于等于2时，从设置中获取奖品名称
-                    self.current_lottery_name = readme_settings_async(
-                        "lottery_history_table", "select_lottery_name"
-                    )
-                    # 获取个人统计记录数量
-                    stats_count = get_individual_statistics(
-                        "lottery", pool_name, self.current_lottery_name
-                    )
-                    if stats_count:
-                        self.total_rows = stats_count
-                        # 设置初始行数为批次大小或总行数，取较小值
-                        initial_rows = (
-                            self.total_rows
-                            if self.force_load_all
-                            else min(self.batch_size, self.total_rows)
-                        )
-                        self.table.setRowCount(initial_rows)
-                        # 加载第一批数据
-                        self._load_more_stats_data(self.current_lottery_name)
-                    self._ensure_scrollable_rows()
-                return
-
-            self.current_mode = self.mode_comboBox.currentIndex()
-            if self.current_mode == 0:
-                # 获取奖品记录数量
-                lotterys_count = get_name_history("lottery", pool_name)
-                if lotterys_count:
-                    self.total_rows = lotterys_count
-                    # 设置初始行数为批次大小或总行数，取较小值
-                    initial_rows = (
-                        self.total_rows
-                        if self.force_load_all
-                        else min(self.batch_size, self.total_rows)
-                    )
-                    self.table.setRowCount(initial_rows)
-                    # 加载第一批数据
-                    self._load_more_lotterys_data()
-                    self._ensure_scrollable_rows()
-            elif self.current_mode == 1:
-                # 获取会话记录数量
-                sessions_count = get_draw_sessions_history("lottery", pool_name)
-                if sessions_count:
-                    self.total_rows = sessions_count
-                    self.total_rows = sessions_count
-                    # 设置初始行数为批次大小或总行数，取较小值
-                    initial_rows = (
-                        self.total_rows
-                        if self.force_load_all
-                        else min(self.batch_size, self.total_rows)
-                    )
-                    self.table.setRowCount(initial_rows)
-                    # 加载第一批数据
-                    self._load_more_sessions_data()
-                    self._ensure_scrollable_rows()
-            else:
-                # 获取个人统计记录数量
-                stats_count = get_individual_statistics(
-                    "lottery", pool_name, self.mode_comboBox.currentText()
-                )
-                if stats_count:
-                    self.total_rows = stats_count
-                    # 设置初始行数为批次大小或总行数，取较小值
-                    initial_rows = (
-                        self.total_rows
-                        if self.force_load_all
-                        else min(self.batch_size, self.total_rows)
-                    )
-                    self.table.setRowCount(initial_rows)
-                    self.current_lottery_name = self.mode_comboBox.currentText()
-                    # 加载第一批数据
-                    self._load_more_stats_data(self.current_lottery_name)
-                    self._ensure_scrollable_rows()
-
-            # 设置表格列属性
-            for i in range(self.table.columnCount()):
-                self.table.horizontalHeader().setSectionResizeMode(
-                    i, QHeaderView.ResizeMode.Stretch
-                )
-                self.table.horizontalHeader().setDefaultAlignment(
-                    Qt.AlignmentFlag.AlignCenter
-                )
-
-            # 如果有排序设置，应用排序
-            if self.sort_column >= 0:
-                self.table.horizontalHeader().setSortIndicator(
-                    self.sort_column, self.sort_order
-                )
-                self.table.horizontalHeader().setSortIndicatorShown(True)
-
-        except Exception as e:
-            logger.exception(f"刷新表格数据失败: {str(e)}")
-        finally:
-            self.table.blockSignals(False)
-            self.force_load_all = False
-            trace.log("data_ready")
+        worker = _HistoryLoadWorker(
+            request_id,
+            lambda: build_lottery_history_payload(
+                pool_name,
+                self.current_mode,
+                self.current_subject,
+                str(selected_name or ""),
+                self.sort_column,
+                self.sort_order == Qt.SortOrder.DescendingOrder,
+            ),
+        )
+        worker.signals.loaded.connect(self._apply_refresh_payload)
+        worker.signals.failed.connect(self._handle_refresh_failed)
+        self._active_refresh_worker = worker
+        QThreadPool.globalInstance().start(worker)
 
     def update_table_headers(self):
         """更新表格标题"""
@@ -986,3 +888,82 @@ class lottery_history_table(GroupHeaderCardWidget):
         except Exception as e:
             logger.exception(f"更新课程列表失败: {e}")
             self.available_subjects = []
+
+    def _update_mode_options(self, names=None):
+        if not hasattr(self, "mode_comboBox"):
+            return
+        current_text = self.mode_comboBox.currentText()
+        options = (
+            list(names)
+            if names is not None
+            else get_all_names("lottery", self.pool_comboBox.currentText())
+        )
+        self.all_names = options
+        items = get_content_combo_name_async("lottery_history_table", "select_mode")
+        self.mode_comboBox.blockSignals(True)
+        self.mode_comboBox.clear()
+        self.mode_comboBox.addItems(items + options)
+        idx = self.mode_comboBox.findText(current_text)
+        self.mode_comboBox.setCurrentIndex(idx if idx >= 0 else 0)
+        self.mode_comboBox.blockSignals(False)
+
+    def _apply_subject_options(self, subjects):
+        self.available_subjects = list(subjects)
+        if not hasattr(self, "subject_comboBox"):
+            return
+        current_subject = self.current_subject
+        self.subject_comboBox.blockSignals(True)
+        self.subject_comboBox.clear()
+        self.subject_comboBox.addItems(
+            get_content_combo_name_async("lottery_history_table", "select_subject")
+            + self.available_subjects
+        )
+        if current_subject:
+            idx = self.subject_comboBox.findText(current_subject)
+            self.subject_comboBox.setCurrentIndex(idx if idx >= 0 else 0)
+        else:
+            self.subject_comboBox.setCurrentIndex(0)
+        self.subject_comboBox.blockSignals(False)
+        self.subject_comboBox.setVisible(bool(self.available_subjects))
+
+    def _apply_refresh_payload(self, request_id, payload):
+        if request_id != self._history_request_id:
+            return
+
+        self._active_refresh_worker = None
+        trace = getattr(self, "_refresh_trace", None)
+        self.has_class_record = bool(payload.has_class_record)
+        self._cached_row_models = list(payload.rows)
+        self.total_rows = len(self._cached_row_models)
+        self.current_row = 0
+
+        self._update_mode_options(payload.all_names)
+        self._apply_subject_options(payload.available_subjects)
+        self.update_table_headers()
+        self.table.setRowCount(0)
+
+        if self.total_rows:
+            initial_rows = (
+                self.total_rows
+                if self.force_load_all
+                else min(self.batch_size, self.total_rows)
+            )
+            self.table.setRowCount(initial_rows)
+            self._load_more_data()
+            self._ensure_scrollable_rows()
+        else:
+            self.table.setSortingEnabled(False)
+
+        self.force_load_all = False
+        if trace is not None:
+            trace.log("data_ready")
+
+    def _handle_refresh_failed(self, request_id, error_message):
+        if request_id != self._history_request_id:
+            return
+        self._active_refresh_worker = None
+        logger.error(f"抽奖历史刷新失败: {error_message}")
+        self.force_load_all = False
+        trace = getattr(self, "_refresh_trace", None)
+        if trace is not None:
+            trace.log("data_ready")
