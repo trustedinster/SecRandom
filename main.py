@@ -113,6 +113,8 @@ def initialize_posthog(
             },
         },
     )
+
+
 def schedule_deferred_startup_tasks(window_manager: WindowManager):
     """在首个窗口可见后执行非关键启动任务。"""
 

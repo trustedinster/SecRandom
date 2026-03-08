@@ -200,9 +200,7 @@ class MainWindow(FluentWindow):
         """应用主窗口置顶模式"""
         if mode is None:
             basic_settings = (
-                snapshot.get("basic_settings", {})
-                if isinstance(snapshot, dict)
-                else {}
+                snapshot.get("basic_settings", {}) if isinstance(snapshot, dict) else {}
             )
             if not isinstance(basic_settings, dict):
                 basic_settings = {}
@@ -325,7 +323,9 @@ class MainWindow(FluentWindow):
         if self.resize_timer is not None:
             self.resize_timer.stop()
 
-        window_settings = snapshot.get("window", {}) if isinstance(snapshot, dict) else {}
+        window_settings = (
+            snapshot.get("window", {}) if isinstance(snapshot, dict) else {}
+        )
         if not isinstance(window_settings, dict):
             window_settings = {}
 

@@ -61,7 +61,9 @@ class BackgroundLayer(QWidget):
         gradient_start = background_settings.get(f"{prefix}gradient_start")
         gradient_end = background_settings.get(f"{prefix}gradient_end")
         gradient_direction = background_settings.get(f"{prefix}gradient_direction")
-        gradient_direction_v2 = background_settings.get(f"{prefix}gradient_direction_v2")
+        gradient_direction_v2 = background_settings.get(
+            f"{prefix}gradient_direction_v2"
+        )
         image_path = background_settings.get(f"{prefix}image")
         brightness = background_settings.get(f"{prefix}brightness")
         opacity = background_settings.get(f"{prefix}opacity")

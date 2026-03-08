@@ -343,7 +343,9 @@ class SettingsWindow(FluentWindow):
     def _position_window(self, snapshot=None):
         """窗口定位
         根据屏幕尺寸和用户设置自动计算最佳位置"""
-        settings_section = snapshot.get("settings", {}) if isinstance(snapshot, dict) else {}
+        settings_section = (
+            snapshot.get("settings", {}) if isinstance(snapshot, dict) else {}
+        )
         if not isinstance(settings_section, dict):
             settings_section = {}
 

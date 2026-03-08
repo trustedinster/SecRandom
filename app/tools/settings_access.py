@@ -101,7 +101,9 @@ def _refresh_settings_cache(settings_data: dict[str, Any]) -> None:
     _settings_cache_data = settings_data if isinstance(settings_data, dict) else {}
 
 
-def _get_default_value(first_level_key: str, second_level_key: str, default: Any = None):
+def _get_default_value(
+    first_level_key: str, second_level_key: str, default: Any = None
+):
     default_setting = _get_default_setting(first_level_key, second_level_key)
     if isinstance(default_setting, dict) and "default_value" in default_setting:
         return default_setting["default_value"]
@@ -118,7 +120,9 @@ class SettingsReaderWorker(QObject):
 
     finished = Signal(object)  # 信号，传递读取结果
 
-    def __init__(self, first_level_key: str, second_level_key: str, default: Any = None):
+    def __init__(
+        self, first_level_key: str, second_level_key: str, default: Any = None
+    ):
         super().__init__()
         self.first_level_key = first_level_key
         self.second_level_key = second_level_key
@@ -151,7 +155,9 @@ class SettingsReaderWorker(QObject):
         return (
             default_setting["default_value"]
             if isinstance(default_setting, dict) and "default_value" in default_setting
-            else default_setting if default_setting is not None else self.default
+            else default_setting
+            if default_setting is not None
+            else self.default
         )
 
 

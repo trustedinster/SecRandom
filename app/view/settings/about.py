@@ -470,7 +470,10 @@ class user_info_card(HeaderCardWidget):
         QApplication.clipboard().setText(text)
 
     def _apply_usage_stats(
-        self, total_draw_count: int, roll_call_total_count: int, lottery_total_count: int
+        self,
+        total_draw_count: int,
+        roll_call_total_count: int,
+        lottery_total_count: int,
     ):
         self.total_draw_label.setText(
             self._format_label_text(

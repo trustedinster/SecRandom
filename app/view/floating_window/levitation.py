@@ -849,7 +849,9 @@ class LevitationWindow(QWidget):
             self._suppress_visibility_tracking = False
 
     def _get_setting_value(self, section: str, key: str, snapshot=None):
-        settings_section = snapshot.get(section, {}) if isinstance(snapshot, dict) else {}
+        settings_section = (
+            snapshot.get(section, {}) if isinstance(snapshot, dict) else {}
+        )
         if isinstance(settings_section, dict) and key in settings_section:
             return settings_section.get(key)
         return readme_settings_async(section, key)
