@@ -24,7 +24,10 @@ from app.common.safety.secure_store import (
     read_behind_scenes_settings,
     write_behind_scenes_settings,
 )
-from app.core.app_init import get_stored_draw_counts, recompute_and_persist_draw_counts
+from app.core.usage_counters import (
+    get_stored_draw_counts,
+    recompute_and_persist_draw_counts,
+)
 from app.view.components.center_flow_layout import CenterFlowLayout
 import app.core.window_manager as wm
 

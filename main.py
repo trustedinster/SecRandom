@@ -21,7 +21,7 @@ from app.tools.config import (
 )
 from app.tools.settings_default import manage_settings_file
 from app.tools.settings_access import readme_settings_async, get_or_create_user_id
-from app.core.app_init import (
+from app.core.usage_counters import (
     get_stored_draw_counts,
     recompute_and_persist_draw_counts,
 )

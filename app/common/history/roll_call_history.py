@@ -12,7 +12,7 @@ from app.Language.obtain_language import get_content_combo_name_async
 from app.common.extraction.extract import _get_current_class_info
 from app.common.history.file_utils import load_history_data, save_history_data
 from app.common.history.weight_utils import calculate_weight
-from app.core.app_init import increment_usage_counters
+from app.core.usage_counters import increment_usage_counters
 
 
 def _initialize_history_data(history_data: Dict[str, Any]):

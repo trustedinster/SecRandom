@@ -8,7 +8,7 @@ from loguru import logger
 
 from app.common.extraction.extract import _get_current_class_info
 from app.common.history.file_utils import load_history_data, save_history_data
-from app.core.app_init import increment_usage_counters
+from app.core.usage_counters import increment_usage_counters
 
 
 # ==================================================
