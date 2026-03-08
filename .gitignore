@@ -174,31 +174,31 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-/logs
-/.vercel
-/app/resources/list
-/config
-/app/resources/history
-/TEMP
-/app/resources/TEMP
 
-# VSCode
-.vscode/settings.json
+# Workspace / tooling
+.vscode/
+*.code-workspace
 /.trae
-/app/config
-/app/config
-/app/config
+/.vercel
 
-# Scripts' generations
+# Project runtime data
+/config/
+/logs/
+/TEMP/
+/typings/
+/app/config/
+/app/resources/list/
+/app/resources/history/
+/app/resources/TEMP/
+/data/history/
+/data/list/
+/data/TEMP/
+/data/CSES/
+/data/images/
+/data/backup/
+/data/themes/
+/data/audio/music/
+/data/audio/voices/
+
+# Script-generated files
 /scripts/*.json
-/data/history
-/data/list
-/data/audio/music
-/data/audio/voices
-/data/TEMP
-/data/CSES
-/typings
-/data/images
-/data/backup
-/data/backup
-/data/themes
