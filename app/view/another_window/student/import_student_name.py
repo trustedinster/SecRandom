@@ -18,6 +18,7 @@ from app.tools.personalised import *
 from app.tools.settings_default import *
 from app.tools.settings_access import *
 from app.tools.interaction_perf import start_interaction
+from app.tools.table_batching import next_request_id, run_batched
 from app.Language.obtain_language import *
 from app.tools.config import *
 from app.common.data.list import get_duplicate_names, make_unique_names
@@ -42,6 +43,7 @@ class ImportStudentNameWindow(QWidget):
         self.column_mapping = {}
         self.preview_data = []
         self.class_name = class_name
+        self._preview_request_id = 0
         # 线程池用于后台加载文件
         self.executor = ThreadPoolExecutor(max_workers=2)
 
@@ -625,7 +627,10 @@ class ImportStudentNameWindow(QWidget):
     def __update_preview(self):
         """更新预览"""
         trace = start_interaction("import_student.preview")
+        request_id = next_request_id(self, "_preview_request_id")
         if self.data is None:
+            self.preview_table.setRowCount(0)
+            self.preview_table.setColumnCount(0)
             trace.log("data_ready")
             return
 
@@ -637,6 +642,7 @@ class ImportStudentNameWindow(QWidget):
 
         # 检查是否选择了"无"选项（空字符串）
         if not id_column and not name_column:
+            self.preview_table.setRowCount(0)
             trace.log("data_ready")
             return
         # 如果选择了"无"选项，将其设为None
@@ -662,6 +668,7 @@ class ImportStudentNameWindow(QWidget):
             tags_column = None
 
         if not id_column and not name_column:
+            self.preview_table.setRowCount(0)
             return
 
         # 创建预览数据
@@ -701,21 +708,46 @@ class ImportStudentNameWindow(QWidget):
 
         # 限制预览行数
         max_rows = min(3, len(self.data))
-        preview_df = self.data[preview_columns].head(max_rows).reset_index(drop=True)
+        preview_rows = (
+            self.data[preview_columns]
+            .head(max_rows)
+            .fillna("")
+            .astype(str)
+            .values.tolist()
+        )
 
         # 更新表格
         self.preview_table.setRowCount(max_rows)
         self.preview_table.setColumnCount(len(preview_columns))
         self.preview_table.setHorizontalHeaderLabels(preview_headers)
         trace.log("first_feedback")
+        self.preview_table.clearContents()
+        run_batched(
+            self,
+            request_id,
+            preview_rows,
+            self.__render_preview_rows_batch,
+            batch_size=2,
+            on_finish=lambda current_request_id: self.__finish_preview_render(
+                current_request_id, trace
+            ),
+            request_attr="_preview_request_id",
+        )
 
-        # 填充数据
-        for i in range(max_rows):
-            for j, column in enumerate(preview_columns):
-                item = QTableWidgetItem(str(preview_df.iloc[i, j]))
-                self.preview_table.setItem(i, j, item)
+    def __render_preview_rows_batch(self, request_id, rows, start, end):
+        if self._preview_request_id != request_id:
+            return
 
-        # 调整列宽
+        for row_index in range(start, end):
+            for column_index, value in enumerate(rows[row_index]):
+                self.preview_table.setItem(
+                    row_index, column_index, QTableWidgetItem(str(value))
+                )
+
+    def __finish_preview_render(self, request_id, trace):
+        if self._preview_request_id != request_id:
+            return
+
         self.preview_table.resizeColumnsToContents()
         trace.log("data_ready")
 

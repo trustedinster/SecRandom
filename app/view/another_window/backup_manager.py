@@ -1,9 +1,9 @@
 import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from loguru import logger
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -58,6 +58,7 @@ from app.tools.config import (
 from app.tools.personalised import get_theme_icon
 from app.tools.interaction_perf import start_interaction
 from app.tools.settings_access import update_settings
+from app.tools.table_batching import next_request_id, run_batched
 
 
 class ManualBackupWorker(QThread):
@@ -74,12 +75,59 @@ class ManualBackupWorker(QThread):
             self.finishedWithResult.emit(False, None, str(e))
 
 
+class _RestoreListSignals(QObject):
+    loaded = Signal(int, list)
+    failed = Signal(int, str)
+
+
+class _RestoreListWorker(QRunnable):
+    def __init__(self, request_id: int):
+        super().__init__()
+        self.request_id = request_id
+        self.signals = _RestoreListSignals()
+
+    def run(self):
+        try:
+            rows = []
+            for file_path in list_backup_files():
+                name = file_path.name
+                try:
+                    file_stat = file_path.stat()
+                    try:
+                        mtime_text = datetime.fromtimestamp(file_stat.st_mtime).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+                    except Exception:
+                        mtime_text = "--"
+                    size_text = format_size(file_stat.st_size)
+                except Exception:
+                    mtime_text = "--"
+                    size_text = "--"
+
+                rows.append(
+                    {
+                        "path": str(file_path),
+                        "name": name,
+                        "mtime_text": mtime_text,
+                        "size_text": size_text,
+                    }
+                )
+            self.signals.loaded.emit(self.request_id, rows)
+        except Exception as e:
+            logger.exception(f"加载备份列表失败: {e}")
+            self.signals.failed.emit(self.request_id, str(e))
+
+
 class BackupManagerWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker: ManualBackupWorker | None = None
         self._backup_target_switches: dict[str, SwitchButton] = {}
         self._restore_selected_file: str = ""
+        self._restore_list_request_id = 0
+        self._restore_rows: list[dict[str, str]] = []
+        self._restore_refresh_trace = None
+        self._restore_refresh_notification_mode: str | None = None
         self._init_ui()
         self._refresh_all()
 
@@ -392,53 +440,132 @@ class BackupManagerWindow(QWidget):
     def _refresh_restore_files(self):
         trace = start_interaction("backup_manager.refresh_restore_files")
         self._restore_refresh_trace = trace
-        try:
-            files = list_backup_files()
-        except Exception:
-            files = []
-
         self._restore_selected_file = ""
-        self.restore_table.setRowCount(len(files))
+        self._restore_rows = []
+        self.restore_table.clearSelection()
+        self.restore_table.setRowCount(0)
         trace.log("first_feedback")
-        for row, p in enumerate(files):
-            name = p.name
-            try:
-                st = p.stat()
-                try:
-                    mtime_text = datetime.fromtimestamp(st.st_mtime).strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                except Exception:
-                    mtime_text = "--"
-                size_text = format_size(st.st_size)
-            except Exception:
-                mtime_text = "--"
-                size_text = "--"
+        request_id = next_request_id(self, "_restore_list_request_id")
+        worker = _RestoreListWorker(request_id)
+        worker.signals.loaded.connect(self._on_restore_files_loaded)
+        worker.signals.failed.connect(self._on_restore_files_failed)
+        QThreadPool.globalInstance().start(worker)
 
-            name_item = QTableWidgetItem(name)
-            name_item.setData(Qt.ItemDataRole.UserRole, str(p))
-            time_item = QTableWidgetItem(mtime_text)
-            size_item = QTableWidgetItem(size_text)
+    def _render_restore_rows_batch(self, request_id: int, rows, start: int, end: int):
+        if self._restore_list_request_id != request_id:
+            return
+
+        for row_index in range(start, end):
+            row = rows[row_index]
+            name_item = QTableWidgetItem(row["name"])
+            name_item.setData(Qt.ItemDataRole.UserRole, row["path"])
+            time_item = QTableWidgetItem(row["mtime_text"])
+            size_item = QTableWidgetItem(row["size_text"])
             name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             time_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             size_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            self.restore_table.setItem(row, 0, name_item)
-            self.restore_table.setItem(row, 1, time_item)
-            self.restore_table.setItem(row, 2, size_item)
+            self.restore_table.setItem(row_index, 0, name_item)
+            self.restore_table.setItem(row_index, 1, time_item)
+            self.restore_table.setItem(row_index, 2, size_item)
             delete_button = PushButton(
                 get_content_pushbutton_name_async(
                     "basic_settings", "backup_restore_delete"
                 )
             )
             delete_button.clicked.connect(
-                lambda _checked=False, fp=str(p): self._on_restore_delete_clicked(fp)
+                lambda _checked=False, fp=row["path"]: self._on_restore_delete_clicked(fp)
             )
-            self.restore_table.setCellWidget(row, 3, delete_button)
+            self.restore_table.setCellWidget(row_index, 3, delete_button)
 
-        if files:
+    def _finish_restore_rows_render(self, request_id: int):
+        if self._restore_list_request_id != request_id:
+            return
+
+        if self._restore_rows:
             self.restore_table.selectRow(0)
-        trace.log("data_ready")
+
+        if self._restore_refresh_trace is not None:
+            self._restore_refresh_trace.log("data_ready")
+            self._restore_refresh_trace = None
+
+        self._show_restore_refresh_result(None, len(self._restore_rows))
+
+    def _on_restore_files_loaded(self, request_id: int, rows: list[dict[str, str]]):
+        if self._restore_list_request_id != request_id:
+            return
+
+        self._restore_rows = rows
+        self.restore_table.setRowCount(len(rows))
+        run_batched(
+            self,
+            request_id,
+            rows,
+            self._render_restore_rows_batch,
+            batch_size=12,
+            on_finish=self._finish_restore_rows_render,
+            request_attr="_restore_list_request_id",
+        )
+
+    def _on_restore_files_failed(self, request_id: int, error: str):
+        if self._restore_list_request_id != request_id:
+            return
+
+        self._restore_rows = []
+        self.restore_table.setRowCount(0)
+        if self._restore_refresh_trace is not None:
+            self._restore_refresh_trace.log("data_ready")
+            self._restore_refresh_trace = None
+        self._show_restore_refresh_result(error, 0)
+
+    def _show_restore_refresh_result(self, error: str | None, count: int):
+        mode = self._restore_refresh_notification_mode
+        self._restore_refresh_notification_mode = None
+        if mode != "notify":
+            return
+
+        if error:
+            show_notification(
+                NotificationType.ERROR,
+                NotificationConfig(
+                    title=get_content_name_async(
+                        "basic_settings", "backup_restore_refresh"
+                    ),
+                    content=get_any_position_value_async(
+                        "basic_settings", "backup_restore_refresh_result", "failure"
+                    ).format(error=error),
+                ),
+                parent=self.window(),
+            )
+            return
+
+        if count <= 0:
+            content = get_any_position_value_async(
+                "basic_settings", "backup_restore_refresh_result", "empty"
+            )
+            show_notification(
+                NotificationType.INFO,
+                NotificationConfig(
+                    title=get_content_name_async(
+                        "basic_settings", "backup_restore_refresh"
+                    ),
+                    content=str(content),
+                ),
+                parent=self.window(),
+            )
+            return
+
+        content = get_any_position_value_async(
+            "basic_settings", "backup_restore_refresh_result", "success"
+        ).format(count=count)
+        show_notification(
+            NotificationType.SUCCESS,
+            NotificationConfig(
+                title=get_content_name_async("basic_settings", "backup_restore_refresh"),
+                content=str(content),
+            ),
+            parent=self.window(),
+        )
 
     def _on_restore_delete_clicked(self, file_path: str):
         if not file_path:
@@ -509,51 +636,8 @@ class BackupManagerWindow(QWidget):
             self._refresh_restore_files()
 
     def _on_restore_refresh_clicked(self):
-        try:
-            self._refresh_restore_files()
-            count = int(self.restore_table.rowCount())
-            if count <= 0:
-                content = get_any_position_value_async(
-                    "basic_settings", "backup_restore_refresh_result", "empty"
-                )
-                show_notification(
-                    NotificationType.INFO,
-                    NotificationConfig(
-                        title=get_content_name_async(
-                            "basic_settings", "backup_restore_refresh"
-                        ),
-                        content=str(content),
-                    ),
-                    parent=self.window(),
-                )
-                return
-
-            content = get_any_position_value_async(
-                "basic_settings", "backup_restore_refresh_result", "success"
-            ).format(count=count)
-            show_notification(
-                NotificationType.SUCCESS,
-                NotificationConfig(
-                    title=get_content_name_async(
-                        "basic_settings", "backup_restore_refresh"
-                    ),
-                    content=str(content),
-                ),
-                parent=self.window(),
-            )
-        except Exception as e:
-            show_notification(
-                NotificationType.ERROR,
-                NotificationConfig(
-                    title=get_content_name_async(
-                        "basic_settings", "backup_restore_refresh"
-                    ),
-                    content=get_any_position_value_async(
-                        "basic_settings", "backup_restore_refresh_result", "failure"
-                    ).format(error=str(e)),
-                ),
-                parent=self.window(),
-            )
+        self._restore_refresh_notification_mode = "notify"
+        self._refresh_restore_files()
 
     def _get_selected_restore_file(self) -> str:
         items = self.restore_table.selectedItems()
