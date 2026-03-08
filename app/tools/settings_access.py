@@ -11,6 +11,7 @@ import asyncio
 import copy
 import json
 import threading
+import time
 import uuid
 from typing import Any
 
@@ -80,9 +81,14 @@ def _load_settings_data_cached(force_refresh: bool = False) -> dict[str, Any]:
         ):
             return _settings_cache_data
 
+        start = time.perf_counter()
         settings_data = _read_settings_file(settings_path)
         _settings_cache_signature = current_signature
         _settings_cache_data = settings_data if isinstance(settings_data, dict) else {}
+        elapsed = time.perf_counter() - start
+        logger.debug(
+            f"设置文件已从磁盘加载: {settings_path} (耗时: {elapsed:.3f}s, force_refresh={force_refresh})"
+        )
         return _settings_cache_data
 
 

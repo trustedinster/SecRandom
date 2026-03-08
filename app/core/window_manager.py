@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional, Callable, TYPE_CHECKING
 from loguru import logger
 from PySide6.QtCore import QTimer
@@ -254,6 +255,11 @@ class WindowManager:
             return
 
         self._after_first_window_shown_ran = True
+        try:
+            elapsed = time.perf_counter() - app_start_time
+            logger.debug(f"首个窗口已可见，耗时: {elapsed:.3f}s")
+        except Exception:
+            pass
         callbacks = list(self._after_first_window_shown_callbacks)
         self._after_first_window_shown_callbacks.clear()
 

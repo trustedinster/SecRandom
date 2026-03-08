@@ -1,3 +1,5 @@
+import time
+
 from PySide6.QtCore import QTimer
 from loguru import logger
 
@@ -98,7 +100,11 @@ def persist_draw_counts(
 
 def recompute_and_persist_draw_counts() -> tuple[int, int, int]:
     """全量重算并回写抽取统计，兼容旧数据格式。"""
-    return persist_draw_counts(*calculate_total_draw_counts())
+    start = time.perf_counter()
+    totals = persist_draw_counts(*calculate_total_draw_counts())
+    elapsed = time.perf_counter() - start
+    logger.debug(f"抽取统计补算完成，耗时: {elapsed:.3f}s")
+    return totals
 
 
 def increment_usage_counters(

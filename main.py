@@ -120,6 +120,7 @@ def schedule_deferred_startup_tasks(window_manager: WindowManager):
         return
 
     def task():
+        start = time.perf_counter()
         try:
             totals = recompute_and_persist_draw_counts()
         except Exception as e:
@@ -133,6 +134,9 @@ def schedule_deferred_startup_tasks(window_manager: WindowManager):
                 initialize_posthog(*totals)
         except Exception as e:
             logger.exception(f"初始化 PostHog 失败: {e}")
+        finally:
+            elapsed = time.perf_counter() - start
+            logger.debug(f"启动后分析任务完成，耗时: {elapsed:.3f}s")
 
     window_manager.register_after_first_window_shown(
         lambda: QThreadPool.globalInstance().start(QRunnable.create(task))
