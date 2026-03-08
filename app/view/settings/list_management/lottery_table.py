@@ -35,6 +35,8 @@ class lottery_table(GroupHeaderCardWidget):
         self.parent = parent
         self.setTitle(get_content_name_async("lottery_table", "title"))
         self.setBorderRadius(8)
+        self._populate_request_id = 0
+        self._batch_size = 120
         # 创建抽奖名单选择区域
         QTimer.singleShot(APPLY_DELAY, self.create_lottery_selection)
 
@@ -120,6 +122,74 @@ class lottery_table(GroupHeaderCardWidget):
         self.table.cellChanged.connect(self.save_table_data)
         self.layout().addWidget(self.table)
 
+    def _populate_pool_row(self, row: int, item: dict):
+        checkbox_item = QTableWidgetItem()
+        checkbox_item.setCheckState(
+            Qt.CheckState.Checked
+            if item.get("exist", True)
+            else Qt.CheckState.Unchecked
+        )
+        checkbox_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 0, checkbox_item)
+
+        id_item = QTableWidgetItem(str(item.get("id", row + 1)))
+        id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 1, id_item)
+
+        name_item = QTableWidgetItem(item.get("name", ""))
+        name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 2, name_item)
+
+        weight_item = QTableWidgetItem(str(item.get("weight", 1)))
+        weight_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 3, weight_item)
+
+        tags_value = item.get("tags", [])
+        tags_text = (
+            ", ".join([str(t).strip() for t in tags_value if str(t).strip()])
+            if isinstance(tags_value, list)
+            else str(tags_value or "")
+        )
+        tags_item = QTableWidgetItem(tags_text)
+        tags_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 4, tags_item)
+
+        count_item = QTableWidgetItem(str(item.get("count", 1)))
+        count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 5, count_item)
+
+    def _finish_refresh(self, request_id: int):
+        if request_id != self._populate_request_id:
+            return
+        self.table.horizontalHeader().resizeSection(0, 80)
+        self.table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.ResizeToContents
+        )
+        for i in range(1, self.table.columnCount()):
+            self.table.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.ResizeMode.Stretch
+            )
+        self.table.setUpdatesEnabled(True)
+        self.table.setSortingEnabled(True)
+        self.table.blockSignals(False)
+
+    def _populate_pool_batch(self, request_id: int, pool: list, start_row: int = 0):
+        if request_id != self._populate_request_id:
+            return
+        end_row = min(start_row + self._batch_size, len(pool))
+        for row in range(start_row, end_row):
+            self._populate_pool_row(row, pool[row])
+        if end_row < len(pool):
+            QTimer.singleShot(
+                0,
+                lambda rid=request_id, data=pool, offset=end_row: self._populate_pool_batch(
+                    rid, data, offset
+                ),
+            )
+            return
+        self._finish_refresh(request_id)
+
     def setup_file_watcher(self):
         """设置文件系统监视器，监控奖池名单文件夹的变化 - 使用共享监视器"""
         # 获取抽奖名单文件夹路径
@@ -203,16 +273,22 @@ class lottery_table(GroupHeaderCardWidget):
 
         if not pool_name:
             self.table.setRowCount(0)
+            self.table.setSortingEnabled(True)
             return
 
-        # 临时阻止信号，避免初始化时触发保存操作
+        self._populate_request_id += 1
+        request_id = self._populate_request_id
         self.table.blockSignals(True)
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
 
         try:
-            # 获取抽奖池数据
             pool = get_pool_list(pool_name)
             if not pool:
                 self.table.setRowCount(0)
+                self.table.setUpdatesEnabled(True)
+                self.table.setSortingEnabled(True)
+                self.table.blockSignals(False)
                 return
 
             try:
@@ -221,67 +297,18 @@ class lottery_table(GroupHeaderCardWidget):
                 draw_type = 0
             self.table.setColumnHidden(5, draw_type != 1)
 
-            # 设置表格行数
             self.table.setRowCount(len(pool))
-
-            # 填充表格数据
-            for row, item in enumerate(pool):
-                # 是否存在勾选框
-                checkbox_item = QTableWidgetItem()
-                checkbox_item.setCheckState(
-                    Qt.CheckState.Checked
-                    if item.get("exist", True)
-                    else Qt.CheckState.Unchecked
-                )
-                checkbox_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 0, checkbox_item)
-
-                # 奖品ID
-                id_item = QTableWidgetItem(str(item.get("id", row + 1)))
-                id_item.setFlags(
-                    id_item.flags() & ~Qt.ItemFlag.ItemIsEditable
-                )  # 学号不可编辑
-                id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 1, id_item)
-
-                # 奖品名称
-                name_item = QTableWidgetItem(item.get("name", ""))
-                name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 2, name_item)
-
-                # 奖品权重
-                weight_item = QTableWidgetItem(str(item.get("weight", 1)))
-                weight_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 3, weight_item)
-
-                tags_value = item.get("tags", [])
-                tags_text = (
-                    ", ".join([str(t).strip() for t in tags_value if str(t).strip()])
-                    if isinstance(tags_value, list)
-                    else str(tags_value or "")
-                )
-                tags_item = QTableWidgetItem(tags_text)
-                tags_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 4, tags_item)
-
-                count_item = QTableWidgetItem(str(item.get("count", 1)))
-                count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 5, count_item)
-
-            # 调整列宽
-            self.table.horizontalHeader().resizeSection(0, 80)
-            self.table.horizontalHeader().setSectionResizeMode(
-                0, QHeaderView.ResizeMode.ResizeToContents
+            QTimer.singleShot(
+                0,
+                lambda rid=request_id, data=pool: self._populate_pool_batch(
+                    rid, data, 0
+                ),
             )
-            for i in range(1, self.table.columnCount()):
-                self.table.horizontalHeader().setSectionResizeMode(
-                    i, QHeaderView.ResizeMode.Stretch
-                )
 
         except Exception as e:
             logger.exception(f"刷新抽奖名单表格数据失败: {str(e)}")
-        finally:
-            # 恢复信号
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
             self.table.blockSignals(False)
 
     def save_table_data(self, row, col):

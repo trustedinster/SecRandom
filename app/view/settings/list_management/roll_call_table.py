@@ -35,6 +35,8 @@ class roll_call_table(GroupHeaderCardWidget):
         self.parent = parent
         self.setTitle(get_content_name_async("roll_call_table", "title"))
         self.setBorderRadius(8)
+        self._populate_request_id = 0
+        self._batch_size = 120
         # 创建班级选择区域
         QTimer.singleShot(APPLY_DELAY, self.create_class_selection)
 
@@ -113,6 +115,74 @@ class roll_call_table(GroupHeaderCardWidget):
         # 连接单元格修改信号
         self.table.cellChanged.connect(self.save_table_data)
         self.layout().addWidget(self.table)
+
+    def _populate_student_row(self, row: int, student: dict):
+        checkbox_item = QTableWidgetItem()
+        checkbox_item.setCheckState(
+            Qt.CheckState.Checked
+            if student.get("exist", True)
+            else Qt.CheckState.Unchecked
+        )
+        checkbox_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 0, checkbox_item)
+
+        id_item = QTableWidgetItem(str(student.get("id", row + 1)))
+        id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 1, id_item)
+
+        name_item = QTableWidgetItem(student.get("name", ""))
+        name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 2, name_item)
+
+        gender_item = QTableWidgetItem(student.get("gender", ""))
+        gender_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 3, gender_item)
+
+        group_item = QTableWidgetItem(student.get("group", ""))
+        group_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 4, group_item)
+
+        tags_value = student.get("tags", [])
+        tags_text = (
+            ", ".join([str(t).strip() for t in tags_value if str(t).strip()])
+            if isinstance(tags_value, list)
+            else str(tags_value or "")
+        )
+        tags_item = QTableWidgetItem(tags_text)
+        tags_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 5, tags_item)
+
+    def _finish_refresh(self, request_id: int):
+        if request_id != self._populate_request_id:
+            return
+        self.table.horizontalHeader().resizeSection(0, 80)
+        self.table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.ResizeToContents
+        )
+        for i in range(1, self.table.columnCount()):
+            self.table.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.ResizeMode.Stretch
+            )
+        self.table.setUpdatesEnabled(True)
+        self.table.setSortingEnabled(True)
+        self.table.blockSignals(False)
+
+    def _populate_students_batch(self, request_id: int, students: list, start_row: int = 0):
+        if request_id != self._populate_request_id:
+            return
+        end_row = min(start_row + self._batch_size, len(students))
+        for row in range(start_row, end_row):
+            self._populate_student_row(row, students[row])
+        if end_row < len(students):
+            QTimer.singleShot(
+                0,
+                lambda rid=request_id, data=students, offset=end_row: self._populate_students_batch(
+                    rid, data, offset
+                ),
+            )
+            return
+        self._finish_refresh(request_id)
 
     def setup_file_watcher(self):
         """设置文件系统监视器，监控班级名单文件夹的变化 - 使用共享监视器"""
@@ -197,80 +267,36 @@ class roll_call_table(GroupHeaderCardWidget):
 
         if not class_name:
             self.table.setRowCount(0)
+            self.table.setSortingEnabled(True)
             return
 
-        # 临时阻止信号，避免初始化时触发保存操作
+        self._populate_request_id += 1
+        request_id = self._populate_request_id
         self.table.blockSignals(True)
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
 
         try:
-            # 获取学生数据
             students = get_student_list(class_name)
             if not students:
                 self.table.setRowCount(0)
+                self.table.setUpdatesEnabled(True)
+                self.table.setSortingEnabled(True)
+                self.table.blockSignals(False)
                 return
 
-            # 设置表格行数
             self.table.setRowCount(len(students))
-
-            # 填充表格数据
-            for row, student in enumerate(students):
-                # 是否在班级勾选框
-                checkbox_item = QTableWidgetItem()
-                checkbox_item.setCheckState(
-                    Qt.CheckState.Checked
-                    if student.get("exist", True)
-                    else Qt.CheckState.Unchecked
-                )
-                checkbox_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 0, checkbox_item)
-
-                # 学号
-                id_item = QTableWidgetItem(str(student.get("id", row + 1)))
-                id_item.setFlags(
-                    id_item.flags() & ~Qt.ItemFlag.ItemIsEditable
-                )  # 学号不可编辑
-                id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 1, id_item)
-
-                # 姓名
-                name_item = QTableWidgetItem(student.get("name", ""))
-                name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 2, name_item)
-
-                # 性别
-                gender_item = QTableWidgetItem(student.get("gender", ""))
-                gender_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 3, gender_item)
-
-                # 小组
-                group_item = QTableWidgetItem(student.get("group", ""))
-                group_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 4, group_item)
-
-                tags_value = student.get("tags", [])
-                tags_text = (
-                    ", ".join([str(t).strip() for t in tags_value if str(t).strip()])
-                    if isinstance(tags_value, list)
-                    else str(tags_value or "")
-                )
-                tags_item = QTableWidgetItem(tags_text)
-                tags_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table.setItem(row, 5, tags_item)
-
-            # 调整列宽
-            self.table.horizontalHeader().resizeSection(0, 80)
-            self.table.horizontalHeader().setSectionResizeMode(
-                0, QHeaderView.ResizeMode.ResizeToContents
+            QTimer.singleShot(
+                0,
+                lambda rid=request_id, data=students: self._populate_students_batch(
+                    rid, data, 0
+                ),
             )
-            for i in range(1, self.table.columnCount()):
-                self.table.horizontalHeader().setSectionResizeMode(
-                    i, QHeaderView.ResizeMode.Stretch
-                )
 
         except Exception as e:
             logger.exception(f"刷新表格数据失败: {str(e)}")
-        finally:
-            # 恢复信号
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
             self.table.blockSignals(False)
 
     def save_table_data(self, row, col):
