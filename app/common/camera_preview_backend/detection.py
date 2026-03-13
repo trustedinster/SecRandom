@@ -599,10 +599,7 @@ def detect_faces_onnx(frame_bgr, *, detector_state) -> list[Rect]:
         h, w = int(frame_size[0]), int(frame_size[1])
         if not rects:
             return []
-        if (
-            abs(float(scale_x) - 1.0) < 1e-6
-            and abs(float(scale_y) - 1.0) < 1e-6
-        ):
+        if abs(float(scale_x) - 1.0) < 1e-6 and abs(float(scale_y) - 1.0) < 1e-6:
             return list(rects)
         scaled: list[Rect] = []
         for x, y, bw, bh in rects:

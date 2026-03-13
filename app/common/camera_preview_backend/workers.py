@@ -658,9 +658,7 @@ class FaceDetectorWorker(QObject):
             return
         finally:
             cost_s = max(0.0, time.perf_counter() - started_at)
-            self._recent_detect_cost_s = (
-                self._recent_detect_cost_s * 0.7 + cost_s * 0.3
-            )
+            self._recent_detect_cost_s = self._recent_detect_cost_s * 0.7 + cost_s * 0.3
             if self._recent_detect_cost_s > self._detect_interval_s * 1.05:
                 desired = min(
                     self._max_interval_s,
