@@ -16,13 +16,10 @@ from qfluentwidgets import (
 
 from app.tools.variable import (
     MINIMUM_WINDOW_SIZE,
-    APP_INIT_DELAY,
     RESIZE_TIMER_DELAY_MS,
     MAXIMIZE_RESTORE_DELAY_MS,
     SETTINGS_WINDOW_DEFAULT_WIDTH,
     SETTINGS_WINDOW_DEFAULT_HEIGHT,
-    SETTINGS_WARMUP_DELAY_MS,
-    SETTINGS_DEFAULT_PAGE_DELAY_MS,
 )
 from app.tools.path_utils import get_data_path
 from app.tools.personalised import get_theme_icon
@@ -63,8 +60,7 @@ class SettingsWindow(FluentWindow):
         self._setup_url_handler()
         self._position_window(snapshot=self._startup_settings_snapshot)
         self._setup_splash_screen()
-
-        QTimer.singleShot(APP_INIT_DELAY, lambda: (self.createSubInterface()))
+        self.createSubInterface()
 
     # ==================================================
     # 初始化方法
@@ -298,7 +294,10 @@ class SettingsWindow(FluentWindow):
 
         self.splashScreen = SplashScreen(self.windowIcon(), self)
         self.splashScreen.setIconSize(QSize(256, 256))
-        self.show()
+        if getattr(self, "_show_maximized_on_init", False):
+            self.showMaximized()
+        else:
+            self.show()
 
     # ==================================================
     # 属性访问器
@@ -367,8 +366,9 @@ class SettingsWindow(FluentWindow):
                 )
             self.resize(pre_maximized_width, pre_maximized_height)
             self._center_window()
-            QTimer.singleShot(APP_INIT_DELAY, self.showMaximized)
+            self._show_maximized_on_init = True
         else:
+            self._show_maximized_on_init = False
             setting_window_width = settings_section.get("width")
             if setting_window_width is None:
                 setting_window_width = readme_settings_async("settings", "width")
@@ -546,6 +546,7 @@ class SettingsWindow(FluentWindow):
             nav_item = getattr(self, item_attr, None)
 
             if interface and nav_item:
+                self._ensure_deferred_page_loaded(interface_attr)
                 logger.debug(f"切换到设置页面: {page_name}")
                 self.switchTo(interface)
                 trace.log("shell_visible")
@@ -857,23 +858,9 @@ class SettingsWindow(FluentWindow):
     def _setup_background_warmup(self):
         """设置后台预热"""
         try:
-            QTimer.singleShot(
-                SETTINGS_WARMUP_DELAY_MS, lambda: self._background_warmup_non_pivot()
-            )
-        except Exception as e:
-            logger.exception("Error during settings warmup: {}", e)
-
-        try:
             self.stackedWidget.currentChanged.connect(self._on_stacked_widget_changed)
         except Exception as e:
             logger.exception("Error creating deferred page: {}", e)
-
-        try:
-            QTimer.singleShot(
-                SETTINGS_WARMUP_DELAY_MS, lambda: self._background_warmup_pages()
-            )
-        except Exception as e:
-            logger.exception("Error scheduling background warmup pages: {}", e)
 
     def initNavigation(self):
         """初始化导航系统
@@ -897,9 +884,6 @@ class SettingsWindow(FluentWindow):
 
         self.splashScreen.finish()
         self.showMainPageRequested.connect(self._handle_main_page_requested)
-
-        if hasattr(self, "basicSettingsInterface") and self.basicSettingsInterface:
-            QTimer.singleShot(SETTINGS_DEFAULT_PAGE_DELAY_MS, self._load_default_page)
 
     def _get_nav_configs(self):
         """获取导航配置列表
@@ -1048,8 +1032,7 @@ class SettingsWindow(FluentWindow):
     def _load_default_page(self):
         """加载默认页面（基础设置页面）"""
         try:
-            if "basicSettingsInterface" in getattr(self, "_deferred_factories", {}):
-                self._create_deferred_page("basicSettingsInterface")
+            self._ensure_deferred_page_loaded("basicSettingsInterface")
 
             if hasattr(self, "basicSettingsInterface") and self.basicSettingsInterface:
                 self.switchTo(self.basicSettingsInterface)
@@ -1249,6 +1232,12 @@ class SettingsWindow(FluentWindow):
                 return
         except Exception as e:
             logger.exception(f"_create_deferred_page 失败: {e}")
+
+    def _ensure_deferred_page_loaded(self, name: str) -> None:
+        if name in getattr(self, "_created_pages", {}):
+            return
+        if name in getattr(self, "_deferred_factories", {}):
+            self._create_deferred_page(name)
 
     def _find_container_by_name(self, name: str):
         """根据名称查找容器

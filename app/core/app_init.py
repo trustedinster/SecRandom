@@ -37,39 +37,59 @@ class AppInitializer:
 
     def _schedule_initialization_tasks(self) -> None:
         """调度所有初始化任务"""
-        self._apply_font_settings()
-        self._load_theme()
-        self._load_theme_color()
-        self._clear_restart_record()
+        guide_completed = readme_settings_async("basic_settings", "guide_completed")
+        init_delay = 0 if not guide_completed else APP_INIT_DELAY
+
+        if init_delay > 0:
+            QTimer.singleShot(init_delay, self._run_startup_phase)
+        else:
+            self._run_startup_phase()
+
         self._register_post_show_tasks()
-        self._create_main_window()
 
     def _register_post_show_tasks(self) -> None:
         self.window_manager.register_after_first_window_shown(
-            lambda: QTimer.singleShot(
-                APP_INIT_DELAY,
-                lambda: safe_execute(
-                    lambda: check_for_updates_on_startup(None),
-                    error_message="检查更新失败",
-                ),
-            )
-        )
-        self.window_manager.register_after_first_window_shown(
-            lambda: QTimer.singleShot(
-                APP_INIT_DELAY + 1500,
-                lambda: safe_execute(
-                    self._do_warmup_face_detector_devices,
-                    error_message="预热摄像头设备失败",
-                ),
-            )
+            self._run_post_first_window_tasks
         )
 
-    def _load_theme(self) -> None:
-        """加载主题设置"""
-        QTimer.singleShot(
-            APP_INIT_DELAY,
-            lambda: safe_execute(self._apply_theme, error_message="加载主题失败"),
+    def _run_startup_phase(self) -> None:
+        """执行首窗显示前的关键初始化任务。"""
+        startup_steps = (
+            (apply_font_settings, "应用字体设置失败"),
+            (self._apply_theme, "加载主题失败"),
+            (self._apply_theme_color, "加载主题颜色失败"),
+            (self._clear_restart_record_now, "清除重启记录失败"),
+            (self.window_manager.create_main_window, "创建主窗口失败"),
         )
+
+        for step, error_message in startup_steps:
+            safe_execute(step, error_message=error_message)
+
+    def _run_post_first_window_tasks(self) -> None:
+        """在首个窗口显示后启动非关键任务。"""
+        safe_execute(
+            self._run_main_window_post_show_tasks,
+            error_message="启动主窗口延后任务失败",
+        )
+        safe_execute(
+            lambda: check_for_updates_on_startup(None),
+            error_message="检查更新失败",
+        )
+        QTimer.singleShot(
+            1500,
+            lambda: safe_execute(
+                self._do_warmup_face_detector_devices,
+                error_message="预热摄像头设备失败",
+            ),
+        )
+
+    def _run_main_window_post_show_tasks(self) -> None:
+        main_window = getattr(self.window_manager, "main_window", None)
+        if main_window is None:
+            return
+
+        if hasattr(main_window, "schedule_post_startup_tasks"):
+            main_window.schedule_post_startup_tasks()
 
     def _apply_theme(self) -> None:
         """应用主题设置"""
@@ -84,49 +104,15 @@ class AppInitializer:
             setTheme(Theme.LIGHT)
         ensure_application_font_point_size()
 
-    def _load_theme_color(self) -> None:
+    def _apply_theme_color(self) -> None:
         """加载主题颜色"""
         from qfluentwidgets import setThemeColor
 
-        QTimer.singleShot(
-            APP_INIT_DELAY,
-            lambda: safe_execute(
-                lambda: setThemeColor(
-                    readme_settings_async("basic_settings", "theme_color")
-                ),
-                error_message="加载主题颜色失败",
-            ),
-        )
+        setThemeColor(readme_settings_async("basic_settings", "theme_color"))
 
-    def _clear_restart_record(self) -> None:
+    def _clear_restart_record_now(self) -> None:
         """清除重启记录"""
-        QTimer.singleShot(
-            APP_INIT_DELAY,
-            lambda: safe_execute(
-                lambda: remove_record("", "", "", "restart"),
-                error_message="清除重启记录失败",
-            ),
-        )
-
-    def _create_main_window(self) -> None:
-        """创建主窗口实例（但不自动显示）"""
-        guide_completed = readme_settings_async("basic_settings", "guide_completed")
-        init_delay = 0 if not guide_completed else APP_INIT_DELAY
-        QTimer.singleShot(
-            init_delay,
-            lambda: safe_execute(
-                self.window_manager.create_main_window, error_message="创建主窗口失败"
-            ),
-        )
-
-    def _apply_font_settings(self) -> None:
-        """应用字体设置"""
-        guide_completed = readme_settings_async("basic_settings", "guide_completed")
-        init_delay = 0 if not guide_completed else APP_INIT_DELAY
-        QTimer.singleShot(
-            init_delay,
-            lambda: safe_execute(apply_font_settings, error_message="应用字体设置失败"),
-        )
+        remove_record("", "", "", "restart")
 
     def _do_warmup_face_detector_devices(self) -> None:
         from app.common.camera_preview_backend import warmup_camera_devices_async

@@ -2,7 +2,6 @@ import os
 import time
 from typing import Optional, Callable, TYPE_CHECKING
 from loguru import logger
-from PySide6.QtCore import QTimer
 from app.tools.settings_access import readme_settings_async
 from app.core.utils import safe_execute, safe_close_window, activate_window
 
@@ -43,9 +42,9 @@ class WindowManager:
 
         if self._after_first_window_shown_ran:
             try:
-                QTimer.singleShot(0, callback)
-            except Exception:
-                pass
+                callback()
+            except Exception as e:
+                logger.debug("执行首次窗口显示回调失败（已忽略）: {}", e)
             return
 
         self._after_first_window_shown_callbacks.append(callback)
@@ -177,19 +176,16 @@ class WindowManager:
         )
         is_maximized = readme_settings_async("window", "is_maximized")
         if show_startup_window:
+            startup_page_name = None
+            if hasattr(self.main_window, "_get_default_startup_page_name"):
+                startup_page_name = self.main_window._get_default_startup_page_name()
+            self._ensure_main_window_page(startup_page_name)
             if is_maximized:
-                from app.tools.variable import APP_INIT_DELAY
-
-                def show_main_window():
-                    try:
-                        self.main_window.showMaximized()
-                    finally:
-                        self._schedule_main_window_shown_tasks()
-
-                QTimer.singleShot(APP_INIT_DELAY, show_main_window)
+                self.main_window.showMaximized()
+                self._handle_main_window_shown()
             else:
                 self.main_window.show()
-                self._schedule_main_window_shown_tasks()
+                self._handle_main_window_shown()
 
         startup_display_float = readme_settings_async(
             "floating_window_management", "startup_display_floating_window"
@@ -200,13 +196,7 @@ class WindowManager:
             if self.float_window is not None and not self.float_window.isVisible():
                 self.float_window.show()
                 if not show_startup_window:
-                    self._schedule_main_window_shown_tasks()
-
-    def _schedule_main_window_shown_tasks(self) -> None:
-        try:
-            QTimer.singleShot(0, self._handle_main_window_shown)
-        except Exception:
-            pass
+                    self._handle_main_window_shown()
 
     def _handle_main_window_shown(self) -> None:
         global pending_uiaccess_restart_after_show
@@ -265,7 +255,7 @@ class WindowManager:
 
         for callback in callbacks:
             try:
-                QTimer.singleShot(0, callback)
+                callback()
             except Exception as e:
                 logger.debug("执行首次窗口显示回调失败（已忽略）: {}", e)
 

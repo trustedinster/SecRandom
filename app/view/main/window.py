@@ -11,7 +11,6 @@ from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
 from app.common.shortcut import ShortcutManager
 from app.tools.variable import (
     MINIMUM_WINDOW_SIZE,
-    APP_INIT_DELAY,
     PRE_CLASS_RESET_INTERVAL_MS,
     RESIZE_TIMER_DELAY_MS,
     MAXIMIZE_RESTORE_DELAY_MS,
@@ -74,8 +73,7 @@ class MainWindow(FluentWindow):
         self._setup_url_handler()
         self._setup_tray()
         self._setup_float_window(float_window)
-
-        QTimer.singleShot(APP_INIT_DELAY, lambda: (self.createSubInterface()))
+        self.createSubInterface()
 
     def _initialize_variables(self):
         """初始化实例变量"""
@@ -90,6 +88,7 @@ class MainWindow(FluentWindow):
         self._page_factories = {}
         self._registered_pages = set()
         self._has_been_shown = False
+        self._post_startup_tasks_scheduled = False
         self.pre_class_reset_performed = False
 
     def _setup_timers(self):
@@ -103,12 +102,19 @@ class MainWindow(FluentWindow):
         self.pre_class_reset_timer = QTimer(self)
         self.pre_class_reset_timer.timeout.connect(self._check_pre_class_reset)
 
-        QTimer.singleShot(1000, self._init_pre_class_reset)
-
         self._auto_backup_running = False
         self.backup_timer = QTimer(self)
         self.backup_timer.timeout.connect(self._check_and_run_auto_backup)
-        self.backup_timer.start(60 * 60 * 1000)
+
+    def schedule_post_startup_tasks(self):
+        """在首个窗口可见后启动非关键后台任务。"""
+        if self._post_startup_tasks_scheduled:
+            return
+
+        self._post_startup_tasks_scheduled = True
+        self._init_pre_class_reset()
+        if not self.backup_timer.isActive():
+            self.backup_timer.start(60 * 60 * 1000)
         QTimer.singleShot(5000, self._check_and_run_auto_backup)
 
     def _check_and_run_auto_backup(self):
@@ -538,7 +544,6 @@ class MainWindow(FluentWindow):
         except Exception:
             pass
         self._sub_interface_created = True
-        self._ensure_main_page_loaded("roll_call_page")
 
     def _register_main_page_shell(self, page_name: str):
         shell = QWidget(self)
@@ -601,6 +606,18 @@ class MainWindow(FluentWindow):
         if not load:
             return None
         return self._ensure_main_page_loaded(page_name)
+
+    def _get_default_startup_page_name(self):
+        preferred_pages = (
+            "roll_call_page",
+            "lottery_page",
+            "camera_preview_page",
+            "history_page",
+        )
+        for page_name in preferred_pages:
+            if page_name in self._registered_pages:
+                return page_name
+        return None
 
     def _show_and_switch_to_page(self, page_name: str):
         shell = self._get_main_page_shell(page_name)
