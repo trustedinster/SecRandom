@@ -260,16 +260,24 @@ class RollCallUtils:
                         break
 
             selected_candidate = candidates[random_index]
+            selected_candidate_dict = dict(selected_candidate)
+            if (
+                "next_weight" not in selected_candidate_dict
+                and selected_candidate_dict.get("weight") is not None
+            ):
+                selected_candidate_dict["next_weight"] = selected_candidate_dict.get(
+                    "weight"
+                )
 
             # Extract basic info tuple
             info_tuple = (
-                selected_candidate.get("id", ""),
-                selected_candidate.get("name", ""),
-                selected_candidate.get("exist", True),
+                selected_candidate_dict.get("id", ""),
+                selected_candidate_dict.get("name", ""),
+                selected_candidate_dict.get("exist", True),
             )
 
             selected_candidates.append(info_tuple)
-            selected_candidates_dict.append(selected_candidate)
+            selected_candidates_dict.append(selected_candidate_dict)
 
             candidates.pop(random_index)
             current_weights.pop(random_index)

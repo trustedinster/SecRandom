@@ -1082,6 +1082,15 @@ def draw_random(widget):
         students = widget.manager.get_random_students(display_count)
         selected_students = []
         selected_students_dict = []
+        weight_by_identity = {}
+        for student, weight in zip(
+            widget.manager.students or [],
+            widget.manager.weights or [],
+            strict=False,
+        ):
+            if len(student) < 2:
+                continue
+            weight_by_identity[(student[0], student[1])] = weight
         for s in students:
             exist = s[4] if len(s) > 4 else True
             selected_students.append((s[0], s[1], exist))
@@ -1095,6 +1104,7 @@ def draw_random(widget):
                     "name": s[1],
                     "exist": exist,
                     "tags": (widget.manager.tags_by_id or {}).get(sid, []),
+                    "next_weight": weight_by_identity.get((s[0], s[1])),
                 }
             )
 
