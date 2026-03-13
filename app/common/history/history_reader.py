@@ -7,7 +7,6 @@ from typing import Dict, List, Any, Optional, Tuple
 from loguru import logger
 
 from app.tools.path_utils import get_data_path, open_file, file_exists
-from app.common.data.list import get_gender_list, get_group_list
 
 
 # ==================================================
@@ -44,6 +43,15 @@ def get_roll_call_student_list(
     except Exception as e:
         logger.error(f"获取班级学生列表失败: {e}")
         return []
+
+
+def check_roll_call_students_have_gender_or_group(
+    cleaned_students: List[Tuple[str, str, str, str]],
+) -> Tuple[bool, bool]:
+    """根据已加载的学生快照判断是否包含性别和小组信息"""
+    has_gender = any(str(gender or "").strip() for _, _, gender, _ in cleaned_students)
+    has_group = any(str(group or "").strip() for _, _, _, group in cleaned_students)
+    return has_gender, has_group
 
 
 def get_roll_call_history_data(
@@ -325,11 +333,8 @@ def check_class_has_gender_or_group(
     Returns:
         Tuple[bool, bool]: (has_gender, has_group)
     """
-    gender_list = get_gender_list(class_name)
-    group_list = get_group_list(class_name)
-    has_gender = bool(gender_list) and gender_list != [""]
-    has_group = bool(group_list) and group_list != [""]
-    return has_gender, has_group
+    cleaned_students = get_roll_call_student_list(class_name)
+    return check_roll_call_students_have_gender_or_group(cleaned_students)
 
 
 # ==================================================

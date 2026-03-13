@@ -3,7 +3,7 @@ from typing import Any
 
 from app.Language.obtain_language import get_content_name_async
 from app.common.history.history_reader import (
-    check_class_has_gender_or_group,
+    check_roll_call_students_have_gender_or_group,
     filter_roll_call_history_by_subject,
     get_lottery_history_data,
     get_lottery_pool_list,
@@ -79,7 +79,9 @@ def build_roll_call_history_payload(
     all_names = [name for _, name, _, _ in cleaned_students if name]
     base_history_data = get_roll_call_history_data(class_name)
     available_subjects = _collect_roll_call_subjects(base_history_data)
-    has_gender, has_group = check_class_has_gender_or_group(class_name)
+    has_gender, has_group = check_roll_call_students_have_gender_or_group(
+        cleaned_students
+    )
     reverse_order = bool(sort_order_desc)
 
     if mode_index == 0:
@@ -91,7 +93,12 @@ def build_roll_call_history_payload(
         students_data = get_roll_call_students_data(
             cleaned_students, history_data, subject_name
         )
-        students_weight_data = calculate_weight(students_data, class_name, subject_name)
+        students_weight_data = calculate_weight(
+            students_data,
+            class_name,
+            subject_name,
+            history_data=history_data,
+        )
         format_weight, _, _ = format_weight_for_display(
             students_weight_data, "next_weight"
         )
