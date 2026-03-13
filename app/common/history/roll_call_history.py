@@ -62,17 +62,64 @@ def _get_subject_filter() -> Tuple[Optional[Dict], str]:
     return current_class_info, subject_filter
 
 
+def _extract_student_weight(student: Dict[str, Any]) -> Any:
+    """从已选学生载荷中提取可直接复用的权重值"""
+    for key in ("next_weight", "weight"):
+        value = student.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _build_student_weight_map(
+    class_name: str, selected_students: List[Dict[str, Any]], subject_filter: str
+) -> Dict[str, Any]:
+    """构建选中学生的权重映射，缺失时才回退到全量计算"""
+    weight_map: Dict[str, Any] = {}
+    missing_names: set[str] = set()
+
+    for student in selected_students:
+        student_name = str(student.get("name", "") or "")
+        if not student_name:
+            continue
+
+        current_weight = _extract_student_weight(student)
+        if current_weight is None:
+            missing_names.add(student_name)
+            continue
+        weight_map[student_name] = current_weight
+
+    if not missing_names:
+        return weight_map
+
+    students_dict_list = get_student_list(class_name)
+    students_with_weight = calculate_weight(
+        students_dict_list, class_name, subject_filter
+    )
+    for student in students_with_weight:
+        student_name = str(student.get("name", "") or "")
+        if student_name in missing_names and student_name not in weight_map:
+            weight_map[student_name] = student.get("next_weight", 0)
+
+    return weight_map
+
+
 def _update_student_history(
     history_data: Dict[str, Any],
     selected_students: List[Dict[str, Any]],
-    students_with_weight: List[Dict[str, Any]],
+    student_weight_map: Dict[str, Any],
     current_time: str,
     current_class_info: Optional[Dict],
     group_filter: Optional[str],
     gender_filter: Optional[str],
 ):
     """更新学生维度的历史记录"""
-    selected_names = [s.get("name", "") for s in selected_students]
+    selected_names = {
+        str(student.get("name", "") or "")
+        for student in selected_students
+        if student.get("name")
+    }
+    selected_count = len(selected_students)
 
     # 更新被选中学生的历史记录
     for student in selected_students:
@@ -95,17 +142,12 @@ def _update_student_history(
         student_data["last_drawn_time"] = current_time
         student_data["rounds_missed"] = 0
 
-        # 获取权重
-        current_student_weight = None
-        for sw in students_with_weight:
-            if sw.get("name") == student_name:
-                current_student_weight = sw.get("next_weight", 0)
-                break
+        current_student_weight = student_weight_map.get(student_name)
 
         history_entry = {
             "draw_method": 1,
             "draw_time": current_time,
-            "draw_people_numbers": len(selected_students),
+            "draw_people_numbers": selected_count,
             "draw_group": group_filter,
             "draw_gender": gender_filter,
             "weight": current_student_weight,
@@ -227,17 +269,15 @@ def save_roll_call_history(
         # 获取课程信息
         current_class_info, subject_filter = _get_subject_filter()
 
-        # 计算权重
-        students_dict_list = get_student_list(class_name)
-        students_with_weight = calculate_weight(
-            students_dict_list, class_name, subject_filter
+        student_weight_map = _build_student_weight_map(
+            class_name, selected_students, subject_filter
         )
 
         # 更新学生历史
         _update_student_history(
             history_data,
             selected_students,
-            students_with_weight,
+            student_weight_map,
             current_time,
             current_class_info,
             group_filter,

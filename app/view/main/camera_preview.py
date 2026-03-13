@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from typing import Optional
 
 from PySide6.QtWidgets import *
@@ -79,6 +80,10 @@ class CameraPreview(QWidget):
         self._current_pick_rect: Optional[tuple[int, int, int, int]] = None
         self._commit_pending: bool = False
         self._commit_index: int = 0
+        self._pending_render_frame = None
+        self._render_inflight: bool = False
+        self._render_interval_s: float = 1.0 / 30.0
+        self._last_render_at: float = 0.0
 
         self._capture_thread: Optional[QThread] = None
         self._capture_worker: Optional[OpenCVCaptureWorker] = None
@@ -104,6 +109,9 @@ class CameraPreview(QWidget):
         self._final_view_timer = QTimer(self)
         self._final_view_timer.setSingleShot(True)
         self._final_view_timer.timeout.connect(self._stop_detection_and_reset)
+        self._render_timer = QTimer(self)
+        self._render_timer.setSingleShot(True)
+        self._render_timer.timeout.connect(self._render_latest_frame)
 
         self._init_ui()
 
@@ -317,6 +325,8 @@ class CameraPreview(QWidget):
         self._no_face_timer.stop()
         self._picking_timer.stop()
         self._final_view_timer.stop()
+        self._render_timer.stop()
+        self._pending_render_frame = None
 
         try:
             self._stop_detection_and_reset()
@@ -913,7 +923,7 @@ class CameraPreview(QWidget):
         self._show_message("no_face_detected")
 
     def _on_frame_received(self, frame_bgr) -> None:
-        """在 UI 中渲染新帧。"""
+        """接收新帧并触发限频渲染。"""
         self._latest_frame = frame_bgr
         try:
             h = int(frame_bgr.shape[0])
@@ -922,41 +932,92 @@ class CameraPreview(QWidget):
                 self._capture_resolution = (w, h)
         except Exception:
             pass
+        self._pending_render_frame = frame_bgr
         try:
             if self.preview_stack.currentWidget() is not self.preview_label:
                 return
         except Exception:
-            pass
-        try:
-            qimage = bgr_frame_to_qimage(frame_bgr)
-        except Exception as exc:
-            logger.exception("帧转换失败: {}", exc)
             return
-        self._latest_qimage = qimage
+        self._schedule_preview_render(force=False)
 
-        pixmap = QPixmap.fromImage(qimage)
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    def _schedule_preview_render(self, force: bool = False) -> None:
+        if self._render_inflight:
+            return
+        timer = self._render_timer
+        delay_ms = 0
+        if not force and self._last_render_at > 0.0:
+            elapsed = time.monotonic() - self._last_render_at
+            wait_s = self._render_interval_s - elapsed
+            if wait_s > 0:
+                delay_ms = int(wait_s * 1000.0)
+        if timer.isActive():
+            try:
+                remaining = int(timer.remainingTime())
+            except Exception:
+                remaining = delay_ms
+            if remaining <= delay_ms:
+                return
+            timer.stop()
+        timer.start(max(0, delay_ms))
 
-        if self._detection_active and self._overlay_circles:
-            for circle, color in zip(
-                self._overlay_circles, self._overlay_colors, strict=True
-            ):
-                pen = QPen(color, 6)
-                painter.setPen(pen)
-                cx, cy, r = circle
-                painter.drawEllipse(QPointF(float(cx), float(cy)), float(r), float(r))
+    def _render_latest_frame(self) -> None:
+        if self._render_inflight:
+            return
+        try:
+            if self.preview_stack.currentWidget() is not self.preview_label:
+                return
+        except Exception:
+            return
 
-        painter.end()
+        frame_bgr = self._pending_render_frame
+        self._pending_render_frame = None
+        if frame_bgr is None:
+            frame_bgr = self._latest_frame
+        if frame_bgr is None:
+            return
 
-        target = self.preview_label.size()
-        if target.width() > 0 and target.height() > 0:
-            pixmap = pixmap.scaled(
-                target,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
+        self._render_inflight = True
+        try:
+            try:
+                qimage = bgr_frame_to_qimage(frame_bgr)
+            except Exception as exc:
+                logger.exception("帧转换失败: {}", exc)
+                return
+            self._latest_qimage = qimage
+
+            pixmap = QPixmap.fromImage(qimage)
+            painter = QPainter(pixmap)
+            painter.setRenderHint(
+                QPainter.RenderHint.Antialiasing,
+                bool(self._detection_active and self._overlay_circles),
             )
-        self.preview_label.setPixmap(pixmap)
+
+            if self._detection_active and self._overlay_circles:
+                for circle, color in zip(
+                    self._overlay_circles, self._overlay_colors, strict=True
+                ):
+                    pen = QPen(color, 6)
+                    painter.setPen(pen)
+                    cx, cy, r = circle
+                    painter.drawEllipse(
+                        QPointF(float(cx), float(cy)), float(r), float(r)
+                    )
+
+            painter.end()
+
+            target = self.preview_label.size()
+            if target.width() > 0 and target.height() > 0:
+                pixmap = pixmap.scaled(
+                    target,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.FastTransformation,
+                )
+            self.preview_label.setPixmap(pixmap)
+            self._last_render_at = time.monotonic()
+        finally:
+            self._render_inflight = False
+        if self._pending_render_frame is not None:
+            self._schedule_preview_render(force=False)
 
     def _on_capture_resolution_applied(self, resolution: object) -> None:
         try:
@@ -972,7 +1033,8 @@ class CameraPreview(QWidget):
 
         try:
             if self._latest_frame is not None:
-                self._on_frame_received(self._latest_frame)
+                self._pending_render_frame = self._latest_frame
+                self._schedule_preview_render(force=True)
         except Exception:
             pass
 
@@ -1462,6 +1524,8 @@ class CameraPreview(QWidget):
         self._no_face_timer.stop()
         self._picking_timer.stop()
         self._final_view_timer.stop()
+        self._render_timer.stop()
+        self._pending_render_frame = None
         self.detector_enabled_changed.emit(False)
         if self._capture_worker is not None:
             if self._capture_thread is not None and self._capture_thread.isRunning():

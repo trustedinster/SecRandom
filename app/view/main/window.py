@@ -2,7 +2,7 @@
 # 导入库
 # ==================================================
 from loguru import logger
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QTimer, QEvent, Signal, QThreadPool, QRunnable, Qt
 from qfluentwidgets import FluentWindow, NavigationItemPosition
@@ -11,7 +11,6 @@ from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
 from app.common.shortcut import ShortcutManager
 from app.tools.variable import (
     MINIMUM_WINDOW_SIZE,
-    APP_INIT_DELAY,
     PRE_CLASS_RESET_INTERVAL_MS,
     RESIZE_TIMER_DELAY_MS,
     MAXIMIZE_RESTORE_DELAY_MS,
@@ -74,8 +73,7 @@ class MainWindow(FluentWindow):
         self._setup_url_handler()
         self._setup_tray()
         self._setup_float_window(float_window)
-
-        QTimer.singleShot(APP_INIT_DELAY, lambda: (self.createSubInterface()))
+        self.createSubInterface()
 
     def _initialize_variables(self):
         """初始化实例变量"""
@@ -84,7 +82,13 @@ class MainWindow(FluentWindow):
         self.camera_preview_page = None
         self.history_page = None
         self.settingsInterface = None
+        self._sub_interface_created = False
+        self._page_shells = {}
+        self._page_instances = {}
+        self._page_factories = {}
+        self._registered_pages = set()
         self._has_been_shown = False
+        self._post_startup_tasks_scheduled = False
         self.pre_class_reset_performed = False
 
     def _setup_timers(self):
@@ -98,12 +102,19 @@ class MainWindow(FluentWindow):
         self.pre_class_reset_timer = QTimer(self)
         self.pre_class_reset_timer.timeout.connect(self._check_pre_class_reset)
 
-        QTimer.singleShot(1000, self._init_pre_class_reset)
-
         self._auto_backup_running = False
         self.backup_timer = QTimer(self)
         self.backup_timer.timeout.connect(self._check_and_run_auto_backup)
-        self.backup_timer.start(60 * 60 * 1000)
+
+    def schedule_post_startup_tasks(self):
+        """在首个窗口可见后启动非关键后台任务。"""
+        if self._post_startup_tasks_scheduled:
+            return
+
+        self._post_startup_tasks_scheduled = True
+        self._init_pre_class_reset()
+        if not self.backup_timer.isActive():
+            self.backup_timer.start(60 * 60 * 1000)
         QTimer.singleShot(5000, self._check_and_run_auto_backup)
 
     def _check_and_run_auto_backup(self):
@@ -260,14 +271,14 @@ class MainWindow(FluentWindow):
         self.showMainPageRequested.connect(self._handle_main_page_requested)
         self.showTrayActionRequested.connect(self._handle_tray_action_requested)
         self.float_window.rollCallRequested.connect(
-            lambda: self._show_and_switch_to(self.roll_call_page)
+            lambda: self._show_and_switch_to_page("roll_call_page")
         )
         self.float_window.quickDrawRequested.connect(self._handle_quick_draw)
         self.float_window.lotteryRequested.connect(
-            lambda: self._show_and_switch_to(self.lottery_page)
+            lambda: self._show_and_switch_to_page("lottery_page")
         )
         self.float_window.faceDrawRequested.connect(
-            lambda: self._show_and_switch_to(self.camera_preview_page)
+            lambda: self._show_and_switch_to_page("camera_preview_page")
         )
         self.float_window.timerRequested.connect(
             lambda: create_countdown_timer_window()
@@ -509,30 +520,129 @@ class MainWindow(FluentWindow):
     def createSubInterface(self):
         """创建子界面
         搭建子界面导航系统"""
-        self.roll_call_page = roll_call_page(self)
-        self.roll_call_page.setObjectName("roll_call_page")
+        if self._sub_interface_created:
+            return
 
-        self.lottery_page = lottery_page(self)
-        self.lottery_page.setObjectName("lottery_page")
+        self._page_factories = {
+            "roll_call_page": lambda parent: roll_call_page(parent),
+            "lottery_page": lambda parent: lottery_page(parent),
+            "camera_preview_page": lambda parent: CameraPreview(parent),
+            "history_page": lambda parent: history_page(parent),
+        }
 
-        self.camera_preview_page = CameraPreview(self)
-        self.camera_preview_page.setObjectName("camera_preview_page")
-
-        self.history_page = history_page(self)
-        self.history_page.setObjectName("history_page")
+        for page_name in self._page_factories:
+            self._register_main_page_shell(page_name)
 
         self.settingsInterface = QWidget(self)
         self.settingsInterface.setObjectName("settingsInterface")
 
-        for page in [
-            self.roll_call_page,
-            self.lottery_page,
-            self.camera_preview_page,
-            self.history_page,
-        ]:
-            page.installEventFilter(self)
-
         self.initNavigation()
+        try:
+            self.stackedWidget.currentChanged.connect(
+                self._on_main_stacked_widget_changed
+            )
+        except Exception:
+            pass
+        self._sub_interface_created = True
+
+    def _register_main_page_shell(self, page_name: str):
+        shell = QWidget(self)
+        shell.setObjectName(page_name)
+        layout = QVBoxLayout(shell)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._page_shells[page_name] = shell
+        self._page_instances[page_name] = None
+        setattr(self, page_name, shell)
+
+    def _get_main_page_shell(self, page_name: str):
+        return self._page_shells.get(page_name, getattr(self, page_name, None))
+
+    def _get_loaded_main_page(self, page_name: str):
+        return self._page_instances.get(page_name)
+
+    def _clear_page_shell(self, shell: QWidget):
+        layout = shell.layout()
+        if layout is None:
+            return
+
+        while layout.count() > 0:
+            item = layout.takeAt(0)
+            if item is None:
+                break
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def _ensure_main_page_loaded(self, page_name: str):
+        if not self._sub_interface_created:
+            self.createSubInterface()
+
+        if not self._sub_interface_created:
+            return None
+
+        page = self._page_instances.get(page_name)
+        if page is not None:
+            return page
+
+        factory = self._page_factories.get(page_name)
+        shell = self._get_main_page_shell(page_name)
+        if factory is None or shell is None:
+            return None
+
+        page = factory(shell)
+        page.installEventFilter(self)
+        self._clear_page_shell(shell)
+        shell.layout().addWidget(page)
+        self._page_instances[page_name] = page
+        logger.debug(f"主窗口页面已按需创建: {page_name}")
+        return page
+
+    def _get_main_page(self, page_name: str, load: bool = False):
+        page = self._get_loaded_main_page(page_name)
+        if page is not None:
+            return page
+        if not load:
+            return None
+        return self._ensure_main_page_loaded(page_name)
+
+    def _get_default_startup_page_name(self):
+        preferred_pages = (
+            "roll_call_page",
+            "lottery_page",
+            "camera_preview_page",
+            "history_page",
+        )
+        for page_name in preferred_pages:
+            if page_name in self._registered_pages:
+                return page_name
+        return None
+
+    def _show_and_switch_to_page(self, page_name: str):
+        shell = self._get_main_page_shell(page_name)
+        if shell is None or page_name not in self._registered_pages:
+            logger.warning(f"请求切换到未注册的主页面: {page_name}")
+            return
+
+        self._ensure_main_page_loaded(page_name)
+        self._show_main_window()
+        self.activateWindow()
+        self.raise_()
+        self.switchTo(shell)
+
+    def _on_main_stacked_widget_changed(self, index: int):
+        try:
+            widget = self.stackedWidget.widget(index)
+        except Exception:
+            return
+
+        if widget is None:
+            return
+
+        page_name = widget.objectName()
+        if page_name in self._registered_pages:
+            self._ensure_main_page_loaded(page_name)
 
     def initNavigation(self):
         """初始化导航系统
@@ -556,11 +666,12 @@ class MainWindow(FluentWindow):
             )
 
             self.addSubInterface(
-                self.roll_call_page,
+                self._get_main_page_shell("roll_call_page"),
                 get_theme_icon("ic_fluent_people_20_filled"),
                 get_content_name_async("roll_call", "title"),
                 position=roll_call_position,
             )
+            self._registered_pages.add("roll_call_page")
 
     def _add_lottery_navigation(self):
         """添加抽奖页面导航项"""
@@ -575,11 +686,12 @@ class MainWindow(FluentWindow):
             )
 
             self.addSubInterface(
-                self.lottery_page,
+                self._get_main_page_shell("lottery_page"),
                 get_theme_icon("ic_fluent_gift_20_filled"),
                 get_content_name_async("lottery", "title"),
                 position=lottery_position,
             )
+            self._registered_pages.add("lottery_page")
 
     def _add_camera_preview_navigation(self):
         camera_sidebar_pos = readme_settings_async(
@@ -592,11 +704,12 @@ class MainWindow(FluentWindow):
                 else NavigationItemPosition.BOTTOM
             )
             self.addSubInterface(
-                self.camera_preview_page,
+                self._get_main_page_shell("camera_preview_page"),
                 get_theme_icon("ic_fluent_video_person_sparkle_20_filled"),
                 get_content_name_async("camera_preview", "title"),
                 position=camera_position,
             )
+            self._registered_pages.add("camera_preview_page")
 
     def _add_history_navigation(self):
         """添加历史记录页面导航项"""
@@ -611,11 +724,12 @@ class MainWindow(FluentWindow):
             )
 
             self.addSubInterface(
-                self.history_page,
+                self._get_main_page_shell("history_page"),
                 get_theme_icon("ic_fluent_history_20_filled"),
                 get_content_name_async("history", "title"),
                 position=history_position,
             )
+            self._registered_pages.add("history_page")
 
     def _add_settings_navigation(self):
         """添加设置页面导航项"""
@@ -638,7 +752,6 @@ class MainWindow(FluentWindow):
             settings_item.clicked.connect(
                 lambda: self.showSettingsRequested.emit("basicSettingsInterface")
             )
-            settings_item.clicked.connect(lambda: self.switchTo(self.roll_call_page))
 
     # ==================================================
     # 窗口切换与显示
@@ -661,6 +774,15 @@ class MainWindow(FluentWindow):
         Args:
             page: 要切换到的页面对象
         """
+        if isinstance(page, str):
+            self._show_and_switch_to_page(page)
+            return
+
+        for page_name, shell in self._page_shells.items():
+            if page is shell:
+                self._show_and_switch_to_page(page_name)
+                return
+
         self._show_main_window()
         self.activateWindow()
         self.raise_()
@@ -680,13 +802,11 @@ class MainWindow(FluentWindow):
             self._show_main_window()
             self.raise_()
             self.activateWindow()
-        elif (
-            hasattr(self, f"{page_name}") and getattr(self, f"{page_name}") is not None
-        ):
+        elif page_name in self._page_shells:
             logger.debug(
                 f"MainWindow._handle_main_page_requested: 切换到页面: {page_name}"
             )
-            self._show_and_switch_to(getattr(self, page_name))
+            self._show_and_switch_to_page(page_name)
         else:
             logger.warning(
                 f"MainWindow._handle_main_page_requested: 请求的页面不存在: {page_name}"
@@ -721,7 +841,7 @@ class MainWindow(FluentWindow):
         logger.debug("开始连接快捷键信号...")
 
         self.shortcut_manager.openRollCallPageRequested.connect(
-            lambda: self._show_and_switch_to(self.roll_call_page)
+            lambda: self._show_and_switch_to_page("roll_call_page")
         )
         logger.debug("快捷键信号已连接: openRollCallPageRequested")
 
@@ -729,7 +849,7 @@ class MainWindow(FluentWindow):
         logger.debug("快捷键信号已连接: useQuickDrawRequested")
 
         self.shortcut_manager.openLotteryPageRequested.connect(
-            lambda: self._show_and_switch_to(self.lottery_page)
+            lambda: self._show_and_switch_to_page("lottery_page")
         )
         logger.debug("快捷键信号已连接: openLotteryPageRequested")
 
@@ -765,57 +885,39 @@ class MainWindow(FluentWindow):
 
     def _handle_increase_roll_call_count(self):
         """处理增加点名人数快捷键"""
-        if hasattr(self, "roll_call_page") and self.roll_call_page:
-            if (
-                hasattr(self.roll_call_page, "contentWidget")
-                and self.roll_call_page.contentWidget
-            ):
-                self.roll_call_page.contentWidget.update_count(1)
+        widget = self._get_roll_call_widget()
+        if widget is not None:
+            widget.update_count(1)
 
     def _handle_decrease_roll_call_count(self):
         """处理减少点名人数快捷键"""
-        if hasattr(self, "roll_call_page") and self.roll_call_page:
-            if (
-                hasattr(self.roll_call_page, "contentWidget")
-                and self.roll_call_page.contentWidget
-            ):
-                self.roll_call_page.contentWidget.update_count(-1)
+        widget = self._get_roll_call_widget()
+        if widget is not None:
+            widget.update_count(-1)
 
     def _handle_increase_lottery_count(self):
         """处理增加抽奖人数快捷键"""
-        if hasattr(self, "lottery_page") and self.lottery_page:
-            if (
-                hasattr(self.lottery_page, "contentWidget")
-                and self.lottery_page.contentWidget
-            ):
-                self.lottery_page.contentWidget.update_count(1)
+        widget = self._get_lottery_widget()
+        if widget is not None:
+            widget.update_count(1)
 
     def _handle_decrease_lottery_count(self):
         """处理减少抽奖人数快捷键"""
-        if hasattr(self, "lottery_page") and self.lottery_page:
-            if (
-                hasattr(self.lottery_page, "contentWidget")
-                and self.lottery_page.contentWidget
-            ):
-                self.lottery_page.contentWidget.update_count(-1)
+        widget = self._get_lottery_widget()
+        if widget is not None:
+            widget.update_count(-1)
 
     def _handle_start_roll_call(self):
         """处理开始点名快捷键"""
-        if hasattr(self, "roll_call_page") and self.roll_call_page:
-            if (
-                hasattr(self.roll_call_page, "contentWidget")
-                and self.roll_call_page.contentWidget
-            ):
-                self.roll_call_page.contentWidget.start_draw()
+        widget = self._get_roll_call_widget()
+        if widget is not None:
+            widget.start_draw()
 
     def _handle_start_lottery(self):
         """处理开始抽奖快捷键"""
-        if hasattr(self, "lottery_page") and self.lottery_page:
-            if (
-                hasattr(self.lottery_page, "contentWidget")
-                and self.lottery_page.contentWidget
-            ):
-                self.lottery_page.contentWidget.start_draw()
+        widget = self._get_lottery_widget()
+        if widget is not None:
+            widget.start_draw()
 
     def _setup_shortcut_settings_listener(self):
         """设置快捷键设置监听器，监听快捷键设置变化"""
@@ -858,13 +960,13 @@ class MainWindow(FluentWindow):
         点击悬浮窗中的闪抽按钮时调用"""
         logger.debug("_handle_quick_draw: 收到闪抽请求")
 
-        if not hasattr(self, "roll_call_page") or not self.roll_call_page:
+        roll_call_page = self._get_main_page("roll_call_page", load=True)
+        if not roll_call_page:
             logger.exception("_handle_quick_draw: roll_call_page未创建")
             return
 
         logger.debug("_handle_quick_draw: roll_call_page已创建")
 
-        roll_call_page = self.roll_call_page
         roll_call_widget = self._get_roll_call_widget(roll_call_page)
 
         if not roll_call_widget:
@@ -881,7 +983,7 @@ class MainWindow(FluentWindow):
         finally:
             self._restore_original_settings(roll_call_widget, original_settings)
 
-    def _get_roll_call_widget(self, roll_call_page):
+    def _get_roll_call_widget(self, roll_call_page=None):
         """获取点名页面组件
 
         Args:
@@ -890,6 +992,13 @@ class MainWindow(FluentWindow):
         Returns:
             点名组件对象或None
         """
+        if roll_call_page is None or roll_call_page is self._get_main_page_shell(
+            "roll_call_page"
+        ):
+            roll_call_page = self._get_main_page("roll_call_page", load=True)
+        if roll_call_page is None:
+            return None
+
         if (
             hasattr(roll_call_page, "roll_call_widget")
             and roll_call_page.roll_call_widget
@@ -910,6 +1019,31 @@ class MainWindow(FluentWindow):
 
         if hasattr(roll_call_page, "contentWidget") and roll_call_page.contentWidget:
             return roll_call_page.contentWidget
+
+        return None
+
+    def _get_lottery_widget(self, lottery_page=None):
+        if lottery_page is None or lottery_page is self._get_main_page_shell(
+            "lottery_page"
+        ):
+            lottery_page = self._get_main_page("lottery_page", load=True)
+        if lottery_page is None:
+            return None
+
+        if hasattr(lottery_page, "lottery_widget") and lottery_page.lottery_widget:
+            return lottery_page.lottery_widget
+
+        if hasattr(lottery_page, "contentWidget") and lottery_page.contentWidget:
+            return lottery_page.contentWidget
+
+        lottery_page.create_content()
+        QApplication.processEvents()
+
+        if hasattr(lottery_page, "lottery_widget") and lottery_page.lottery_widget:
+            return lottery_page.lottery_widget
+
+        if hasattr(lottery_page, "contentWidget") and lottery_page.contentWidget:
+            return lottery_page.contentWidget
 
         return None
 
@@ -1079,14 +1213,16 @@ class MainWindow(FluentWindow):
 
     def _clear_roll_call_result(self):
         """清除点名页面结果"""
-        if self.roll_call_page and hasattr(self.roll_call_page, "clear_result"):
-            self.roll_call_page.clear_result()
+        roll_call_page = self._get_main_page("roll_call_page", load=False)
+        if roll_call_page and hasattr(roll_call_page, "clear_result"):
+            roll_call_page.clear_result()
             logger.info("已清除点名页面结果")
 
     def _clear_lottery_result(self):
         """清除抽奖页面结果"""
-        if self.lottery_page and hasattr(self.lottery_page, "clear_result"):
-            self.lottery_page.clear_result()
+        lottery_page = self._get_main_page("lottery_page", load=False)
+        if lottery_page and hasattr(lottery_page, "clear_result"):
+            lottery_page.clear_result()
             logger.info("已清除抽奖页面结果")
 
     def _clear_temp_folder(self):
@@ -1100,14 +1236,14 @@ class MainWindow(FluentWindow):
 
     def _refresh_page_displays(self):
         """刷新页面显示"""
-        if self.roll_call_page and hasattr(
-            self.roll_call_page, "update_many_count_label"
-        ):
-            self.roll_call_page.update_many_count_label()
+        roll_call_page = self._get_main_page("roll_call_page", load=False)
+        if roll_call_page and hasattr(roll_call_page, "update_many_count_label"):
+            roll_call_page.update_many_count_label()
             logger.debug("已刷新点名页面剩余人数显示")
 
-        if self.lottery_page and hasattr(self.lottery_page, "update_many_count_label"):
-            self.lottery_page.update_many_count_label()
+        lottery_page = self._get_main_page("lottery_page", load=False)
+        if lottery_page and hasattr(lottery_page, "update_many_count_label"):
+            lottery_page.update_many_count_label()
             logger.debug("已刷新抽奖页面显示")
 
     def _init_pre_class_reset(self):

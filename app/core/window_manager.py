@@ -2,7 +2,6 @@ import os
 import time
 from typing import Optional, Callable, TYPE_CHECKING
 from loguru import logger
-from PySide6.QtCore import QTimer
 from app.tools.settings_access import readme_settings_async
 from app.core.utils import safe_execute, safe_close_window, activate_window
 
@@ -43,9 +42,9 @@ class WindowManager:
 
         if self._after_first_window_shown_ran:
             try:
-                QTimer.singleShot(0, callback)
-            except Exception:
-                pass
+                callback()
+            except Exception as e:
+                logger.debug("执行首次窗口显示回调失败（已忽略）: {}", e)
             return
 
         self._after_first_window_shown_callbacks.append(callback)
@@ -177,19 +176,16 @@ class WindowManager:
         )
         is_maximized = readme_settings_async("window", "is_maximized")
         if show_startup_window:
+            startup_page_name = None
+            if hasattr(self.main_window, "_get_default_startup_page_name"):
+                startup_page_name = self.main_window._get_default_startup_page_name()
+            self._ensure_main_window_page(startup_page_name)
             if is_maximized:
-                from app.tools.variable import APP_INIT_DELAY
-
-                def show_main_window():
-                    try:
-                        self.main_window.showMaximized()
-                    finally:
-                        self._schedule_main_window_shown_tasks()
-
-                QTimer.singleShot(APP_INIT_DELAY, show_main_window)
+                self.main_window.showMaximized()
+                self._handle_main_window_shown()
             else:
                 self.main_window.show()
-                self._schedule_main_window_shown_tasks()
+                self._handle_main_window_shown()
 
         startup_display_float = readme_settings_async(
             "floating_window_management", "startup_display_floating_window"
@@ -200,13 +196,7 @@ class WindowManager:
             if self.float_window is not None and not self.float_window.isVisible():
                 self.float_window.show()
                 if not show_startup_window:
-                    self._schedule_main_window_shown_tasks()
-
-    def _schedule_main_window_shown_tasks(self) -> None:
-        try:
-            QTimer.singleShot(0, self._handle_main_window_shown)
-        except Exception:
-            pass
+                    self._handle_main_window_shown()
 
     def _handle_main_window_shown(self) -> None:
         global pending_uiaccess_restart_after_show
@@ -265,7 +255,7 @@ class WindowManager:
 
         for callback in callbacks:
             try:
-                QTimer.singleShot(0, callback)
+                callback()
             except Exception as e:
                 logger.debug("执行首次窗口显示回调失败（已忽略）: {}", e)
 
@@ -294,16 +284,14 @@ class WindowManager:
         if hasattr(self.url_handler, "windowActionRequested"):
             self.url_handler.windowActionRequested.connect(self._handle_window_action)
 
-    def _ensure_main_window_pages_created(self) -> None:
+    def _ensure_main_window_page(self, page_name: str | None = None) -> None:
         if self.main_window is None:
             return
         try:
-            roll_call_page = getattr(self.main_window, "roll_call_page", None)
-            lottery_page = getattr(self.main_window, "lottery_page", None)
-            if roll_call_page is not None or lottery_page is not None:
-                return
             if hasattr(self.main_window, "createSubInterface"):
                 self.main_window.createSubInterface()
+            if page_name and hasattr(self.main_window, "_ensure_main_page_loaded"):
+                self.main_window._ensure_main_page_loaded(page_name)
         except Exception as e:
             logger.exception("确保主窗口页面创建失败（已忽略）: {}", e)
 
@@ -312,13 +300,18 @@ class WindowManager:
             return None
         try:
             if hasattr(self.main_window, "_get_roll_call_widget"):
-                return self.main_window._get_roll_call_widget(
-                    getattr(self.main_window, "roll_call_page", None)
-                )
+                self._ensure_main_window_page("roll_call_page")
+                return self.main_window._get_roll_call_widget()
         except Exception:
             pass
 
-        roll_call_page = getattr(self.main_window, "roll_call_page", None)
+        self._ensure_main_window_page("roll_call_page")
+        if hasattr(self.main_window, "_get_main_page"):
+            roll_call_page = self.main_window._get_main_page(
+                "roll_call_page", load=False
+            )
+        else:
+            roll_call_page = getattr(self.main_window, "roll_call_page", None)
         if roll_call_page is None:
             return None
         if (
@@ -347,7 +340,18 @@ class WindowManager:
     def _get_lottery_widget(self):
         if self.main_window is None:
             return None
-        lottery_page = getattr(self.main_window, "lottery_page", None)
+        try:
+            if hasattr(self.main_window, "_get_lottery_widget"):
+                self._ensure_main_window_page("lottery_page")
+                return self.main_window._get_lottery_widget()
+        except Exception:
+            pass
+
+        self._ensure_main_window_page("lottery_page")
+        if hasattr(self.main_window, "_get_main_page"):
+            lottery_page = self.main_window._get_main_page("lottery_page", load=False)
+        else:
+            lottery_page = getattr(self.main_window, "lottery_page", None)
         if lottery_page is None:
             return None
         if hasattr(lottery_page, "lottery_widget") and lottery_page.lottery_widget:
@@ -369,7 +373,7 @@ class WindowManager:
 
     def _handle_roll_call_action(self, action: str, payload) -> None:
         def impl():
-            self._ensure_main_window_pages_created()
+            self._ensure_main_window_page("roll_call_page")
             data = payload if isinstance(payload, dict) else {}
             if action == "quick_draw":
                 if hasattr(self.main_window, "_handle_quick_draw"):
@@ -455,7 +459,7 @@ class WindowManager:
 
     def _handle_lottery_action(self, action: str, payload) -> None:
         def impl():
-            self._ensure_main_window_pages_created()
+            self._ensure_main_window_page("lottery_page")
             data = payload if isinstance(payload, dict) else {}
             widget = self._get_lottery_widget()
             if widget is None:

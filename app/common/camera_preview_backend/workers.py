@@ -466,6 +466,15 @@ class FaceDetectorWorker(QObject):
         self._input_size = None
         self._last_detect = 0.0
         self._last_load_attempt = 0.0
+        self._pending_frame = None
+        self._detect_timer: Optional[QTimer] = None
+        self._detect_scheduled = False
+        self._detect_inflight = False
+        self._target_interval_s = 0.08
+        self._min_interval_s = 0.08
+        self._max_interval_s = 0.14
+        self._detect_interval_s = self._target_interval_s
+        self._recent_detect_cost_s = self._target_interval_s
 
         self._detector_state = None
         self._cv2 = None
@@ -473,6 +482,15 @@ class FaceDetectorWorker(QObject):
     @Slot(bool)
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = bool(enabled)
+        if not self._enabled:
+            self._pending_frame = None
+            self._detect_scheduled = False
+            timer = self._detect_timer
+            if timer is not None and timer.isActive():
+                timer.stop()
+            return
+        if self._pending_frame is not None:
+            self._schedule_detect(0)
 
     @Slot(object)
     def set_model_filename(self, model_filename: object) -> None:
@@ -560,23 +578,72 @@ class FaceDetectorWorker(QObject):
 
     @Slot(object)
     def process_frame(self, frame_bgr) -> None:
+        if frame_bgr is None:
+            return
+        self._pending_frame = frame_bgr
+        if self._enabled:
+            self._schedule_detect(0)
+
+    def _ensure_detect_timer(self) -> QTimer:
+        timer = self._detect_timer
+        if timer is not None:
+            return timer
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.timeout.connect(self._consume_pending_frame)
+        self._detect_timer = timer
+        return timer
+
+    def _schedule_detect(self, delay_ms: int) -> None:
         if not self._enabled:
             return
-        if self._cv2 is None:
+        timer = self._ensure_detect_timer()
+        delay = max(0, int(delay_ms))
+        if timer.isActive():
+            try:
+                remaining = int(timer.remainingTime())
+            except Exception:
+                remaining = delay
+            if remaining <= delay:
+                return
+            timer.stop()
+        self._detect_scheduled = True
+        timer.start(delay)
+
+    @Slot()
+    def _consume_pending_frame(self) -> None:
+        self._detect_scheduled = False
+        if not self._enabled or self._detect_inflight:
+            return
+
+        frame = self._pending_frame
+        if frame is None:
             return
 
         now = time.monotonic()
-        if now - self._last_detect < 0.05:
+        elapsed = now - self._last_detect
+        if self._last_detect > 0.0 and elapsed < self._detect_interval_s:
+            wait_ms = int(max(1.0, (self._detect_interval_s - elapsed) * 1000.0))
+            self._schedule_detect(wait_ms)
             return
-        self._last_detect = now
+
+        self._pending_frame = None
+        self._detect_inflight = True
+        started_at = time.perf_counter()
+        emitted_error = False
+        if not self._enabled:
+            self._detect_inflight = False
+            return
 
         self.ensure_loaded()
 
         try:
+            if self._cv2 is None:
+                return
             state = self._detector_state
             if state is None:
                 return
-            results = detect_faces_onnx(frame_bgr, detector_state=state)
+            results = detect_faces_onnx(frame, detector_state=state)
         except Exception as exc:
             logger.exception("人脸检测失败: {}", exc)
             key = "detect_failed"
@@ -587,6 +654,28 @@ class FaceDetectorWorker(QObject):
             ):
                 key = "model_incompatible"
             self.error_occurred.emit(key, "Face detection failed", msg)
+            emitted_error = True
             return
+        finally:
+            cost_s = max(0.0, time.perf_counter() - started_at)
+            self._recent_detect_cost_s = self._recent_detect_cost_s * 0.7 + cost_s * 0.3
+            if self._recent_detect_cost_s > self._detect_interval_s * 1.05:
+                desired = min(
+                    self._max_interval_s,
+                    max(0.10, self._recent_detect_cost_s * 1.2),
+                )
+            else:
+                desired = max(
+                    self._target_interval_s,
+                    self._detect_interval_s * 0.92,
+                )
+            self._detect_interval_s = min(
+                self._max_interval_s,
+                max(self._min_interval_s, desired),
+            )
+            self._last_detect = time.monotonic()
+            self._detect_inflight = False
+            if self._pending_frame is not None and not emitted_error:
+                self._schedule_detect(0)
 
         self.faces_ready.emit(results)

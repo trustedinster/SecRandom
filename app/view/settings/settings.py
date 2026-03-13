@@ -16,13 +16,10 @@ from qfluentwidgets import (
 
 from app.tools.variable import (
     MINIMUM_WINDOW_SIZE,
-    APP_INIT_DELAY,
     RESIZE_TIMER_DELAY_MS,
     MAXIMIZE_RESTORE_DELAY_MS,
     SETTINGS_WINDOW_DEFAULT_WIDTH,
     SETTINGS_WINDOW_DEFAULT_HEIGHT,
-    SETTINGS_WARMUP_DELAY_MS,
-    SETTINGS_DEFAULT_PAGE_DELAY_MS,
 )
 from app.tools.path_utils import get_data_path
 from app.tools.personalised import get_theme_icon
@@ -63,8 +60,7 @@ class SettingsWindow(FluentWindow):
         self._setup_url_handler()
         self._position_window(snapshot=self._startup_settings_snapshot)
         self._setup_splash_screen()
-
-        QTimer.singleShot(APP_INIT_DELAY, lambda: (self.createSubInterface()))
+        self.createSubInterface()
 
     # ==================================================
     # 初始化方法
@@ -298,7 +294,10 @@ class SettingsWindow(FluentWindow):
 
         self.splashScreen = SplashScreen(self.windowIcon(), self)
         self.splashScreen.setIconSize(QSize(256, 256))
-        self.show()
+        if getattr(self, "_show_maximized_on_init", False):
+            self.showMaximized()
+        else:
+            self.show()
 
     # ==================================================
     # 属性访问器
@@ -367,8 +366,9 @@ class SettingsWindow(FluentWindow):
                 )
             self.resize(pre_maximized_width, pre_maximized_height)
             self._center_window()
-            QTimer.singleShot(APP_INIT_DELAY, self.showMaximized)
+            self._show_maximized_on_init = True
         else:
+            self._show_maximized_on_init = False
             setting_window_width = settings_section.get("width")
             if setting_window_width is None:
                 setting_window_width = readme_settings_async("settings", "width")
@@ -546,6 +546,7 @@ class SettingsWindow(FluentWindow):
             nav_item = getattr(self, item_attr, None)
 
             if interface and nav_item:
+                self._ensure_deferred_page_loaded(interface_attr)
                 logger.debug(f"切换到设置页面: {page_name}")
                 self.switchTo(interface)
                 trace.log("shell_visible")
@@ -755,21 +756,9 @@ class SettingsWindow(FluentWindow):
         """
         interface = self._make_placeholder(interface_attr)
         setattr(self, interface_attr, interface)
-
-        def make_factory(method_name=page_method, iface=interface):
-            def factory(parent=iface, is_preview=False):
-                page_instance = getattr(settings_window_page, method_name)(
-                    parent, is_preview=is_preview
-                )
-                return page_instance
-
-            return factory
-
-        self._deferred_factories[interface_attr] = make_factory()
-        self._deferred_factories_meta[interface_attr] = {
-            "is_pivot": is_pivot,
-            "is_preview": False,
-        }
+        self._register_deferred_factory(
+            interface_attr, page_method, is_pivot, settings_window_page
+        )
 
     def _make_placeholder(self, name: str):
         """创建占位符组件
@@ -811,22 +800,14 @@ class SettingsWindow(FluentWindow):
             settings_window_page: 设置窗口页面模块
         """
         self.updateInterface = self._make_placeholder("updateInterface")
-        self._deferred_factories["updateInterface"] = self._make_page_factory(
-            "update_page", self.updateInterface, settings_window_page
+        self._register_deferred_factory(
+            "updateInterface", "update_page", False, settings_window_page
         )
-        self._deferred_factories_meta["updateInterface"] = {
-            "is_pivot": False,
-            "is_preview": False,
-        }
 
         self.aboutInterface = self._make_placeholder("aboutInterface")
-        self._deferred_factories["aboutInterface"] = self._make_page_factory(
-            "about_page", self.aboutInterface, settings_window_page
+        self._register_deferred_factory(
+            "aboutInterface", "about_page", False, settings_window_page
         )
-        self._deferred_factories_meta["aboutInterface"] = {
-            "is_pivot": False,
-            "is_preview": False,
-        }
 
     def _make_page_factory(self, page_method, interface, settings_window_page):
         """创建页面工厂函数
@@ -848,26 +829,38 @@ class SettingsWindow(FluentWindow):
 
         return factory
 
+    def _register_deferred_factory(
+        self, interface_attr, page_method, is_pivot, settings_window_page
+    ) -> None:
+        interface = getattr(self, interface_attr, None)
+        if interface is None:
+            return
+
+        self._deferred_factories[interface_attr] = self._make_page_factory(
+            page_method, interface, settings_window_page
+        )
+        self._deferred_factories_meta[interface_attr] = {
+            "is_pivot": is_pivot,
+            "is_preview": False,
+        }
+
+    def _get_page_factory_definition(self, page_name: str):
+        for _, interface_attr, page_method, is_pivot in self._get_page_configs():
+            if interface_attr == page_name:
+                return page_method, is_pivot
+
+        special_pages = {
+            "updateInterface": ("update_page", False),
+            "aboutInterface": ("about_page", False),
+        }
+        return special_pages.get(page_name)
+
     def _setup_background_warmup(self):
         """设置后台预热"""
-        try:
-            QTimer.singleShot(
-                SETTINGS_WARMUP_DELAY_MS, lambda: self._background_warmup_non_pivot()
-            )
-        except Exception as e:
-            logger.exception("Error during settings warmup: {}", e)
-
         try:
             self.stackedWidget.currentChanged.connect(self._on_stacked_widget_changed)
         except Exception as e:
             logger.exception("Error creating deferred page: {}", e)
-
-        try:
-            QTimer.singleShot(
-                SETTINGS_WARMUP_DELAY_MS, lambda: self._background_warmup_pages()
-            )
-        except Exception as e:
-            logger.exception("Error scheduling background warmup pages: {}", e)
 
     def initNavigation(self):
         """初始化导航系统
@@ -891,9 +884,6 @@ class SettingsWindow(FluentWindow):
 
         self.splashScreen.finish()
         self.showMainPageRequested.connect(self._handle_main_page_requested)
-
-        if hasattr(self, "basicSettingsInterface") and self.basicSettingsInterface:
-            QTimer.singleShot(SETTINGS_DEFAULT_PAGE_DELAY_MS, self._load_default_page)
 
     def _get_nav_configs(self):
         """获取导航配置列表
@@ -1042,8 +1032,7 @@ class SettingsWindow(FluentWindow):
     def _load_default_page(self):
         """加载默认页面（基础设置页面）"""
         try:
-            if "basicSettingsInterface" in getattr(self, "_deferred_factories", {}):
-                self._create_deferred_page("basicSettingsInterface")
+            self._ensure_deferred_page_loaded("basicSettingsInterface")
 
             if hasattr(self, "basicSettingsInterface") and self.basicSettingsInterface:
                 self.switchTo(self.basicSettingsInterface)
@@ -1187,63 +1176,17 @@ class SettingsWindow(FluentWindow):
         """
         from app.page_building import settings_window_page
 
-        factory_mapping = {
-            "basicSettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.basic_settings_page(
-                p, is_preview=is_preview
-            ),
-            "listManagementInterface": lambda p=container,
-            is_preview=False: settings_window_page.list_management_page(
-                p, is_preview=is_preview
-            ),
-            "extractionSettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.extraction_settings_page(
-                p, is_preview=is_preview
-            ),
-            "floatingWindowManagementInterface": lambda p=container,
-            is_preview=False: settings_window_page.floating_window_management_page(
-                p, is_preview=is_preview
-            ),
-            "notificationSettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.notification_settings_page(
-                p, is_preview=is_preview
-            ),
-            "safetySettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.safety_settings_page(
-                p, is_preview=is_preview
-            ),
-            "voiceSettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.voice_settings_page(
-                p, is_preview=is_preview
-            ),
-            "themeManagementInterface": lambda p=container,
-            is_preview=False: settings_window_page.theme_management_page(
-                p, is_preview=is_preview
-            ),
-            "historyInterface": lambda p=container,
-            is_preview=False: settings_window_page.history_page(
-                p, is_preview=is_preview
-            ),
-            "moreSettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.more_settings_page(
-                p, is_preview=is_preview
-            ),
-            "updateInterface": lambda p=container,
-            is_preview=False: settings_window_page.update_page(
-                p, is_preview=is_preview
-            ),
-            "aboutInterface": lambda p=container,
-            is_preview=False: settings_window_page.about_page(p, is_preview=is_preview),
-            "courseSettingsInterface": lambda p=container,
-            is_preview=False: settings_window_page.linkage_settings_page(
-                p, is_preview=is_preview
-            ),
-        }
+        page_definition = self._get_page_factory_definition(page_name)
+        if page_definition is None:
+            return
 
-        if page_name in factory_mapping:
-            if not hasattr(self, "_deferred_factories"):
-                self._deferred_factories = {}
-            self._deferred_factories[page_name] = factory_mapping[page_name]
+        if container is not None:
+            setattr(self, page_name, container)
+
+        page_method, is_pivot = page_definition
+        self._register_deferred_factory(
+            page_name, page_method, is_pivot, settings_window_page
+        )
 
     def _create_deferred_page(self, name: str):
         """根据名字创建对应延迟工厂并把结果加入占位容器
@@ -1276,7 +1219,11 @@ class SettingsWindow(FluentWindow):
                 return
 
             try:
+                self._clear_placeholder_layout(container)
                 layout.addWidget(real_page)
+                if not hasattr(self, "_created_pages"):
+                    self._created_pages = {}
+                self._created_pages[name] = real_page
                 logger.debug(f"后台预热创建设置页面: {name}")
             except RuntimeError as e:
                 logger.exception(
@@ -1285,6 +1232,12 @@ class SettingsWindow(FluentWindow):
                 return
         except Exception as e:
             logger.exception(f"_create_deferred_page 失败: {e}")
+
+    def _ensure_deferred_page_loaded(self, name: str) -> None:
+        if name in getattr(self, "_created_pages", {}):
+            return
+        if name in getattr(self, "_deferred_factories", {}):
+            self._create_deferred_page(name)
 
     def _find_container_by_name(self, name: str):
         """根据名称查找容器

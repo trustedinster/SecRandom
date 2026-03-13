@@ -569,6 +569,56 @@ def create_onnx_face_detector(
 
 
 def detect_faces_onnx(frame_bgr, *, detector_state) -> list[Rect]:
+    def _prepare_detection_frame(src, *, max_side: int = 640):
+        h0, w0 = src.shape[:2]
+        if h0 <= 0 or w0 <= 0:
+            return src, 1.0, 1.0
+        side = max(int(w0), int(h0))
+        if side <= int(max_side):
+            return src, 1.0, 1.0
+
+        ratio = float(max_side) / float(side)
+        w1 = max(1, int(round(float(w0) * ratio)))
+        h1 = max(1, int(round(float(h0) * ratio)))
+
+        with _CV2_IMPORT_LOCK:
+            import cv2
+
+        resized = cv2.resize(src, (w1, h1), interpolation=cv2.INTER_LINEAR)
+        scale_x = float(w0) / float(w1)
+        scale_y = float(h0) / float(h1)
+        return resized, scale_x, scale_y
+
+    def _rescale_rects(
+        rects: list[Rect],
+        *,
+        scale_x: float,
+        scale_y: float,
+        frame_size: tuple[int, int],
+    ) -> list[Rect]:
+        h, w = int(frame_size[0]), int(frame_size[1])
+        if not rects:
+            return []
+        if abs(float(scale_x) - 1.0) < 1e-6 and abs(float(scale_y) - 1.0) < 1e-6:
+            return list(rects)
+        scaled: list[Rect] = []
+        for x, y, bw, bh in rects:
+            try:
+                x1 = int(round(float(x) * float(scale_x)))
+                y1 = int(round(float(y) * float(scale_y)))
+                w1 = int(round(float(bw) * float(scale_x)))
+                h1 = int(round(float(bh) * float(scale_y)))
+            except Exception:
+                continue
+            if w1 <= 0 or h1 <= 0:
+                continue
+            x1 = max(0, min(x1, w - 1))
+            y1 = max(0, min(y1, h - 1))
+            w1 = max(1, min(w1, w - x1))
+            h1 = max(1, min(h1, h - y1))
+            scaled.append((x1, y1, w1, h1))
+        return scaled
+
     kind = ""
     try:
         kind = str(detector_state.get("kind", "")).lower()
@@ -576,19 +626,26 @@ def detect_faces_onnx(frame_bgr, *, detector_state) -> list[Rect]:
         kind = ""
 
     frame_size = frame_bgr.shape[:2]
+    detect_frame, scale_x, scale_y = _prepare_detection_frame(frame_bgr, max_side=640)
     if kind == "yunet":
         rects = detect_faces_yunet(
-            frame_bgr,
+            detect_frame,
             detector=detector_state["detector"],
             input_size=detector_state.get("input_size"),
+        )
+        rects = _rescale_rects(
+            rects, scale_x=scale_x, scale_y=scale_y, frame_size=frame_size
         )
         return merge_face_rects(frame_size, rects)
     if kind == "ultralight":
         rects = detect_faces_ultralight(
-            frame_bgr,
+            detect_frame,
             net=detector_state["net"],
             input_size=detector_state["input_size"],
             priors=detector_state.get("priors"),
+        )
+        rects = _rescale_rects(
+            rects, scale_x=scale_x, scale_y=scale_y, frame_size=frame_size
         )
         return merge_face_rects(frame_size, rects)
     raise RuntimeError("Invalid detector state")

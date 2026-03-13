@@ -1,8 +1,3 @@
-# ==================================================
-# 导入库
-# ==================================================
-import json
-
 from loguru import logger
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
@@ -19,13 +14,6 @@ from app.tools.interaction_perf import start_interaction
 from app.Language.obtain_language import *
 from app.common.history import *
 from app.common.history.background_loader import build_lottery_history_payload
-from app.common.history.history_reader import (
-    get_lottery_pool_list,
-    get_lottery_history_data,
-    get_lottery_prizes_data,
-    get_lottery_session_data,
-    get_lottery_prize_stats_data,
-)
 
 
 class _HistoryLoadSignals(QObject):
@@ -75,9 +63,6 @@ class lottery_history_table(GroupHeaderCardWidget):
         self.is_loading = False  # 是否正在加载数据
         self.has_class_record = False  # 是否有课程记录
         self.available_subjects = []  # 可用的课程列表
-        self.cached_lotterys_data = []  # 缓存的奖品数据列表
-        self.cached_sessions_data = []  # 缓存的会话数据列表
-        self.cached_stats_data = []  # 缓存的统计数据列表
         self.force_load_all = False
         self._history_request_id = 0
         self._cached_row_models = []
@@ -293,11 +278,6 @@ class lottery_history_table(GroupHeaderCardWidget):
         self.current_row = 0
         self.table.setRowCount(0)
 
-        # 清空缓存，确保排序时重新获取数据
-        self.cached_lotterys_data = []
-        self.cached_sessions_data = []
-        self.cached_stats_data = []
-
         # 重新加载数据
         self.refresh_data()
 
@@ -406,253 +386,6 @@ class lottery_history_table(GroupHeaderCardWidget):
                     self.table.horizontalHeader().setSortIndicatorShown(True)
         finally:
             self.is_loading = False
-
-    def _load_more_lotterys_data(self):
-        """加载更多奖品数据"""
-        if not self.current_pool_name:
-            return
-        try:
-            # 如果是第一次加载（current_row == 0），获取并排序数据
-            if self.current_row == 0:
-                cleaned_lotterys = get_lottery_pool_list(self.current_pool_name)
-                history_data = get_lottery_history_data(self.current_pool_name)
-
-                lotterys_data = get_lottery_prizes_data(cleaned_lotterys, history_data)
-
-                format_weight, _, _ = format_weight_for_display(lotterys_data, "weight")
-
-                if self.sort_column >= 0:
-
-                    def sort_key(lottery):
-                        if self.sort_column == 0:
-                            return lottery.get("id", "")
-                        elif self.sort_column == 1:
-                            return lottery.get("name", "")
-                        elif self.sort_column == 2:
-                            return lottery.get("total_count", 0)
-                        elif self.sort_column == 3:
-                            return lottery.get("weight", "")
-                        return ""
-
-                    reverse_order = self.sort_order == Qt.SortOrder.DescendingOrder
-                    lotterys_data.sort(key=sort_key, reverse=reverse_order)
-
-                # 缓存排序后的数据
-                self.cached_lotterys_data = lotterys_data
-                self.cached_lotterys_format_weight = format_weight
-            else:
-                # 使用缓存的数据
-                lotterys_data = self.cached_lotterys_data
-                format_weight = self.cached_lotterys_format_weight
-
-            start_row = self.current_row
-            end_row = min(start_row + self.batch_size, self.total_rows)
-
-            for i in range(start_row, end_row):
-                if i >= len(lotterys_data):
-                    break
-
-                lottery = lotterys_data[i]
-                row = i
-
-                id_item = create_table_item(lottery.get("id", str(row + 1)))
-                self.table.setItem(row, 0, id_item)
-
-                name_item = create_table_item(lottery.get("name", ""))
-                self.table.setItem(row, 1, name_item)
-
-                total_count_item = create_table_item(
-                    str(lottery.get("total_count_str", lottery.get("total_count", 0)))
-                )
-                self.table.setItem(row, 2, total_count_item)
-
-                weight_item = create_table_item(format_weight(lottery.get("weight", 0)))
-                self.table.setItem(row, 3, weight_item)
-
-            self.current_row = end_row
-
-        except Exception as e:
-            logger.exception(f"加载奖品数据失败: {e}")
-            Dialog("错误", f"加载奖品数据失败: {e}", self).exec()
-
-    def _load_more_sessions_data(self):
-        """加载更多会话数据"""
-        if not self.current_pool_name:
-            return
-        try:
-            # 如果是第一次加载（current_row == 0），获取并排序数据
-            if self.current_row == 0:
-                cleaned_lotterys = get_lottery_pool_list(self.current_pool_name)
-                history_data = get_lottery_history_data(self.current_pool_name)
-
-                lotterys_data = get_lottery_session_data(
-                    cleaned_lotterys, history_data, self.current_subject
-                )
-
-                self.has_class_record = any(
-                    lottery.get("class_name", "") for lottery in lotterys_data
-                )
-
-                self.update_table_headers()
-
-                format_weight, _, _ = format_weight_for_display(lotterys_data, "weight")
-
-                if self.sort_column >= 0:
-
-                    def sort_key(lottery):
-                        if self.sort_column == 0:
-                            return lottery.get("draw_time", "")
-                        elif self.sort_column == 1:
-                            return lottery.get("id", "")
-                        elif self.sort_column == 2:
-                            return lottery.get("name", "")
-                        elif self.sort_column == 3:
-                            return lottery.get("class_name", "")
-                        elif self.sort_column == 4:
-                            return lottery.get("weight", "")
-                        return ""
-
-                    reverse_order = self.sort_order == Qt.SortOrder.DescendingOrder
-                    lotterys_data.sort(key=sort_key, reverse=reverse_order)
-                else:
-                    lotterys_data.sort(
-                        key=lambda x: x.get("draw_time", ""), reverse=True
-                    )
-
-                # 缓存排序后的数据
-                self.cached_sessions_data = lotterys_data
-                self.cached_sessions_format_weight = format_weight
-            else:
-                # 使用缓存的数据
-                lotterys_data = self.cached_sessions_data
-                format_weight = self.cached_sessions_format_weight
-
-            start_row = self.current_row
-            end_row = min(start_row + self.batch_size, self.total_rows)
-
-            for i in range(start_row, end_row):
-                if i >= len(lotterys_data):
-                    break
-
-                lottery = lotterys_data[i]
-                row = i
-
-                draw_time_item = create_table_item(lottery.get("draw_time", ""))
-                self.table.setItem(row, 0, draw_time_item)
-
-                id_item = create_table_item(lottery.get("id", str(row + 1)))
-                self.table.setItem(row, 1, id_item)
-
-                name_item = create_table_item(lottery.get("name", ""))
-                self.table.setItem(row, 2, name_item)
-
-                if self.has_class_record:
-                    class_name = lottery.get("class_name", "")
-                    class_item = create_table_item(
-                        str(class_name) if class_name else ""
-                    )
-                    self.table.setItem(row, 3, class_item)
-                    col = 4
-                else:
-                    col = 3
-
-                weight_item = create_table_item(format_weight(lottery.get("weight", 0)))
-                self.table.setItem(row, col, weight_item)
-
-            self.current_row = end_row
-
-        except Exception as e:
-            logger.exception(f"加载会话数据失败: {e}")
-            Dialog("错误", f"加载会话数据失败: {e}", self).exec()
-
-    def _load_more_stats_data(self, lottery_name):
-        """加载更多统计数据"""
-        if not self.current_pool_name:
-            return
-        try:
-            # 如果是第一次加载（current_row == 0），获取并排序数据
-            if self.current_row == 0:
-                cleaned_lotterys = get_lottery_pool_list(self.current_pool_name)
-                history_data = get_lottery_history_data(self.current_pool_name)
-
-                lotterys_data = get_lottery_prize_stats_data(
-                    cleaned_lotterys, history_data, lottery_name, self.current_subject
-                )
-
-                self.has_class_record = any(
-                    lottery.get("class_name", "") for lottery in lotterys_data
-                )
-
-                self.update_table_headers()
-
-                format_weight, _, _ = format_weight_for_display(lotterys_data, "weight")
-
-                if self.sort_column >= 0:
-
-                    def sort_key(lottery):
-                        if self.sort_column == 0:
-                            return lottery.get("draw_time", "")
-                        elif self.sort_column == 1:
-                            return int(lottery.get("draw_lottery_numbers", 0))
-                        elif self.sort_column == 2:
-                            return lottery.get("class_name", "")
-                        elif self.sort_column == 3:
-                            return float(lottery.get("weight", ""))
-                        return ""
-
-                    reverse_order = self.sort_order == Qt.SortOrder.DescendingOrder
-                    lotterys_data.sort(key=sort_key, reverse=reverse_order)
-                else:
-                    lotterys_data.sort(
-                        key=lambda x: x.get("draw_time", ""), reverse=True
-                    )
-
-                # 缓存排序后的数据
-                self.cached_stats_data = lotterys_data
-                self.cached_stats_format_weight = format_weight
-            else:
-                # 使用缓存的数据
-                lotterys_data = self.cached_stats_data
-                format_weight = self.cached_stats_format_weight
-
-            start_row = self.current_row
-            end_row = min(start_row + self.batch_size, self.total_rows)
-
-            for i in range(start_row, end_row):
-                if i >= len(lotterys_data):
-                    break
-
-                lottery = lotterys_data[i]
-                row = i
-
-                time_item = create_table_item(lottery.get("draw_time", ""))
-                self.table.setItem(row, 0, time_item)
-
-                draw_lottery_numbers_item = create_table_item(
-                    str(lottery.get("draw_lottery_numbers", 0))
-                )
-                self.table.setItem(row, 1, draw_lottery_numbers_item)
-
-                if self.has_class_record:
-                    class_name = lottery.get("class_name", "")
-                    class_item = create_table_item(
-                        str(class_name) if class_name else ""
-                    )
-                    self.table.setItem(row, 2, class_item)
-                    col = 3
-                else:
-                    col = 2
-
-                weight_item = create_table_item(
-                    format_weight(lottery.get("weight", ""))
-                )
-                self.table.setItem(row, col, weight_item)
-
-            self.current_row = end_row
-
-        except Exception as e:
-            logger.exception(f"加载统计数据失败: {e}")
-            Dialog("错误", f"加载统计数据失败: {e}", self).exec()
 
     def setup_file_watcher(self):
         """设置文件系统监视器，监控奖池历史记录文件夹的变化"""
@@ -845,73 +578,6 @@ class lottery_history_table(GroupHeaderCardWidget):
         if not hasattr(self, "_refresh_debounce_timer"):
             return
         self._refresh_debounce_timer.start(0)
-
-    def _update_subject_list(self):
-        """更新课程列表"""
-        if not self.current_pool_name:
-            return
-
-        try:
-            history_file = get_data_path(
-                "history/lottery_history", f"{self.current_pool_name}.json"
-            )
-
-            if not file_exists(history_file):
-                self.available_subjects = []
-                return
-
-            with open_file(history_file, "r", encoding="utf-8") as f:
-                history_data = json.load(f)
-
-            # 收集所有课程名称
-            subjects = set()
-            lotterys = history_data.get("lotterys", {})
-            for lottery_info in lotterys.values():
-                history = lottery_info.get("history", [])
-                for record in history:
-                    class_name = record.get("class_name", "")
-                    if class_name:
-                        subjects.add(class_name)
-
-            self.available_subjects = sorted(list(subjects))
-
-            # 更新课程下拉框
-            if hasattr(self, "subject_comboBox"):
-                # 保存当前选择的课程
-                current_subject = self.current_subject
-                current_index = self.subject_comboBox.currentIndex()
-
-                self.subject_comboBox.blockSignals(True)
-                self.subject_comboBox.clear()
-                self.subject_comboBox.addItems(
-                    get_content_combo_name_async(
-                        "lottery_history_table", "select_subject"
-                    )
-                    + self.available_subjects
-                )
-
-                # 恢复之前选择的课程
-                if current_subject:
-                    # 尝试找到之前选择的课程
-                    items = self.subject_comboBox.count()
-                    for i in range(items):
-                        if self.subject_comboBox.itemText(i) == current_subject:
-                            self.subject_comboBox.setCurrentIndex(i)
-                            break
-                else:
-                    self.subject_comboBox.setCurrentIndex(0)
-
-                self.subject_comboBox.blockSignals(False)
-
-                # 根据是否有课程记录显示或隐藏课程选择框
-                if not self.available_subjects:
-                    self.subject_comboBox.hide()
-                else:
-                    self.subject_comboBox.show()
-
-        except Exception as e:
-            logger.exception(f"更新课程列表失败: {e}")
-            self.available_subjects = []
 
     def _update_mode_options(self, names=None):
         if not hasattr(self, "mode_comboBox"):
