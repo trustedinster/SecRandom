@@ -832,33 +832,13 @@ class SettingsWindow(FluentWindow):
             ):
                 if name in self._pending_page_loads:
                     return
-                self._pending_page_loads.add(name)
                 self._set_placeholder_loading(widget, "正在加载页面...")
-                factory = self._deferred_factories.pop(name)
-
-                def create_page():
-                    try:
-                        logger.debug(
-                            f"正在创建页面 {name}，预览模式: {self.is_preview}"
-                        )
-                        real_page = factory(is_preview=self.is_preview)
-                        self._clear_placeholder_layout(widget)
-                        widget.layout().addWidget(real_page)
-
-                        if not hasattr(self, "_created_pages"):
-                            self._created_pages = {}
-                        self._created_pages[name] = real_page
-
-                        logger.debug(
-                            f"设置页面已按需创建: {name}, 预览模式: {self.is_preview}"
-                        )
-                    except Exception as e:
-                        self._set_placeholder_loading(widget, f"页面加载失败: {name}")
-                        logger.exception(f"延迟创建设置页面 {name} 失败: {e}")
-                    finally:
-                        self._pending_page_loads.discard(name)
-
-                QTimer.singleShot(0, create_page)
+                QTimer.singleShot(
+                    0,
+                    lambda current_name=name: self._materialize_deferred_page(
+                        current_name
+                    ),
+                )
         except Exception as e:
             logger.exception(f"处理堆叠窗口改变失败: {e}")
 
@@ -1046,6 +1026,46 @@ class SettingsWindow(FluentWindow):
             page_name, page_method, is_pivot, settings_window_page
         )
 
+    def _materialize_deferred_page(self, name: str) -> bool:
+        if name in getattr(self, "_created_pages", {}):
+            return True
+        if name in self._pending_page_loads:
+            return False
+
+        factory = getattr(self, "_deferred_factories", {}).get(name)
+        if factory is None:
+            return False
+
+        container = self._find_container_by_name(name)
+        if container is None or not hasattr(container, "layout"):
+            return False
+
+        layout = container.layout()
+        if layout is None:
+            self._set_placeholder_loading(container, f"页面加载失败: {name}")
+            return False
+
+        self._pending_page_loads.add(name)
+        try:
+            logger.debug(f"正在创建页面 {name}，预览模式: {self.is_preview}")
+            real_page = factory(is_preview=self.is_preview)
+            if real_page is None:
+                raise RuntimeError(f"延迟页面工厂返回空页面: {name}")
+
+            self._clear_placeholder_layout(container)
+            layout.addWidget(real_page)
+
+            self._created_pages[name] = real_page
+            self._deferred_factories.pop(name, None)
+            logger.debug(f"设置页面已按需创建: {name}, 预览模式: {self.is_preview}")
+            return True
+        except Exception as e:
+            self._set_placeholder_loading(container, f"页面加载失败: {name}")
+            logger.exception(f"延迟创建设置页面 {name} 失败: {e}")
+            return False
+        finally:
+            self._pending_page_loads.discard(name)
+
     def _create_deferred_page(self, name: str):
         """根据名字创建对应延迟工厂并把结果加入占位容器
 
@@ -1053,49 +1073,15 @@ class SettingsWindow(FluentWindow):
             name: 页面名称
         """
         try:
-            if name not in getattr(self, "_deferred_factories", {}):
-                return
-            factory = self._deferred_factories.pop(name)
-
             container = self._find_container_by_name(name)
-            if container is None:
-                return
-
-            if not container or not hasattr(container, "layout"):
-                return
-            layout = container.layout()
-            if layout is None:
-                return
-
-            try:
-                real_page = factory(is_preview=self.is_preview)
-            except RuntimeError as e:
-                logger.exception(f"创建延迟页面 {name} 失败（父容器可能已销毁）: {e}")
-                return
-            except Exception as e:
-                logger.exception(f"创建延迟页面 {name} 失败: {e}")
-                return
-
-            try:
-                self._clear_placeholder_layout(container)
-                layout.addWidget(real_page)
-                if not hasattr(self, "_created_pages"):
-                    self._created_pages = {}
-                self._created_pages[name] = real_page
-                logger.debug(f"后台预热创建设置页面: {name}")
-            except RuntimeError as e:
-                logger.exception(
-                    f"将延迟页面 {name} 插入容器失败（容器可能已销毁）: {e}"
-                )
-                return
+            if container is not None:
+                self._set_placeholder_loading(container, "正在加载页面...")
+            self._materialize_deferred_page(name)
         except Exception as e:
             logger.exception(f"_create_deferred_page 失败: {e}")
 
     def _ensure_deferred_page_loaded(self, name: str) -> None:
-        if name in getattr(self, "_created_pages", {}):
-            return
-        if name in getattr(self, "_deferred_factories", {}):
-            self._create_deferred_page(name)
+        self._materialize_deferred_page(name)
 
     def _find_container_by_name(self, name: str):
         """根据名称查找容器
