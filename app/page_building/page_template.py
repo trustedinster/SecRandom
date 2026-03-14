@@ -43,7 +43,7 @@ class PageTemplate(QFrame):
         self._content_kwargs = kwargs  # 存储传递给内容组件的额外参数
 
         self.__connectSignalToSlot()
-        QTimer.singleShot(0, self.create_ui_components)
+        self.create_ui_components()
 
     @property
     def is_preview_mode(self):
@@ -314,7 +314,13 @@ class PivotPageTemplate(QFrame):
 
     _resolved_page_class_cache = {}
 
-    def __init__(self, page_config: dict, parent: QFrame = None, is_preview_mode=False):
+    def __init__(
+        self,
+        page_config: dict,
+        parent: QFrame = None,
+        is_preview_mode=False,
+        base_path: str | None = None,
+    ):
         """
         初始化 Pivot 页面模板
 
@@ -330,15 +336,14 @@ class PivotPageTemplate(QFrame):
         self.pages = {}  # 存储页面组件 (scroll areas)
         self.page_infos = {}  # 存储页面附加信息: display, layout, loaded
         self.current_page = None  # 当前页面
-        self.base_path = "app.view.settings.list_management"  # 默认基础路径
+        self.base_path = base_path or "app.view.settings.list_management"
         self._page_load_order = []  # 页面加载顺序，用于LRU卸载
         self._pending_page_loads = set()
         self.MAX_CACHED_PAGES = MAX_CACHED_PAGES  # 最大同时保留在内存中的页面数量
         self._is_preview_mode = is_preview_mode
 
         self.__connectSignalToSlot()
-
-        QTimer.singleShot(0, self.create_ui_components)
+        self.create_ui_components()
 
     @property
     def is_preview_mode(self):
@@ -412,11 +417,9 @@ class PivotPageTemplate(QFrame):
             display_name: 在 Pivot 中显示的名称
         """
         if not self.ui_created:
-            # 如果UI尚未创建，延迟添加
-            QTimer.singleShot(
-                APP_INIT_DELAY, lambda: self.add_page(page_name, display_name)
-            )
-            return
+            self.create_ui_components()
+            if page_name in self.pages:
+                return
 
         # 创建滑动区域
         scroll_area = SingleDirectionScrollArea(self)

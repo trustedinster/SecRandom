@@ -24,8 +24,8 @@ class _ThemedMainPage(PageTemplate):
         widget_class = ThemeLoader.load_theme_widget(
             self.THEME_NAME, self._get_default_widget_class()
         )
-        super().__init__(content_widget_class=widget_class, parent=parent)
         setattr(self, self.CONTENT_ATTR_NAME, None)
+        super().__init__(content_widget_class=widget_class, parent=parent)
         get_settings_signals().settingChanged.connect(self._on_global_setting_changed)
 
     @staticmethod
@@ -123,5 +123,4 @@ class history_page(PivotPageTemplate):
                 "lottery_history_table", "title"
             ),
         }
-        super().__init__(page_config, parent)
-        self.set_base_path("app.view.settings.history")
+        super().__init__(page_config, parent, base_path="app.view.settings.history")

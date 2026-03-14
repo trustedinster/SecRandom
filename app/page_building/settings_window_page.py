@@ -44,8 +44,12 @@ class list_management_page(PivotPageTemplate):
             "roll_call_table": get_content_name_async("roll_call_table", "title"),
             "lottery_table": get_content_name_async("lottery_table", "title"),
         }
-        super().__init__(page_config, parent, is_preview_mode=is_preview)
-        self.set_base_path("app.view.settings.list_management")
+        super().__init__(
+            page_config,
+            parent,
+            is_preview_mode=is_preview,
+            base_path="app.view.settings.list_management",
+        )
 
 
 class extraction_settings_page(PivotPageTemplate):
@@ -62,8 +66,12 @@ class extraction_settings_page(PivotPageTemplate):
                 "face_detector_settings", "title"
             ),
         }
-        super().__init__(page_config, parent, is_preview_mode=is_preview)
-        self.set_base_path("app.view.settings.extraction_settings")
+        super().__init__(
+            page_config,
+            parent,
+            is_preview_mode=is_preview,
+            base_path="app.view.settings.extraction_settings",
+        )
 
 
 class floating_window_management_page(PageTemplate):
@@ -92,8 +100,12 @@ class notification_settings_page(PivotPageTemplate):
                 "lottery_notification_settings", "title"
             ),
         }
-        super().__init__(page_config, parent, is_preview_mode=is_preview)
-        self.set_base_path("app.view.settings.notification_settings")
+        super().__init__(
+            page_config,
+            parent,
+            is_preview_mode=is_preview,
+            base_path="app.view.settings.notification_settings",
+        )
 
 
 class safety_settings_page(PageTemplate):
@@ -119,8 +131,12 @@ class voice_settings_page(PivotPageTemplate):
                 "specific_announcements", "title"
             ),
         }
-        super().__init__(page_config, parent, is_preview_mode=is_preview)
-        self.set_base_path("app.view.settings.voice_settings")
+        super().__init__(
+            page_config,
+            parent,
+            is_preview_mode=is_preview,
+            base_path="app.view.settings.voice_settings",
+        )
 
 
 class history_page(PivotPageTemplate):
@@ -136,8 +152,12 @@ class history_page(PivotPageTemplate):
                 "lottery_history_table", "title"
             ),
         }
-        super().__init__(page_config, parent, is_preview_mode=is_preview)
-        self.set_base_path("app.view.settings.history")
+        super().__init__(
+            page_config,
+            parent,
+            is_preview_mode=is_preview,
+            base_path="app.view.settings.history",
+        )
 
 
 class linkage_settings_page(PageTemplate):
@@ -192,8 +212,12 @@ class more_settings_page(PivotPageTemplate):
             page_config["behind_scenes_settings"] = get_content_name_async(
                 "behind_scenes_settings", "title"
             )
-        super().__init__(page_config, parent, is_preview_mode=is_preview)
-        self.set_base_path("app.view.settings.more_settings")
+        super().__init__(
+            page_config,
+            parent,
+            is_preview_mode=is_preview,
+            base_path="app.view.settings.more_settings",
+        )
 
 
 class update_page(PageTemplate):
