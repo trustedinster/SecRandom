@@ -5,7 +5,7 @@
 from loguru import logger
 from PySide6.QtWidgets import QApplication, QLabel, QWidget, QScroller, QSizePolicy
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QTimer, QEvent, Signal, QSize, Qt
+from PySide6.QtCore import QTimer, QEvent, Signal, QSize, Qt, QThread, QObject
 from PySide6.QtWidgets import QVBoxLayout
 from qfluentwidgets import (
     FluentWindow,
@@ -1153,6 +1153,7 @@ class SettingsWindow(FluentWindow):
 
         try:
             real_page = self._created_pages.pop(page_name)
+            self._cleanup_page_threads(real_page)
             container = getattr(self, page_name, None)
             if container and container.layout():
                 container.layout().removeWidget(real_page)
@@ -1166,6 +1167,96 @@ class SettingsWindow(FluentWindow):
             logger.warning(f"卸载设置页面 {page_name} 时出现警告: {e}")
         except Exception as e:
             logger.exception(f"卸载设置页面 {page_name} 失败: {e}")
+
+    def _cleanup_page_threads(self, widget: QWidget) -> None:
+        visited: set[int] = set()
+        self._cleanup_threads_in_object(widget, visited)
+
+    def _cleanup_threads_in_object(self, obj, visited: set[int]) -> None:
+        if obj is None:
+            return
+
+        obj_id = id(obj)
+        if obj_id in visited:
+            return
+        visited.add(obj_id)
+
+        if isinstance(obj, QThread):
+            self._stop_qthread(obj)
+            return
+
+        try:
+            obj_dict = vars(obj)
+        except Exception:
+            obj_dict = {}
+
+        for value in obj_dict.values():
+            self._cleanup_threads_in_value(value, visited)
+
+        if isinstance(obj, QObject):
+            try:
+                for child in obj.children():
+                    self._cleanup_threads_in_object(child, visited)
+            except Exception:
+                pass
+
+    def _cleanup_threads_in_value(self, value, visited: set[int]) -> None:
+        if value is None:
+            return
+
+        if isinstance(value, (str, bytes, int, float, bool)):
+            return
+
+        if isinstance(value, QThread):
+            self._stop_qthread(value)
+            return
+
+        if isinstance(value, dict):
+            for item in value.values():
+                self._cleanup_threads_in_value(item, visited)
+            return
+
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                self._cleanup_threads_in_value(item, visited)
+            return
+
+        self._cleanup_threads_in_object(value, visited)
+
+    def _stop_qthread(self, thread: QThread) -> None:
+        try:
+            if not thread.isRunning():
+                return
+        except RuntimeError:
+            return
+
+        try:
+            thread.requestInterruption()
+        except Exception:
+            pass
+
+        try:
+            thread.quit()
+        except Exception:
+            pass
+
+        try:
+            finished = thread.wait(500)
+        except Exception:
+            finished = False
+
+        if finished:
+            return
+
+        try:
+            thread.terminate()
+        except Exception:
+            return
+
+        try:
+            thread.wait(500)
+        except Exception:
+            pass
 
     def _restore_page_factory(self, page_name: str, container):
         """恢复页面工厂函数
