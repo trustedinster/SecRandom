@@ -28,7 +28,6 @@ from app.common.music.music_player import music_player
 from app.common.behind_scenes.behind_scenes_utils import BehindScenesUtils
 from app.common.voice.voice import TTSHandler
 from app.common.extraction.extract import _is_non_class_time
-from app.common.safety.verify_ops import require_and_run
 from app.page_building.another_window import create_remaining_list_window
 from app.tools.config import remove_record
 from app.tools.interaction_perf import start_interaction
@@ -44,6 +43,12 @@ from app.tools.variable import APP_INIT_DELAY
 from app.tools.config import track_event
 
 system_random = SystemRandom()
+
+
+def _require_and_run(*args, **kwargs):
+    from app.common.safety.verify_ops import require_and_run
+
+    return require_and_run(*args, **kwargs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -906,7 +911,7 @@ def start_draw(widget):
     if _is_non_class_time():
         if readme_settings_async("linkage_settings", "verification_required"):
             logger.info("当前时间在非上课时间段内，需要密码验证")
-            require_and_run(
+            _require_and_run(
                 "roll_call_start", widget, lambda: start_roll_call_draw(widget)
             )
         else:
@@ -924,7 +929,7 @@ def reset_count(widget):
     if _is_non_class_time():
         if readme_settings_async("linkage_settings", "verification_required"):
             logger.info("当前时间在非上课时间段内，需要密码验证")
-            require_and_run("roll_call_reset", widget, widget._do_reset_count)
+            _require_and_run("roll_call_reset", widget, widget._do_reset_count)
         else:
             logger.info("当前时间在非上课时间段内，禁止重置")
             return

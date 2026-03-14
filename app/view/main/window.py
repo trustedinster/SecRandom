@@ -25,7 +25,6 @@ from app.Language.obtain_language import (
     readme_settings_async,
     update_settings,
 )
-from app.common.safety.verify_ops import require_and_run
 from app.tools.list_specific_settings_access import (
     read_quick_draw_setting,
     get_safe_font_size_list_specific,
@@ -40,6 +39,12 @@ from app.tools.settings_access import get_settings_snapshot
 
 if TYPE_CHECKING:
     from app.view.floating_window.levitation import LevitationWindow
+
+
+def _require_and_run(*args, **kwargs):
+    from app.common.safety.verify_ops import require_and_run
+
+    return require_and_run(*args, **kwargs)
 
 
 # ==================================================
@@ -836,9 +841,9 @@ class MainWindow(FluentWindow):
         elif action == "float":
             self._toggle_float_window()
         elif action == "restart":
-            require_and_run("restart", self, self.restart_app)
+            _require_and_run("restart", self, self.restart_app)
         elif action == "exit":
-            require_and_run("exit", self, self.close_window_secrandom)
+            _require_and_run("exit", self, self.close_window_secrandom)
         else:
             logger.warning(f"未知的托盘操作: {action}")
 
