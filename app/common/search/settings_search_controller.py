@@ -26,18 +26,14 @@ class SettingsSearchController(QObject):
         window: QWidget,
         title_bar: QWidget,
         line_edit: QWidget,
-        handle_page_request: Callable[[str], None],
-        get_page_mapping: Callable[[], Dict[str, Any]],
-        get_created_page: Callable[[str], Optional[QWidget]],
+        ensure_page_ready: Callable[..., Optional[QWidget]],
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._window = window
         self._title_bar = title_bar
         self._line_edit = line_edit
-        self._handle_page_request = handle_page_request
-        self._get_page_mapping = get_page_mapping
-        self._get_created_page = get_created_page
+        self._ensure_page_ready = ensure_page_ready
 
         self._menu: Optional[SystemTrayMenu] = None
         self._index: Optional[List[Dict[str, Any]]] = None
@@ -146,40 +142,30 @@ class SettingsSearchController(QObject):
         if not page_route:
             return
 
-        self._handle_page_request(page_route)
+        self._ensure_page_ready(
+            page_route,
+            on_ready=lambda page, current_entry=entry: self._focus_entry(
+                page, current_entry
+            ),
+        )
 
-        page_mapping = self._get_page_mapping() or {}
-        interface_attr = page_mapping.get(page_route, (None, None))[0]
-        if not interface_attr:
-            return
-
-        def try_jump(attempt: int = 0) -> None:
-            page = self._get_created_page(interface_attr)
-            if page is None:
-                if attempt < 20:
-                    QTimer.singleShot(50, lambda: try_jump(attempt + 1))
-                return
-
-            pivot = entry.get("pivot")
-            if pivot:
-                if hasattr(page, "switch_to_page"):
+    def _focus_entry(self, page: QWidget, entry: Dict[str, Any]) -> None:
+        pivot = entry.get("pivot")
+        if pivot:
+            if hasattr(page, "switch_to_page"):
+                try:
+                    page.switch_to_page(pivot)
+                except Exception:
+                    pass
+            else:
+                pivot_widget = getattr(page, "pivot", None)
+                if pivot_widget is not None and hasattr(pivot_widget, "setCurrentItem"):
                     try:
-                        page.switch_to_page(pivot)
+                        pivot_widget.setCurrentItem(pivot)
                     except Exception:
                         pass
-                else:
-                    pivot_widget = getattr(page, "pivot", None)
-                    if pivot_widget is not None and hasattr(
-                        pivot_widget, "setCurrentItem"
-                    ):
-                        try:
-                            pivot_widget.setCurrentItem(pivot)
-                        except Exception:
-                            pass
 
-            QTimer.singleShot(50, lambda: self._scroll_to_entry(page, entry))
-
-        QTimer.singleShot(0, lambda: try_jump(0))
+        self._scroll_to_entry(page, entry)
 
     def _scroll_to_entry(self, page: QWidget, entry: Dict[str, Any]) -> None:
         first = entry.get("first")

@@ -133,11 +133,7 @@ class SettingsWindow(FluentWindow):
             window=self,
             title_bar=title_bar,
             line_edit=self._settings_search_line_edit,
-            handle_page_request=self._handle_settings_page_request,
-            get_page_mapping=self._get_page_mapping,
-            get_created_page=lambda interface_attr: getattr(
-                self, "_created_pages", {}
-            ).get(interface_attr, None),
+            ensure_page_ready=self._ensure_settings_page_ready,
             parent=self,
         )
         try:
