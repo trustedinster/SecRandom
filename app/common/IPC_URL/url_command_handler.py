@@ -389,6 +389,11 @@ class URLCommandHandler(QObject):
         """执行命令"""
         logger.debug(f"执行命令: {command}, 参数: {params}")
         try:
+            if command.startswith("settings/"):
+                page_name = command.split("/", 1)[1]
+                merged_params = {**(params or {}), "args": [page_name]}
+                return self._handle_settings(merged_params)
+
             # 查找命令处理器
             handler = self.command_map.get(command)
             if handler:
