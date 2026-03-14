@@ -1,13 +1,14 @@
 # ==================================================
 # 导入库
 # ==================================================
+from typing import TYPE_CHECKING
+
 from loguru import logger
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QTimer, QEvent, Signal, QThreadPool, QRunnable, Qt
 from qfluentwidgets import FluentWindow, NavigationItemPosition
 
-from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
 from app.common.shortcut import ShortcutManager
 from app.tools.variable import (
     MINIMUM_WINDOW_SIZE,
@@ -25,23 +26,20 @@ from app.Language.obtain_language import (
     update_settings,
 )
 from app.common.safety.verify_ops import require_and_run
-from app.view.main.quick_draw_animation import QuickDrawAnimation
 from app.tools.list_specific_settings_access import (
     read_quick_draw_setting,
     get_safe_font_size_list_specific,
 )
-from app.view.main.camera_preview import CameraPreview
 from app.page_building.main_window_page import (
     roll_call_page,
     lottery_page,
     history_page,
 )
-from app.view.tray.tray import Tray
-from app.view.floating_window.levitation import LevitationWindow
-from app.common.IPC_URL.url_command_handler import URLCommandHandler
 from app.page_building.window_template import BackgroundLayer
-from app.page_building.another_window import create_countdown_timer_window
 from app.tools.settings_access import get_settings_snapshot
+
+if TYPE_CHECKING:
+    from app.view.floating_window.levitation import LevitationWindow
 
 
 # ==================================================
@@ -59,7 +57,7 @@ class MainWindow(FluentWindow):
     showTrayActionRequested = Signal(str)  # 请求执行托盘操作
     classIslandDataReceived = Signal(dict)  # 接收ClassIsland数据信号
 
-    def __init__(self, float_window: LevitationWindow, url_handler_instance=None):
+    def __init__(self, float_window: "LevitationWindow", url_handler_instance=None):
         self.resize_timer = None
         super().__init__()
         self.setObjectName("MainWindow")
@@ -235,6 +233,8 @@ class MainWindow(FluentWindow):
 
     def _setup_url_handler(self):
         """设置URL处理器"""
+        from app.common.IPC_URL.url_command_handler import URLCommandHandler
+
         self.url_command_handler = URLCommandHandler(self)
         self.url_command_handler.showMainPageRequested.connect(
             self._handle_main_page_requested
@@ -251,6 +251,8 @@ class MainWindow(FluentWindow):
 
     def _setup_tray(self):
         """设置系统托盘"""
+        from app.view.tray.tray import Tray
+
         self.tray_icon = Tray(self)
         self.tray_icon.showSettingsRequested.connect(self.showSettingsRequested.emit)
         self.tray_icon.showSettingsRequestedAbout.connect(
@@ -264,7 +266,7 @@ class MainWindow(FluentWindow):
         )
         self.tray_icon.show_tray_icon()
 
-    def _setup_float_window(self, float_window: LevitationWindow):
+    def _setup_float_window(self, float_window: "LevitationWindow"):
         """设置悬浮窗"""
         self.float_window = float_window
         self.showFloatWindowRequested.connect(self._toggle_float_window)
@@ -280,9 +282,12 @@ class MainWindow(FluentWindow):
         self.float_window.faceDrawRequested.connect(
             lambda: self._show_and_switch_to_page("camera_preview_page")
         )
-        self.float_window.timerRequested.connect(
-            lambda: create_countdown_timer_window()
-        )
+        self.float_window.timerRequested.connect(self._open_countdown_timer_window)
+
+    def _open_countdown_timer_window(self):
+        from app.page_building.another_window import create_countdown_timer_window
+
+        create_countdown_timer_window()
 
     # ==================================================
     # IPC 服务器管理
@@ -526,7 +531,7 @@ class MainWindow(FluentWindow):
         self._page_factories = {
             "roll_call_page": lambda parent: roll_call_page(parent),
             "lottery_page": lambda parent: lottery_page(parent),
-            "camera_preview_page": lambda parent: CameraPreview(parent),
+            "camera_preview_page": self._create_camera_preview_page,
             "history_page": lambda parent: history_page(parent),
         }
 
@@ -643,6 +648,11 @@ class MainWindow(FluentWindow):
         page_name = widget.objectName()
         if page_name in self._registered_pages:
             self._ensure_main_page_loaded(page_name)
+
+    def _create_camera_preview_page(self, parent):
+        from app.view.main.camera_preview import CameraPreview
+
+        return CameraPreview(parent)
 
     def initNavigation(self):
         """初始化导航系统
@@ -1117,6 +1127,8 @@ class MainWindow(FluentWindow):
             "default_class": list_name,
         }
 
+        from app.view.main.quick_draw_animation import QuickDrawAnimation
+
         quick_draw_animation = QuickDrawAnimation(roll_call_widget)
         quick_draw_animation.execute_quick_draw(quick_draw_settings)
 
@@ -1191,6 +1203,8 @@ class MainWindow(FluentWindow):
             int: 距离上课的秒数，如果不需要重置则返回None
         """
         if data_source == 2:
+            from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
+
             return CSharpIPCHandler.instance().get_on_class_left_time()
         elif data_source == 1:
             from app.common.extraction.extract import _get_seconds_to_next_class
@@ -1320,6 +1334,8 @@ class MainWindow(FluentWindow):
     def _stop_ipc_client(self):
         """停止IPC客户端"""
         try:
+            from app.common.IPC_URL.csharp_ipc_handler import CSharpIPCHandler
+
             CSharpIPCHandler.instance().stop_ipc_client()
             logger.debug("C# IPC 停止请求已发出")
         except Exception as e:
