@@ -1,7 +1,6 @@
 from PySide6.QtCore import QTimer
 from loguru import logger
 
-from app.tools.settings_default import manage_settings_file
 from app.tools.config import remove_record
 from app.tools.settings_access import readme_settings_async
 from app.tools.update_utils import check_for_updates_on_startup
@@ -27,13 +26,8 @@ class AppInitializer:
 
     def initialize(self) -> None:
         """初始化应用程序"""
-        self._manage_settings_file()
         self._schedule_initialization_tasks()
         logger.debug("应用初始化调度已启动，主窗口将在延迟后创建")
-
-    def _manage_settings_file(self) -> None:
-        """管理设置文件，确保其存在且完整"""
-        manage_settings_file()
 
     def _schedule_initialization_tasks(self) -> None:
         """调度所有初始化任务"""
