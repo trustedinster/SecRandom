@@ -86,6 +86,11 @@ class SettingsWindow(FluentWindow):
         self._created_pages = {}
         self._page_access_order = []
         self._pending_page_loads = set()
+        self._geometry_sync_scheduled = False
+        self._geometry_sync_callbacks = []
+        if __debug__:
+            self._geometry_sync_request_count = 0
+            self._geometry_sync_run_count = 0
 
     def _setup_timers(self):
         """设置定时器"""
@@ -142,7 +147,7 @@ class SettingsWindow(FluentWindow):
         except Exception:
             pass
 
-        QTimer.singleShot(0, self._position_titlebar_search)
+        self._request_geometry_sync()
 
     def _position_titlebar_search(self):
         title_bar = getattr(self, "titleBar", None)
@@ -223,7 +228,7 @@ class SettingsWindow(FluentWindow):
 
         navigation.installEventFilter(self)
         scroll_area.installEventFilter(self)
-        QTimer.singleShot(0, self._sync_sidebar_scroll_geometry)
+        self._request_geometry_sync()
 
     def _sync_sidebar_scroll_geometry(self):
         scroll_area = getattr(self, "_sidebar_scroll_area", None)
@@ -240,6 +245,45 @@ class SettingsWindow(FluentWindow):
         viewport_h = int(scroll_area.viewport().height() or 0)
         if viewport_h > 0 and navigation.minimumHeight() != viewport_h:
             navigation.setMinimumHeight(viewport_h)
+
+    def _request_geometry_sync(self, callback=None):
+        if callback is not None:
+            self._geometry_sync_callbacks.append(callback)
+
+        if __debug__:
+            self._geometry_sync_request_count += 1
+
+        if self._geometry_sync_scheduled:
+            return
+
+        self._geometry_sync_scheduled = True
+        # Wait one event-loop turn so title bar and sidebar layout can settle.
+        QTimer.singleShot(0, self._run_deferred_geometry_sync)
+
+    def _run_deferred_geometry_sync(self):
+        self._geometry_sync_scheduled = False
+
+        if __debug__:
+            self._geometry_sync_run_count += 1
+            assert self._geometry_sync_run_count <= self._geometry_sync_request_count
+
+        try:
+            self._sync_sidebar_scroll_geometry()
+        except Exception:
+            pass
+
+        try:
+            self._position_titlebar_search()
+        except Exception:
+            pass
+
+        callbacks = self._geometry_sync_callbacks
+        self._geometry_sync_callbacks = []
+        for callback in callbacks:
+            try:
+                callback()
+            except Exception as e:
+                logger.exception(f"执行几何同步回调失败: {e}")
 
     def _setup_settings_listener(self):
         try:
@@ -435,14 +479,7 @@ class SettingsWindow(FluentWindow):
         except Exception:
             pass
         super().resizeEvent(event)
-        try:
-            self._sync_sidebar_scroll_geometry()
-        except Exception:
-            pass
-        try:
-            self._position_titlebar_search()
-        except Exception:
-            pass
+        self._request_geometry_sync()
 
     def changeEvent(self, event):
         """窗口状态变化事件处理
@@ -478,7 +515,7 @@ class SettingsWindow(FluentWindow):
 
         super().changeEvent(event)
         if event.type() == QEvent.Type.WindowStateChange:
-            QTimer.singleShot(0, self._sync_sidebar_scroll_geometry)
+            self._request_geometry_sync()
 
     def eventFilter(self, obj, event):
         navigation = getattr(self, "_sidebar_navigation_widget", None)
@@ -488,18 +525,12 @@ class SettingsWindow(FluentWindow):
             QEvent.Type.LayoutRequest,
             QEvent.Type.Show,
         ):
-            try:
-                self._sync_sidebar_scroll_geometry()
-            except Exception:
-                pass
+            self._request_geometry_sync()
         elif obj is scroll_area and event.type() in (
             QEvent.Type.Resize,
             QEvent.Type.Show,
         ):
-            try:
-                self._sync_sidebar_scroll_geometry()
-            except Exception:
-                pass
+            self._request_geometry_sync()
         return super().eventFilter(obj, event)
 
     # ==================================================
