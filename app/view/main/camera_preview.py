@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import random
+import threading
 import time
+from importlib import import_module
 from typing import Optional
 
 from PySide6.QtWidgets import *
@@ -17,17 +19,59 @@ from app.Language.obtain_language import (
     get_content_pushbutton_name_async,
 )
 
-from app.common.camera_preview_backend import (
-    get_cached_camera_devices,
-    get_recommended_camera_resolution,
-    OpenCVCaptureWorker,
-    FaceDetectorWorker,
-    bgr_frame_to_qimage,
-    warmup_camera_devices_async,
-)
-from app.common.camera_preview_backend.audio_player import camera_preview_audio_player
 from app.tools.settings_access import get_settings_signals, readme_settings_async
 from app.common.roll_call import roll_call_manager
+
+
+_CAMERA_BACKEND_IMPORT_LOCK = threading.Lock()
+_CAMERA_DEVICES_MODULE = None
+_CAMERA_WORKERS_MODULE = None
+_CAMERA_IMAGE_MODULE = None
+_CAMERA_AUDIO_MODULE = None
+
+
+def _get_camera_devices_module():
+    global _CAMERA_DEVICES_MODULE
+    if _CAMERA_DEVICES_MODULE is None:
+        with _CAMERA_BACKEND_IMPORT_LOCK:
+            if _CAMERA_DEVICES_MODULE is None:
+                _CAMERA_DEVICES_MODULE = import_module(
+                    "app.common.camera_preview_backend.devices"
+                )
+    return _CAMERA_DEVICES_MODULE
+
+
+def _get_camera_workers_module():
+    global _CAMERA_WORKERS_MODULE
+    if _CAMERA_WORKERS_MODULE is None:
+        with _CAMERA_BACKEND_IMPORT_LOCK:
+            if _CAMERA_WORKERS_MODULE is None:
+                _CAMERA_WORKERS_MODULE = import_module(
+                    "app.common.camera_preview_backend.workers"
+                )
+    return _CAMERA_WORKERS_MODULE
+
+
+def _get_camera_image_module():
+    global _CAMERA_IMAGE_MODULE
+    if _CAMERA_IMAGE_MODULE is None:
+        with _CAMERA_BACKEND_IMPORT_LOCK:
+            if _CAMERA_IMAGE_MODULE is None:
+                _CAMERA_IMAGE_MODULE = import_module(
+                    "app.common.camera_preview_backend.image_utils"
+                )
+    return _CAMERA_IMAGE_MODULE
+
+
+def _get_camera_audio_player():
+    global _CAMERA_AUDIO_MODULE
+    if _CAMERA_AUDIO_MODULE is None:
+        with _CAMERA_BACKEND_IMPORT_LOCK:
+            if _CAMERA_AUDIO_MODULE is None:
+                _CAMERA_AUDIO_MODULE = import_module(
+                    "app.common.camera_preview_backend.audio_player"
+                )
+    return _CAMERA_AUDIO_MODULE.camera_preview_audio_player
 
 
 class CameraPreview(QWidget):
@@ -86,9 +130,10 @@ class CameraPreview(QWidget):
         self._last_render_at: float = 0.0
 
         self._capture_thread: Optional[QThread] = None
-        self._capture_worker: Optional[OpenCVCaptureWorker] = None
+        self._capture_worker: Optional[object] = None
         self._detector_thread: Optional[QThread] = None
-        self._detector_worker: Optional[FaceDetectorWorker] = None
+        self._detector_worker: Optional[object] = None
+        self._workers_state: str = "not_started"
         self._init_poll_left: int = 0
         self._init_poll_timer = QTimer(self)
         self._init_poll_timer.setSingleShot(True)
@@ -126,15 +171,18 @@ class CameraPreview(QWidget):
         super().hideEvent(event)
 
     def _ensure_workers_nonblocking(self) -> None:
-        if self._workers_ready:
+        if self._workers_ready or self._workers_state == "initializing":
             return
-        devices = get_cached_camera_devices()
+        self._workers_state = "initializing"
+        devices = _get_camera_devices_module().get_cached_camera_devices()
         if devices:
             self._init_workers(devices=devices)
             return
 
         try:
-            warmup_camera_devices_async(force_refresh=False)
+            _get_camera_devices_module().warmup_camera_devices_async(
+                force_refresh=False
+            )
         except Exception:
             pass
 
@@ -146,7 +194,9 @@ class CameraPreview(QWidget):
     def _try_init_workers_nonblocking(self) -> None:
         if self._workers_ready:
             return
-        devices = get_cached_camera_devices()
+        if self._workers_state != "initializing":
+            return
+        devices = _get_camera_devices_module().get_cached_camera_devices()
         if devices:
             self._init_workers(devices=devices)
             try:
@@ -161,6 +211,7 @@ class CameraPreview(QWidget):
         if self._init_poll_left > 0:
             self._init_poll_timer.start(200)
             return
+        self._workers_state = "not_started"
         try:
             self.start_button.setEnabled(False)
         except Exception:
@@ -231,7 +282,7 @@ class CameraPreview(QWidget):
 
             try:
                 if self._audio_loop_started:
-                    camera_preview_audio_player.stop(wait=False)
+                    _get_camera_audio_player().stop(wait=False)
             except Exception:
                 pass
             self._audio_loop_started = False
@@ -336,7 +387,7 @@ class CameraPreview(QWidget):
         self._disconnect_frame_pipeline()
 
         try:
-            camera_preview_audio_player.stop(wait=False)
+            _get_camera_audio_player().stop(wait=False)
         except Exception:
             pass
         self._audio_loop_started = False
@@ -508,12 +559,13 @@ class CameraPreview(QWidget):
         os.environ.setdefault("OPENCV_VIDEOIO_PRIORITY_MSMF", "1")
 
         if devices is None:
-            devices = get_cached_camera_devices()
+            devices = _get_camera_devices_module().get_cached_camera_devices()
         try:
             self._devices = list(devices or [])
         except Exception:
             self._devices = []
         if not self._devices:
+            self._workers_state = "not_started"
             self.start_button.setEnabled(False)
             self.preview_label.setText(
                 get_content_description_async("camera_preview", "no_camera")
@@ -557,9 +609,12 @@ class CameraPreview(QWidget):
                 default_camera_id = default_source
 
         desired_resolution = self._resolve_camera_display_resolution(default_camera_id)
+        workers_module = _get_camera_workers_module()
 
         self._capture_thread = QThread(self)
-        self._capture_worker = OpenCVCaptureWorker(default_source, desired_resolution)
+        self._capture_worker = workers_module.OpenCVCaptureWorker(
+            default_source, desired_resolution
+        )
         self._capture_worker.moveToThread(self._capture_thread)
         self._capture_thread.started.connect(self._capture_worker.start)
         self.capture_stop_requested.connect(self._capture_worker.stop)
@@ -576,7 +631,7 @@ class CameraPreview(QWidget):
 
         self._detector_thread = QThread(self)
         detector_type = readme_settings_async("face_detector_settings", "detector_type")
-        self._detector_worker = FaceDetectorWorker()
+        self._detector_worker = workers_module.FaceDetectorWorker()
         self._detector_worker.set_model_filename(detector_type)
         try:
             w = int(
@@ -606,12 +661,14 @@ class CameraPreview(QWidget):
             self._capture_thread.start()
         except Exception as exc:
             logger.exception("启动摄像头线程失败: {}", exc)
+            self._workers_state = "not_started"
             self._show_message("unavailable", details=str(exc))
             self.start_button.setEnabled(False)
             return
 
         self._connect_frame_pipeline()
         self._workers_ready = True
+        self._workers_state = "ready"
 
     def _on_start_clicked(self) -> None:
         """启动人脸检测流程。"""
@@ -867,7 +924,11 @@ class CameraPreview(QWidget):
                         break
                 except Exception:
                     continue
-            recommended = get_recommended_camera_resolution(preferred_id)
+            recommended = (
+                _get_camera_devices_module().get_recommended_camera_resolution(
+                    preferred_id
+                )
+            )
         except Exception:
             recommended = None
         if recommended is not None:
@@ -908,7 +969,7 @@ class CameraPreview(QWidget):
             pass
         if self._audio_loop_started:
             try:
-                camera_preview_audio_player.stop(wait=False)
+                _get_camera_audio_player().stop(wait=False)
             except Exception:
                 pass
             self._audio_loop_started = False
@@ -979,7 +1040,7 @@ class CameraPreview(QWidget):
         self._render_inflight = True
         try:
             try:
-                qimage = bgr_frame_to_qimage(frame_bgr)
+                qimage = _get_camera_image_module().bgr_frame_to_qimage(frame_bgr)
             except Exception as exc:
                 logger.exception("帧转换失败: {}", exc)
                 return
@@ -1091,7 +1152,7 @@ class CameraPreview(QWidget):
             self._load_picker_settings()
             if self._play_process_audio and not self._audio_loop_started:
                 try:
-                    started = camera_preview_audio_player.play(
+                    started = _get_camera_audio_player().play(
                         "face/process.wav", loop=True, volume=1.0
                     )
                     self._audio_loop_started = True if started else False
@@ -1299,7 +1360,9 @@ class CameraPreview(QWidget):
         qimage: Optional[QImage] = None
         try:
             if self._latest_frame is not None:
-                qimage = bgr_frame_to_qimage(self._latest_frame)
+                qimage = _get_camera_image_module().bgr_frame_to_qimage(
+                    self._latest_frame
+                )
         except Exception:
             qimage = None
         if (
@@ -1393,14 +1456,14 @@ class CameraPreview(QWidget):
 
         if self._audio_loop_started:
             try:
-                camera_preview_audio_player.stop(wait=False)
+                _get_camera_audio_player().stop(wait=False)
             except Exception:
                 pass
             self._audio_loop_started = False
 
         if self._play_result_audio:
             try:
-                camera_preview_audio_player.play(
+                _get_camera_audio_player().play(
                     "face/result.wav", loop=False, volume=1.0
                 )
             except Exception:
@@ -1445,7 +1508,9 @@ class CameraPreview(QWidget):
         qimage: Optional[QImage] = None
         try:
             if self._latest_frame is not None:
-                qimage = bgr_frame_to_qimage(self._latest_frame)
+                qimage = _get_camera_image_module().bgr_frame_to_qimage(
+                    self._latest_frame
+                )
         except Exception:
             qimage = None
 
@@ -1480,14 +1545,14 @@ class CameraPreview(QWidget):
 
         if self._audio_loop_started:
             try:
-                camera_preview_audio_player.stop(wait=False)
+                _get_camera_audio_player().stop(wait=False)
             except Exception:
                 pass
             self._audio_loop_started = False
 
         if self._play_result_audio:
             try:
-                camera_preview_audio_player.play(
+                _get_camera_audio_player().play(
                     "face/result.wav", loop=False, volume=1.0
                 )
             except Exception:
@@ -1550,5 +1615,12 @@ class CameraPreview(QWidget):
                 thread.wait(1500)
             except Exception as exc:
                 logger.exception("线程关闭失败: {}", exc)
+
+        self._workers_ready = False
+        self._workers_state = "not_started"
+        self._capture_thread = None
+        self._capture_worker = None
+        self._detector_thread = None
+        self._detector_worker = None
 
         super().closeEvent(event)

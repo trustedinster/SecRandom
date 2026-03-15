@@ -265,10 +265,10 @@ class WindowManager:
             return
 
         self.url_handler.showMainPageRequested.connect(
-            self.main_window._handle_main_page_requested
+            self.main_window.showMainPageRequested.emit
         )
         self.url_handler.showTrayActionRequested.connect(
-            lambda action: self.main_window._handle_tray_action_requested(action)
+            self.main_window.showTrayActionRequested.emit
         )
         self.url_handler.showSettingsRequested.connect(self.show_settings_window)
         if hasattr(self.url_handler, "showSettingsPreviewRequested"):
@@ -584,8 +584,8 @@ class WindowManager:
                         )
                         if self.main_window.isVisible() and not is_minimized:
                             self.main_window.hide()
-                        elif hasattr(self.main_window, "_handle_main_page_requested"):
-                            self.main_window._handle_main_page_requested(page_name)
+                        elif hasattr(self.main_window, "showMainPageRequested"):
+                            self.main_window.showMainPageRequested.emit(page_name)
                         elif hasattr(self.main_window, "toggle_window"):
                             self.main_window.toggle_window()
                         else:
@@ -597,10 +597,8 @@ class WindowManager:
                     self.main_window.hide()
                     return
                 if action == "show":
-                    if page_name and hasattr(
-                        self.main_window, "_handle_main_page_requested"
-                    ):
-                        self.main_window._handle_main_page_requested(page_name)
+                    if page_name and hasattr(self.main_window, "showMainPageRequested"):
+                        self.main_window.showMainPageRequested.emit(page_name)
                         return
                     if (
                         getattr(self.main_window, "isMinimized", None)

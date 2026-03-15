@@ -5,9 +5,6 @@ import gc
 import subprocess
 import platform
 
-import sentry_sdk
-from sentry_sdk.integrations.loguru import LoguruIntegration, LoggingLevels
-from posthog import Posthog
 from PySide6.QtCore import Qt, QThreadPool, QRunnable, QTimer, qInstallMessageHandler
 from PySide6.QtWidgets import QApplication
 from loguru import logger
@@ -21,10 +18,6 @@ from app.tools.config import (
 )
 from app.tools.settings_default import manage_settings_file
 from app.tools.settings_access import readme_settings_async, get_or_create_user_id
-from app.core.usage_counters import (
-    get_stored_draw_counts,
-    recompute_and_persist_draw_counts,
-)
 from app.tools.variable import (
     APP_QUIT_ON_LAST_WINDOW_CLOSED,
     VERSION,
@@ -51,7 +44,6 @@ from app.core.window_manager import WindowManager
 from app.core.url_handler_setup import create_url_handler
 from app.core.cs_ipc_handler_setup import create_cs_ipc_handler
 from app.core.app_init import AppInitializer
-from app.tools.update_utils import update_check_thread
 import app.core.window_manager as wm
 
 
@@ -62,6 +54,9 @@ import app.core.window_manager as wm
 
 def initialize_sentry():
     """初始化 Sentry 错误监控系统"""
+    import sentry_sdk
+    from sentry_sdk.integrations.loguru import LoguruIntegration, LoggingLevels
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[
@@ -87,6 +82,8 @@ def initialize_posthog(
     lottery_total: int | None = None,
 ):
     """初始化 PostHog 产品分析系统"""
+    from posthog import Posthog
+
     posthog = Posthog(
         project_api_key=POSTHOG_API_KEY,
         host=POSTHOG_HOST,
@@ -95,6 +92,8 @@ def initialize_posthog(
     user_id = get_or_create_user_id()
     geoip_properties = get_geoip_properties_zh_cn()
     if total_draw_count is None:
+        from app.core.usage_counters import get_stored_draw_counts
+
         stored_counts = get_stored_draw_counts()
         if stored_counts is not None:
             total_draw_count, roll_call_total, lottery_total = stored_counts
@@ -124,6 +123,8 @@ def schedule_deferred_startup_tasks(window_manager: WindowManager):
     def task():
         start = time.perf_counter()
         try:
+            from app.core.usage_counters import recompute_and_persist_draw_counts
+
             totals = recompute_and_persist_draw_counts()
         except Exception as e:
             logger.exception(f"补算抽取统计失败，将使用已存储计数发送事件: {e}")
@@ -332,9 +333,7 @@ def initialize_app_components(window_manager):
 # ==================================================
 
 
-def cleanup_resources(
-    shared_memory, local_server, url_handler, cs_ipc_handler, update_check_thread
-):
+def cleanup_resources(shared_memory, local_server, url_handler, cs_ipc_handler):
     """清理应用程序资源
 
     Args:
@@ -342,7 +341,6 @@ def cleanup_resources(
         local_server: 本地服务器对象
         url_handler: URL 处理器对象
         cs_ipc_handler: CS IPC 处理器对象
-        update_check_thread: 更新检查线程对象
     """
     if cs_ipc_handler:
         cs_ipc_handler.stop_ipc_client()
@@ -357,6 +355,7 @@ def cleanup_resources(
         local_server.close()
         logger.debug("本地服务器已关闭")
 
+    update_check_thread = _get_update_check_thread()
     if update_check_thread and update_check_thread.isRunning():
         logger.debug("正在等待更新检查线程完成...")
         update_check_thread.wait(UPDATE_CHECK_THREAD_TIMEOUT_MS)
@@ -367,6 +366,15 @@ def cleanup_resources(
 
     gc.collect()
     logger.debug("垃圾回收已完成")
+
+
+def _get_update_check_thread():
+    try:
+        from app.tools import update_utils
+
+        return getattr(update_utils, "update_check_thread", None)
+    except Exception:
+        return None
 
 
 def restart_application(program_dir):
@@ -469,7 +477,6 @@ def handle_exit(
     local_server,
     url_handler,
     cs_ipc_handler,
-    update_check_thread,
 ):
     """处理应用程序退出
 
@@ -480,13 +487,10 @@ def handle_exit(
         local_server: 本地服务器对象
         url_handler: URL 处理器对象
         cs_ipc_handler: CS IPC 处理器对象
-        update_check_thread: 更新检查线程对象
     """
     logger.debug("Qt 事件循环已结束")
 
-    cleanup_resources(
-        shared_memory, local_server, url_handler, cs_ipc_handler, update_check_thread
-    )
+    cleanup_resources(shared_memory, local_server, url_handler, cs_ipc_handler)
 
     logger.info("程序退出流程已完成，正在结束进程")
     if sys.stdout:
@@ -560,7 +564,6 @@ def main():
             local_server,
             url_handler,
             cs_ipc_handler,
-            update_check_thread,
         )
     except Exception as e:
         logger.exception(f"程序退出过程中发生异常: {e}")

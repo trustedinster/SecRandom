@@ -3,6 +3,8 @@ Nuitka 打包脚本
 用于构建 SecRandom 的独立可执行文件
 """
 
+import argparse
+import os
 import subprocess
 import sys
 import re
@@ -38,6 +40,23 @@ PACKAGE_INCLUDE_NAMES = {
     "app.tools",
     "app.page_building",
 }
+
+
+def parse_args() -> argparse.Namespace:
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(description="Nuitka 打包脚本")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="快速构建模式：生成 standalone 目录（不启用 onefile）",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=max(1, (os.cpu_count() or 1) - 1),
+        help="并行编译任务数，默认使用 CPU 核心数 - 1",
+    )
+    return parser.parse_args()
 
 
 def _print_packaging_summary() -> None:
@@ -111,7 +130,7 @@ def _sanitize_version(ver_str: str) -> str:
     return "0.0.0.0"
 
 
-def get_nuitka_command() -> list[str]:
+def get_nuitka_command(*, quick: bool, jobs: int) -> list[str]:
     """获取Nuitka命令列表"""
     raw_version = VERSION if VERSION else "0.0.0"
     clean_version = _sanitize_version(raw_version)
@@ -125,7 +144,7 @@ def get_nuitka_command() -> list[str]:
         "-m",
         "nuitka",
         "--standalone",
-        "--onefile",
+        f"--jobs={max(1, jobs)}",
         "--enable-plugin=pyside6",
         "--assume-yes-for-downloads",
         "--output-dir=dist",
@@ -136,6 +155,8 @@ def get_nuitka_command() -> list[str]:
         "--copyright=Copyright (c) 2025",
         "--no-deployment-flag=self-execution",
     ]
+    if not quick:
+        cmd.append("--onefile")
 
     # 编译器选择逻辑
     if sys.platform == "win32":
@@ -231,15 +252,20 @@ def build_deb() -> None:
 
 def main():
     """执行 Nuitka 打包"""
+    args = parse_args()
+
     print("=" * 60)
     print("开始使用 Nuitka + uv 打包 SecRandom")
     print("=" * 60)
+    print(
+        f"构建模式: {'quick-standalone' if args.quick else 'onefile'} | jobs={max(1, args.jobs)}"
+    )
 
     if sys.platform == "win32" and not check_compiler_env():
         sys.exit(1)
 
     _print_packaging_summary()
-    cmd = get_nuitka_command()
+    cmd = get_nuitka_command(quick=args.quick, jobs=args.jobs)
 
     # 打印命令
     print("\n执行命令:")

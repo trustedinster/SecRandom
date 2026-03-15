@@ -29,8 +29,8 @@ from app.Language.obtain_language import (
     get_content_combo_name_async,
 )
 from app.common.extraction.extract import _is_non_class_time
-from app.common.safety.verify_ops import require_and_run
 from app.common.data.list import get_class_name_list, get_group_list, get_gender_list
+from app.common.safety.verify_proxy import require_and_run_lazy
 
 
 class _QuickDrawPanelSignals(QObject):
@@ -1383,7 +1383,7 @@ class LevitationWindow(QWidget):
                 if verification_required:
                     # 如果需要验证流程，弹出密码验证窗口
                     logger.info("当前时间在非上课时间段内，需要密码验证")
-                    require_and_run(
+                    require_and_run_lazy(
                         "quick_draw", self, lambda: self._emit_signal(signal)
                     )
                     return

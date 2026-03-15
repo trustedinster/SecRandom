@@ -1,4 +1,6 @@
 import os
+import threading
+from importlib import import_module
 
 from loguru import logger
 from PySide6.QtCore import QTimer, QUrl
@@ -23,15 +25,25 @@ from app.Language.obtain_language import (
     get_content_pushbutton_name_async,
     get_content_switchbutton_name_async,
 )
-from app.common.camera_preview_backend import (
-    get_cached_camera_devices,
-    list_camera_resolutions,
-    warmup_camera_devices_async,
-)
 from app.tools.path_utils import get_data_path
 from app.tools.personalised import get_theme_icon
 from app.tools.settings_access import readme_settings_async, update_settings
 from app.tools.variable import WIDTH_SPINBOX
+
+
+_FACE_SETTINGS_BACKEND_LOCK = threading.Lock()
+_FACE_SETTINGS_DEVICES_MODULE = None
+
+
+def _get_camera_devices_module():
+    global _FACE_SETTINGS_DEVICES_MODULE
+    if _FACE_SETTINGS_DEVICES_MODULE is None:
+        with _FACE_SETTINGS_BACKEND_LOCK:
+            if _FACE_SETTINGS_DEVICES_MODULE is None:
+                _FACE_SETTINGS_DEVICES_MODULE = import_module(
+                    "app.common.camera_preview_backend.devices"
+                )
+    return _FACE_SETTINGS_DEVICES_MODULE
 
 
 class face_detector_settings(QWidget):
@@ -262,16 +274,20 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
         self._refresh_camera_resolution_list()
         if self.camera_combo.count() <= 0:
             try:
-                warmup_camera_devices_async(force_refresh=False)
+                _get_camera_devices_module().warmup_camera_devices_async(
+                    force_refresh=False
+                )
             except Exception:
                 pass
             self._schedule_camera_poll()
 
     def _list_cameras(self, force_refresh: bool = False):
         try:
-            devices = get_cached_camera_devices()
+            devices = _get_camera_devices_module().get_cached_camera_devices()
             if force_refresh or not devices:
-                warmup_camera_devices_async(force_refresh=force_refresh)
+                _get_camera_devices_module().warmup_camera_devices_async(
+                    force_refresh=force_refresh
+                )
             return devices
         except Exception:
             return []
@@ -454,7 +470,9 @@ class face_detector_basic_settings(GroupHeaderCardWidget):
             camera_id = None
 
         try:
-            resolutions = list_camera_resolutions(camera_id)
+            resolutions = _get_camera_devices_module().list_camera_resolutions(
+                camera_id
+            )
         except Exception:
             resolutions = []
 

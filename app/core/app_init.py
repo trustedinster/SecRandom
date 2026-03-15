@@ -1,10 +1,8 @@
 from PySide6.QtCore import QTimer
 from loguru import logger
 
-from app.tools.settings_default import manage_settings_file
 from app.tools.config import remove_record
 from app.tools.settings_access import readme_settings_async
-from app.tools.update_utils import check_for_updates_on_startup
 from app.tools.variable import APP_INIT_DELAY
 from app.core.font_manager import (
     apply_font_settings,
@@ -27,13 +25,8 @@ class AppInitializer:
 
     def initialize(self) -> None:
         """初始化应用程序"""
-        self._manage_settings_file()
         self._schedule_initialization_tasks()
         logger.debug("应用初始化调度已启动，主窗口将在延迟后创建")
-
-    def _manage_settings_file(self) -> None:
-        """管理设置文件，确保其存在且完整"""
-        manage_settings_file()
 
     def _schedule_initialization_tasks(self) -> None:
         """调度所有初始化任务"""
@@ -72,15 +65,8 @@ class AppInitializer:
             error_message="启动主窗口延后任务失败",
         )
         safe_execute(
-            lambda: check_for_updates_on_startup(None),
+            self._check_for_updates,
             error_message="检查更新失败",
-        )
-        QTimer.singleShot(
-            1500,
-            lambda: safe_execute(
-                self._do_warmup_face_detector_devices,
-                error_message="预热摄像头设备失败",
-            ),
         )
 
     def _run_main_window_post_show_tasks(self) -> None:
@@ -90,6 +76,11 @@ class AppInitializer:
 
         if hasattr(main_window, "schedule_post_startup_tasks"):
             main_window.schedule_post_startup_tasks()
+
+    def _check_for_updates(self) -> None:
+        from app.tools.update_utils import check_for_updates_on_startup
+
+        check_for_updates_on_startup(None)
 
     def _apply_theme(self) -> None:
         """应用主题设置"""
@@ -113,8 +104,3 @@ class AppInitializer:
     def _clear_restart_record_now(self) -> None:
         """清除重启记录"""
         remove_record("", "", "", "restart")
-
-    def _do_warmup_face_detector_devices(self) -> None:
-        from app.common.camera_preview_backend import warmup_camera_devices_async
-
-        warmup_camera_devices_async(force_refresh=True)

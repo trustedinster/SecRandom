@@ -14,10 +14,10 @@ from app.tools.variable import (
     TRAY_ICON_FILENAME,
     TRAY_MENU_POSITION_ADJUSTMENT,
 )
-from app.common.safety.verify_ops import require_and_run
 from app.tools.path_utils import get_data_path
 from app.Language.obtain_language import readme_settings_async, get_content_name_async
 from app.common.IPC_URL.url_command_handler import URLCommandHandler
+from app.common.safety.verify_proxy import require_and_run_lazy
 
 
 # ==================================================
@@ -238,7 +238,7 @@ class Tray(QSystemTrayIcon):
         """
         return Action(
             get_content_name_async("tray_management", "show_hide_float_window"),
-            triggered=lambda: require_and_run(
+            triggered=lambda: require_and_run_lazy(
                 "show_hide_floating_window",
                 self.main_window,
                 self.main_window._toggle_float_window,
@@ -253,7 +253,7 @@ class Tray(QSystemTrayIcon):
         """
         return Action(
             get_content_name_async("tray_management", "restart"),
-            triggered=lambda: require_and_run(
+            triggered=lambda: require_and_run_lazy(
                 "restart", self.main_window, self.main_window.restart_app
             ),
         )
@@ -266,7 +266,7 @@ class Tray(QSystemTrayIcon):
         """
         return Action(
             get_content_name_async("tray_management", "exit"),
-            triggered=lambda: require_and_run(
+            triggered=lambda: require_and_run_lazy(
                 "exit", self.main_window, self.main_window.close_window_secrandom
             ),
         )
@@ -396,10 +396,10 @@ class Tray(QSystemTrayIcon):
 
     def _handle_restart_app(self):
         """处理重启应用程序"""
-        require_and_run("restart", self.main_window, self.main_window.restart_app)
+        require_and_run_lazy("restart", self.main_window, self.main_window.restart_app)
 
     def _handle_exit_app(self):
         """处理退出应用程序"""
-        require_and_run(
+        require_and_run_lazy(
             "exit", self.main_window, self.main_window.close_window_secrandom
         )

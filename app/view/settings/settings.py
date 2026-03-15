@@ -5,7 +5,7 @@
 from loguru import logger
 from PySide6.QtWidgets import QApplication, QLabel, QWidget, QScroller, QSizePolicy
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QTimer, QEvent, Signal, QSize, Qt
+from PySide6.QtCore import QTimer, QEvent, Signal, QSize, Qt, QThread, QObject
 from PySide6.QtWidgets import QVBoxLayout
 from qfluentwidgets import (
     FluentWindow,
@@ -32,6 +32,12 @@ from app.tools.interaction_perf import start_interaction
 from app.page_building.window_template import BackgroundLayer
 from app.Language.obtain_language import get_content_name_async
 from app.common.IPC_URL.url_command_handler import URLCommandHandler
+from app.common.page_registry import (
+    get_settings_page_by_interface,
+    iter_navigable_settings_pages,
+    iter_settings_page_container_names,
+    iter_settings_pages,
+)
 from app.common.search.settings_search_controller import SettingsSearchController
 
 
@@ -68,20 +74,8 @@ class SettingsWindow(FluentWindow):
 
     def _initialize_variables(self):
         """初始化实例变量"""
-        interface_names = [
-            "basicSettingsInterface",
-            "listManagementInterface",
-            "extractionSettingsInterface",
-            "floatingWindowManagementInterface",
-            "notificationSettingsInterface",
-            "safetySettingsInterface",
-            "customSettingsInterface",
-            "voiceSettingsInterface",
-            "themeManagementInterface",
-            "historyInterface",
-            "moreSettingsInterface",
-            "updateInterface",
-            "aboutInterface",
+        interface_names = list(iter_settings_page_container_names()) + [
+            "customSettingsInterface"
         ]
 
         for name in interface_names:
@@ -92,6 +86,11 @@ class SettingsWindow(FluentWindow):
         self._created_pages = {}
         self._page_access_order = []
         self._pending_page_loads = set()
+        self._geometry_sync_scheduled = False
+        self._geometry_sync_callbacks = []
+        if __debug__:
+            self._geometry_sync_request_count = 0
+            self._geometry_sync_run_count = 0
 
     def _setup_timers(self):
         """设置定时器"""
@@ -134,11 +133,7 @@ class SettingsWindow(FluentWindow):
             window=self,
             title_bar=title_bar,
             line_edit=self._settings_search_line_edit,
-            handle_page_request=self._handle_settings_page_request,
-            get_page_mapping=self._get_page_mapping,
-            get_created_page=lambda interface_attr: getattr(
-                self, "_created_pages", {}
-            ).get(interface_attr, None),
+            ensure_page_ready=self._ensure_settings_page_ready,
             parent=self,
         )
         try:
@@ -148,7 +143,7 @@ class SettingsWindow(FluentWindow):
         except Exception:
             pass
 
-        QTimer.singleShot(0, self._position_titlebar_search)
+        self._request_geometry_sync()
 
     def _position_titlebar_search(self):
         title_bar = getattr(self, "titleBar", None)
@@ -229,7 +224,7 @@ class SettingsWindow(FluentWindow):
 
         navigation.installEventFilter(self)
         scroll_area.installEventFilter(self)
-        QTimer.singleShot(0, self._sync_sidebar_scroll_geometry)
+        self._request_geometry_sync()
 
     def _sync_sidebar_scroll_geometry(self):
         scroll_area = getattr(self, "_sidebar_scroll_area", None)
@@ -246,6 +241,45 @@ class SettingsWindow(FluentWindow):
         viewport_h = int(scroll_area.viewport().height() or 0)
         if viewport_h > 0 and navigation.minimumHeight() != viewport_h:
             navigation.setMinimumHeight(viewport_h)
+
+    def _request_geometry_sync(self, callback=None):
+        if callback is not None:
+            self._geometry_sync_callbacks.append(callback)
+
+        if __debug__:
+            self._geometry_sync_request_count += 1
+
+        if self._geometry_sync_scheduled:
+            return
+
+        self._geometry_sync_scheduled = True
+        # Wait one event-loop turn so title bar and sidebar layout can settle.
+        QTimer.singleShot(0, self._run_deferred_geometry_sync)
+
+    def _run_deferred_geometry_sync(self):
+        self._geometry_sync_scheduled = False
+
+        if __debug__:
+            self._geometry_sync_run_count += 1
+            assert self._geometry_sync_run_count <= self._geometry_sync_request_count
+
+        try:
+            self._sync_sidebar_scroll_geometry()
+        except Exception:
+            pass
+
+        try:
+            self._position_titlebar_search()
+        except Exception:
+            pass
+
+        callbacks = self._geometry_sync_callbacks
+        self._geometry_sync_callbacks = []
+        for callback in callbacks:
+            try:
+                callback()
+            except Exception as e:
+                logger.exception(f"执行几何同步回调失败: {e}")
 
     def _setup_settings_listener(self):
         try:
@@ -441,14 +475,7 @@ class SettingsWindow(FluentWindow):
         except Exception:
             pass
         super().resizeEvent(event)
-        try:
-            self._sync_sidebar_scroll_geometry()
-        except Exception:
-            pass
-        try:
-            self._position_titlebar_search()
-        except Exception:
-            pass
+        self._request_geometry_sync()
 
     def changeEvent(self, event):
         """窗口状态变化事件处理
@@ -484,7 +511,7 @@ class SettingsWindow(FluentWindow):
 
         super().changeEvent(event)
         if event.type() == QEvent.Type.WindowStateChange:
-            QTimer.singleShot(0, self._sync_sidebar_scroll_geometry)
+            self._request_geometry_sync()
 
     def eventFilter(self, obj, event):
         navigation = getattr(self, "_sidebar_navigation_widget", None)
@@ -494,18 +521,12 @@ class SettingsWindow(FluentWindow):
             QEvent.Type.LayoutRequest,
             QEvent.Type.Show,
         ):
-            try:
-                self._sync_sidebar_scroll_geometry()
-            except Exception:
-                pass
+            self._request_geometry_sync()
         elif obj is scroll_area and event.type() in (
             QEvent.Type.Resize,
             QEvent.Type.Show,
         ):
-            try:
-                self._sync_sidebar_scroll_geometry()
-            except Exception:
-                pass
+            self._request_geometry_sync()
         return super().eventFilter(obj, event)
 
     # ==================================================
@@ -536,27 +557,12 @@ class SettingsWindow(FluentWindow):
         trace = start_interaction(f"settings.{page_name}")
         logger.debug(f"处理设置页面请求: {page_name}")
 
-        self._ensure_sub_interface_created()
-
-        page_mapping = self._get_page_mapping()
-
-        if page_name in page_mapping:
-            interface_attr, item_attr = page_mapping[page_name]
-            interface = getattr(self, interface_attr, None)
-            nav_item = getattr(self, item_attr, None)
-
-            if interface and nav_item:
-                self._ensure_deferred_page_loaded(interface_attr)
-                logger.debug(f"切换到设置页面: {page_name}")
-                self.switchTo(interface)
-                trace.log("shell_visible")
-                self.show()
-                self.activateWindow()
-                self.raise_()
-            else:
-                logger.warning(f"设置页面不存在或尚未初始化: {page_name}")
+        page = self._ensure_settings_page_ready(page_name)
+        if page is not None:
+            trace.log("shell_visible")
         else:
             logger.warning(f"未知的设置页面: {page_name}")
+        return page
 
     def _ensure_sub_interface_created(self):
         """确保子界面已创建"""
@@ -577,64 +583,52 @@ class SettingsWindow(FluentWindow):
         Returns:
             dict: 页面名称到界面属性的映射
         """
-        return {
-            "settings_basic": ("basicSettingsInterface", "basic_settings_item"),
-            "settings_list": ("listManagementInterface", "list_management_item"),
-            "settings_extraction": (
-                "extractionSettingsInterface",
-                "extraction_settings_item",
-            ),
-            "settings_floating": (
-                "floatingWindowManagementInterface",
-                "floating_window_management_item",
-            ),
-            "settings_notification": (
-                "notificationSettingsInterface",
-                "notification_settings_item",
-            ),
-            "settings_safety": ("safetySettingsInterface", "safety_settings_item"),
-            "settings_linkage": ("courseSettingsInterface", "course_settings_item"),
-            "settings_voice": ("voiceSettingsInterface", "voice_settings_item"),
-            "settings_theme": ("themeManagementInterface", "theme_management_item"),
-            "settings_history": ("historyInterface", "history_item"),
-            "settings_more": ("moreSettingsInterface", "more_settings_item"),
-            "settings_update": ("updateInterface", "update_item"),
-            "settings_about": ("aboutInterface", "about_item"),
-            "basicSettingsInterface": ("basicSettingsInterface", "basic_settings_item"),
-            "listManagementInterface": (
-                "listManagementInterface",
-                "list_management_item",
-            ),
-            "extractionSettingsInterface": (
-                "extractionSettingsInterface",
-                "extraction_settings_item",
-            ),
-            "floatingWindowManagementInterface": (
-                "floatingWindowManagementInterface",
-                "floating_window_management_item",
-            ),
-            "notificationSettingsInterface": (
-                "notificationSettingsInterface",
-                "notification_settings_item",
-            ),
-            "safetySettingsInterface": (
-                "safetySettingsInterface",
-                "safety_settings_item",
-            ),
-            "courseSettingsInterface": (
-                "courseSettingsInterface",
-                "course_settings_item",
-            ),
-            "voiceSettingsInterface": ("voiceSettingsInterface", "voice_settings_item"),
-            "themeManagementInterface": (
-                "themeManagementInterface",
-                "theme_management_item",
-            ),
-            "historyInterface": ("historyInterface", "history_item"),
-            "moreSettingsInterface": ("moreSettingsInterface", "more_settings_item"),
-            "updateInterface": ("updateInterface", "update_item"),
-            "aboutInterface": ("aboutInterface", "about_item"),
-        }
+        mapping = {}
+        for page in iter_settings_pages():
+            value = (page.interface_attr, page.item_attr)
+            mapping[page.route_name] = value
+            mapping[page.interface_attr] = value
+        return mapping
+
+    def _resolve_settings_page_target(self, page_name: str):
+        page_mapping = self._get_page_mapping()
+        if page_name not in page_mapping:
+            return None
+
+        interface_attr, item_attr = page_mapping[page_name]
+        interface = getattr(self, interface_attr, None)
+        nav_item = getattr(self, item_attr, None)
+        if interface is None or nav_item is None:
+            return None
+
+        return interface_attr, interface
+
+    def _ensure_settings_page_ready(self, page_name: str, on_ready=None):
+        self._ensure_sub_interface_created()
+
+        target = self._resolve_settings_page_target(page_name)
+        if target is None:
+            return None
+
+        interface_attr, interface = target
+        self.switchTo(interface)
+        logger.debug(f"切换到设置页面: {page_name}")
+        self.show()
+        self.activateWindow()
+        self.raise_()
+
+        self._ensure_deferred_page_loaded(interface_attr)
+        page = getattr(self, "_created_pages", {}).get(interface_attr)
+        if page is None:
+            logger.warning(f"设置页面不存在或尚未初始化: {page_name}")
+            return None
+
+        if on_ready is not None:
+            self._request_geometry_sync(
+                lambda current_page=page: on_ready(current_page)
+            )
+
+        return page
 
     # ==================================================
     # 界面创建与导航
@@ -650,16 +644,16 @@ class SettingsWindow(FluentWindow):
         from app.page_building import settings_window_page
 
         settings = self._get_sidebar_settings()
-        page_configs = self._get_page_configs()
 
-        for setting_key, interface_attr, page_method, is_pivot in page_configs:
-            setting_value = settings.get(setting_key)
+        for page in iter_settings_pages():
+            setting_value = settings.get(page.sidebar_setting_key)
             if setting_value is None or setting_value != 2:
                 self._create_page_placeholder(
-                    interface_attr, page_method, is_pivot, settings_window_page
+                    page.interface_attr,
+                    page.page_method,
+                    page.is_pivot,
+                    settings_window_page,
                 )
-
-        self._create_special_pages(settings_window_page)
         self.initNavigation()
         self._setup_background_warmup()
         self._sub_interface_created = True
@@ -670,21 +664,7 @@ class SettingsWindow(FluentWindow):
         Returns:
             dict: 侧边栏设置字典
         """
-        return {
-            "base_settings": 0,
-            "name_management": 0,
-            "draw_settings": 0,
-            "floating_window_management": 0,
-            "notification_service": 0,
-            "security_settings": 0,
-            "linkage_settings": 0,
-            "voice_settings": 0,
-            "theme_management": 0,
-            "settings_history": 0,
-            "more_settings": 0,
-            "updateInterface": 0,
-            "aboutInterface": 0,
-        }
+        return {page.sidebar_setting_key: 0 for page in iter_navigable_settings_pages()}
 
     def _get_page_configs(self):
         """获取页面配置列表
@@ -693,54 +673,13 @@ class SettingsWindow(FluentWindow):
             list: 页面配置列表
         """
         return [
-            ("base_settings", "basicSettingsInterface", "basic_settings_page", False),
             (
-                "name_management",
-                "listManagementInterface",
-                "list_management_page",
-                True,
-            ),
-            (
-                "draw_settings",
-                "extractionSettingsInterface",
-                "extraction_settings_page",
-                True,
-            ),
-            (
-                "floating_window_management",
-                "floatingWindowManagementInterface",
-                "floating_window_management_page",
-                True,
-            ),
-            (
-                "notification_service",
-                "notificationSettingsInterface",
-                "notification_settings_page",
-                True,
-            ),
-            (
-                "security_settings",
-                "safetySettingsInterface",
-                "safety_settings_page",
-                True,
-            ),
-            (
-                "linkage_settings",
-                "courseSettingsInterface",
-                "linkage_settings_page",
-                False,
-            ),
-            ("voice_settings", "voiceSettingsInterface", "voice_settings_page", True),
-            (
-                "theme_management",
-                "themeManagementInterface",
-                "theme_management_page",
-                False,
-            ),
-            ("settings_history", "historyInterface", "history_page", True),
-            ("more_settings", "moreSettingsInterface", "more_settings_page", True),
-            ("updateInterface", "updateInterface", "update_page", False),
-            ("aboutInterface", "aboutInterface", "about_page", False),
+                page.sidebar_setting_key,
+                page.interface_attr,
+                page.page_method,
+                page.is_pivot,
+            )
+            for page in iter_settings_pages()
         ]
 
     def _create_page_placeholder(
@@ -793,22 +732,6 @@ class SettingsWindow(FluentWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
 
-    def _create_special_pages(self, settings_window_page):
-        """创建特殊页面（更新和关于页面）
-
-        Args:
-            settings_window_page: 设置窗口页面模块
-        """
-        self.updateInterface = self._make_placeholder("updateInterface")
-        self._register_deferred_factory(
-            "updateInterface", "update_page", False, settings_window_page
-        )
-
-        self.aboutInterface = self._make_placeholder("aboutInterface")
-        self._register_deferred_factory(
-            "aboutInterface", "about_page", False, settings_window_page
-        )
-
     def _make_page_factory(self, page_method, interface, settings_window_page):
         """创建页面工厂函数
 
@@ -845,15 +768,10 @@ class SettingsWindow(FluentWindow):
         }
 
     def _get_page_factory_definition(self, page_name: str):
-        for _, interface_attr, page_method, is_pivot in self._get_page_configs():
-            if interface_attr == page_name:
-                return page_method, is_pivot
-
-        special_pages = {
-            "updateInterface": ("update_page", False),
-            "aboutInterface": ("about_page", False),
-        }
-        return special_pages.get(page_name)
+        page = get_settings_page_by_interface(page_name)
+        if page is None:
+            return None
+        return page.page_method, page.is_pivot
 
     def _setup_background_warmup(self):
         """设置后台预热"""
@@ -866,20 +784,16 @@ class SettingsWindow(FluentWindow):
         """初始化导航系统
         根据用户设置构建个性化菜单导航"""
         settings = self._get_sidebar_settings()
-        nav_configs = self._get_nav_configs()
-
-        for (
-            setting_key,
-            interface_attr,
-            item_attr,
-            icon_name,
-            module,
-            name_key,
-        ) in nav_configs:
-            setting_value = settings.get(setting_key)
+        for page in iter_navigable_settings_pages():
+            setting_value = settings.get(page.sidebar_setting_key)
             if setting_value is None or setting_value != 2:
                 self._add_navigation_item(
-                    setting_key, interface_attr, item_attr, icon_name, module, name_key
+                    page.sidebar_setting_key,
+                    page.interface_attr,
+                    page.item_attr,
+                    page.icon_name,
+                    page.language_module,
+                    page.title_key,
                 )
 
         self.splashScreen.finish()
@@ -893,109 +807,14 @@ class SettingsWindow(FluentWindow):
         """
         return [
             (
-                "base_settings",
-                "basicSettingsInterface",
-                "basic_settings_item",
-                "ic_fluent_wrench_settings_20_filled",
-                "basic_settings",
-                "title",
-            ),
-            (
-                "name_management",
-                "listManagementInterface",
-                "list_management_item",
-                "ic_fluent_list_20_filled",
-                "list_management",
-                "title",
-            ),
-            (
-                "draw_settings",
-                "extractionSettingsInterface",
-                "extraction_settings_item",
-                "ic_fluent_archive_20_filled",
-                "extraction_settings",
-                "title",
-            ),
-            (
-                "floating_window_management",
-                "floatingWindowManagementInterface",
-                "floating_window_management_item",
-                "ic_fluent_window_apps_20_filled",
-                "floating_window_management",
-                "title",
-            ),
-            (
-                "notification_service",
-                "notificationSettingsInterface",
-                "notification_settings_item",
-                "ic_fluent_comment_note_20_filled",
-                "notification_settings",
-                "title",
-            ),
-            (
-                "security_settings",
-                "safetySettingsInterface",
-                "safety_settings_item",
-                "ic_fluent_shield_20_filled",
-                "safety_settings",
-                "title",
-            ),
-            (
-                "linkage_settings",
-                "courseSettingsInterface",
-                "course_settings_item",
-                "ic_fluent_calendar_ltr_20_filled",
-                "linkage_settings",
-                "title",
-            ),
-            (
-                "voice_settings",
-                "voiceSettingsInterface",
-                "voice_settings_item",
-                "ic_fluent_person_voice_20_filled",
-                "voice_settings",
-                "title",
-            ),
-            (
-                "theme_management",
-                "themeManagementInterface",
-                "theme_management_item",
-                "ic_fluent_paint_brush_20_filled",
-                "theme_management",
-                "title",
-            ),
-            (
-                "settings_history",
-                "historyInterface",
-                "history_item",
-                "ic_fluent_history_20_filled",
-                "history",
-                "title",
-            ),
-            (
-                "more_settings",
-                "moreSettingsInterface",
-                "more_settings_item",
-                "ic_fluent_more_horizontal_20_filled",
-                "more_settings",
-                "title",
-            ),
-            (
-                "updateInterface",
-                "updateInterface",
-                "update_item",
-                "ic_fluent_arrow_sync_20_filled",
-                "update",
-                "title",
-            ),
-            (
-                "aboutInterface",
-                "aboutInterface",
-                "about_item",
-                "ic_fluent_info_20_filled",
-                "about",
-                "title",
-            ),
+                page.sidebar_setting_key,
+                page.interface_attr,
+                page.item_attr,
+                page.icon_name,
+                page.language_module,
+                page.title_key,
+            )
+            for page in iter_navigable_settings_pages()
         ]
 
     def _add_navigation_item(
@@ -1032,10 +851,8 @@ class SettingsWindow(FluentWindow):
     def _load_default_page(self):
         """加载默认页面（基础设置页面）"""
         try:
-            self._ensure_deferred_page_loaded("basicSettingsInterface")
-
-            if hasattr(self, "basicSettingsInterface") and self.basicSettingsInterface:
-                self.switchTo(self.basicSettingsInterface)
+            page = self._ensure_settings_page_ready("basicSettingsInterface")
+            if page is not None:
                 logger.debug("已自动导航到基础设置页面")
         except Exception as e:
             logger.exception(f"加载默认页面失败: {e}")
@@ -1065,33 +882,13 @@ class SettingsWindow(FluentWindow):
             ):
                 if name in self._pending_page_loads:
                     return
-                self._pending_page_loads.add(name)
                 self._set_placeholder_loading(widget, "正在加载页面...")
-                factory = self._deferred_factories.pop(name)
-
-                def create_page():
-                    try:
-                        logger.debug(
-                            f"正在创建页面 {name}，预览模式: {self.is_preview}"
-                        )
-                        real_page = factory(is_preview=self.is_preview)
-                        self._clear_placeholder_layout(widget)
-                        widget.layout().addWidget(real_page)
-
-                        if not hasattr(self, "_created_pages"):
-                            self._created_pages = {}
-                        self._created_pages[name] = real_page
-
-                        logger.debug(
-                            f"设置页面已按需创建: {name}, 预览模式: {self.is_preview}"
-                        )
-                    except Exception as e:
-                        self._set_placeholder_loading(widget, f"页面加载失败: {name}")
-                        logger.exception(f"延迟创建设置页面 {name} 失败: {e}")
-                    finally:
-                        self._pending_page_loads.discard(name)
-
-                QTimer.singleShot(0, create_page)
+                QTimer.singleShot(
+                    0,
+                    lambda current_name=name: self._materialize_deferred_page(
+                        current_name
+                    ),
+                )
         except Exception as e:
             logger.exception(f"处理堆叠窗口改变失败: {e}")
 
@@ -1153,6 +950,7 @@ class SettingsWindow(FluentWindow):
 
         try:
             real_page = self._created_pages.pop(page_name)
+            self._cleanup_page_threads(real_page)
             container = getattr(self, page_name, None)
             if container and container.layout():
                 container.layout().removeWidget(real_page)
@@ -1166,6 +964,96 @@ class SettingsWindow(FluentWindow):
             logger.warning(f"卸载设置页面 {page_name} 时出现警告: {e}")
         except Exception as e:
             logger.exception(f"卸载设置页面 {page_name} 失败: {e}")
+
+    def _cleanup_page_threads(self, widget: QWidget) -> None:
+        visited: set[int] = set()
+        self._cleanup_threads_in_object(widget, visited)
+
+    def _cleanup_threads_in_object(self, obj, visited: set[int]) -> None:
+        if obj is None:
+            return
+
+        obj_id = id(obj)
+        if obj_id in visited:
+            return
+        visited.add(obj_id)
+
+        if isinstance(obj, QThread):
+            self._stop_qthread(obj)
+            return
+
+        try:
+            obj_dict = vars(obj)
+        except Exception:
+            obj_dict = {}
+
+        for value in obj_dict.values():
+            self._cleanup_threads_in_value(value, visited)
+
+        if isinstance(obj, QObject):
+            try:
+                for child in obj.children():
+                    self._cleanup_threads_in_object(child, visited)
+            except Exception:
+                pass
+
+    def _cleanup_threads_in_value(self, value, visited: set[int]) -> None:
+        if value is None:
+            return
+
+        if isinstance(value, (str, bytes, int, float, bool)):
+            return
+
+        if isinstance(value, QThread):
+            self._stop_qthread(value)
+            return
+
+        if isinstance(value, dict):
+            for item in value.values():
+                self._cleanup_threads_in_value(item, visited)
+            return
+
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                self._cleanup_threads_in_value(item, visited)
+            return
+
+        self._cleanup_threads_in_object(value, visited)
+
+    def _stop_qthread(self, thread: QThread) -> None:
+        try:
+            if not thread.isRunning():
+                return
+        except RuntimeError:
+            return
+
+        try:
+            thread.requestInterruption()
+        except Exception:
+            pass
+
+        try:
+            thread.quit()
+        except Exception:
+            pass
+
+        try:
+            finished = thread.wait(500)
+        except Exception:
+            finished = False
+
+        if finished:
+            return
+
+        try:
+            thread.terminate()
+        except Exception:
+            return
+
+        try:
+            thread.wait(500)
+        except Exception:
+            pass
 
     def _restore_page_factory(self, page_name: str, container):
         """恢复页面工厂函数
@@ -1188,6 +1076,46 @@ class SettingsWindow(FluentWindow):
             page_name, page_method, is_pivot, settings_window_page
         )
 
+    def _materialize_deferred_page(self, name: str) -> bool:
+        if name in getattr(self, "_created_pages", {}):
+            return True
+        if name in self._pending_page_loads:
+            return False
+
+        factory = getattr(self, "_deferred_factories", {}).get(name)
+        if factory is None:
+            return False
+
+        container = self._find_container_by_name(name)
+        if container is None or not hasattr(container, "layout"):
+            return False
+
+        layout = container.layout()
+        if layout is None:
+            self._set_placeholder_loading(container, f"页面加载失败: {name}")
+            return False
+
+        self._pending_page_loads.add(name)
+        try:
+            logger.debug(f"正在创建页面 {name}，预览模式: {self.is_preview}")
+            real_page = factory(is_preview=self.is_preview)
+            if real_page is None:
+                raise RuntimeError(f"延迟页面工厂返回空页面: {name}")
+
+            self._clear_placeholder_layout(container)
+            layout.addWidget(real_page)
+
+            self._created_pages[name] = real_page
+            self._deferred_factories.pop(name, None)
+            logger.debug(f"设置页面已按需创建: {name}, 预览模式: {self.is_preview}")
+            return True
+        except Exception as e:
+            self._set_placeholder_loading(container, f"页面加载失败: {name}")
+            logger.exception(f"延迟创建设置页面 {name} 失败: {e}")
+            return False
+        finally:
+            self._pending_page_loads.discard(name)
+
     def _create_deferred_page(self, name: str):
         """根据名字创建对应延迟工厂并把结果加入占位容器
 
@@ -1195,49 +1123,15 @@ class SettingsWindow(FluentWindow):
             name: 页面名称
         """
         try:
-            if name not in getattr(self, "_deferred_factories", {}):
-                return
-            factory = self._deferred_factories.pop(name)
-
             container = self._find_container_by_name(name)
-            if container is None:
-                return
-
-            if not container or not hasattr(container, "layout"):
-                return
-            layout = container.layout()
-            if layout is None:
-                return
-
-            try:
-                real_page = factory(is_preview=self.is_preview)
-            except RuntimeError as e:
-                logger.exception(f"创建延迟页面 {name} 失败（父容器可能已销毁）: {e}")
-                return
-            except Exception as e:
-                logger.exception(f"创建延迟页面 {name} 失败: {e}")
-                return
-
-            try:
-                self._clear_placeholder_layout(container)
-                layout.addWidget(real_page)
-                if not hasattr(self, "_created_pages"):
-                    self._created_pages = {}
-                self._created_pages[name] = real_page
-                logger.debug(f"后台预热创建设置页面: {name}")
-            except RuntimeError as e:
-                logger.exception(
-                    f"将延迟页面 {name} 插入容器失败（容器可能已销毁）: {e}"
-                )
-                return
+            if container is not None:
+                self._set_placeholder_loading(container, "正在加载页面...")
+            self._materialize_deferred_page(name)
         except Exception as e:
             logger.exception(f"_create_deferred_page 失败: {e}")
 
     def _ensure_deferred_page_loaded(self, name: str) -> None:
-        if name in getattr(self, "_created_pages", {}):
-            return
-        if name in getattr(self, "_deferred_factories", {}):
-            self._create_deferred_page(name)
+        self._materialize_deferred_page(name)
 
     def _find_container_by_name(self, name: str):
         """根据名称查找容器
@@ -1248,20 +1142,8 @@ class SettingsWindow(FluentWindow):
         Returns:
             QWidget: 容器对象或None
         """
-        container_attrs = [
-            "basicSettingsInterface",
-            "listManagementInterface",
-            "extractionSettingsInterface",
-            "floatingWindowManagementInterface",
-            "notificationSettingsInterface",
-            "safetySettingsInterface",
-            "customSettingsInterface",
-            "voiceSettingsInterface",
-            "historyInterface",
-            "moreSettingsInterface",
-            "courseSettingsInterface",
-            "updateInterface",
-            "aboutInterface",
+        container_attrs = list(iter_settings_page_container_names()) + [
+            "customSettingsInterface"
         ]
 
         for attr in container_attrs:

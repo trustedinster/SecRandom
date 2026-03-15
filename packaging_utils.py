@@ -37,9 +37,9 @@ BASE_HIDDEN_IMPORTS: List[str] = [
     "app.tools.settings_default_storage",
     "app.tools.personalised",
     "app.common.data.list",
-    "app.common.history.history",
+    "app.common.history.history_reader",
     "app.common.display.result_display",
-    "app.common.extract.extract",
+    "app.common.extraction.extract",
     "app.tools.config",
     "app.page_building.main_window_page",
     "app.page_building.settings_window_page",
@@ -60,8 +60,6 @@ ADDITIONAL_HIDDEN_IMPORTS: List[str] = [
     "numpy.ma",
     "numpy.polynomial",
     "numpy.testing",
-    "numpy.distutils",
-    "numpy.compat",
     "pandas",
     "PySide6",
     "app.view.another_window.contributor",
@@ -95,10 +93,6 @@ def collect_data_includes() -> List[DataInclude]:
     includes: List[DataInclude] = []
     if DATA_DIR.exists():
         includes.append(DataInclude(DATA_DIR, "data", is_dir=True))
-    if LANGUAGE_MODULES_DIR.exists():
-        includes.append(
-            DataInclude(LANGUAGE_MODULES_DIR, "app/Language/modules", is_dir=True)
-        )
     if LICENSE_FILE.exists():
         includes.append(DataInclude(LICENSE_FILE, ".", is_dir=False))
     return includes
