@@ -1200,75 +1200,6 @@ def display_result_animated(
     if draw_count is None:
         draw_count = widget.current_count
 
-    cached_widgets = getattr(widget, "_cached_animation_widgets", None)
-    cached_count = len(cached_widgets) if cached_widgets else 0
-    current_count = len(selected_students) if selected_students else 0
-
-    if cached_widgets and cached_count == current_count and current_count > 0:
-        new_texts = []
-        new_colors = []
-        font_size = render_settings.get("font_size", 50)
-        animation_color = render_settings.get("animation_color", 0)
-        display_format = render_settings.get("display_format", 0)
-
-        for item in selected_students:
-            if isinstance(item, (list, tuple)) and len(item) >= 2:
-                student_id = str(item[0]) if item[0] is not None else ""
-                name = str(item[1])
-            else:
-                student_id = ""
-                name = str(item)
-
-            from app.common.display.result_display import (
-                STUDENT_ID_FORMAT,
-                NAME_SPACING,
-            )
-
-            student_id_str = (
-                STUDENT_ID_FORMAT.format(num=student_id) if student_id else ""
-            )
-
-            formatted_name = (
-                f"{name[0]}{NAME_SPACING}{name[1]}" if len(name) == 2 else name
-            )
-
-            if display_format == 1:
-                text = formatted_name
-            elif display_format == 2:
-                text = student_id_str if student_id_str else formatted_name
-            else:
-                if draw_count == 1:
-                    text = (
-                        f"{student_id_str}\n{formatted_name}"
-                        if student_id_str
-                        else formatted_name
-                    )
-                else:
-                    text = (
-                        f"{student_id_str} {formatted_name}"
-                        if student_id_str
-                        else formatted_name
-                    )
-            new_texts.append(text)
-
-            if animation_color == 1:
-                color = ResultDisplayUtils._generate_vibrant_color()
-            elif animation_color == 2:
-                fixed_color = render_settings.get("animation_fixed_color", "#000000")
-                color = fixed_color
-            else:
-                from app.tools.personalised import is_dark_theme
-                from qfluentwidgets import qconfig
-
-                color = "#ffffff" if is_dark_theme(qconfig) else "#000000"
-            new_colors.append(color)
-
-        updated = ResultDisplayUtils.update_animation_labels_fast(
-            cached_widgets, new_texts, new_colors, font_size, "lottery_settings"
-        )
-        if updated:
-            return
-
     student_labels = ResultDisplayUtils.create_student_label(
         class_name=pool_name,
         selected_students=selected_students,
@@ -1285,18 +1216,19 @@ def display_result_animated(
         settings_group="lottery_settings",
         show_tags=bool(render_settings.get("show_tags")),
     )
-
-    if cached_widgets and cached_count == current_count:
+    cached_widgets = ResultDisplayUtils.collect_grid_widgets(widget.result_grid)
+    if cached_widgets and len(cached_widgets) == len(student_labels):
         updated = ResultDisplayUtils.update_grid_labels(
             widget.result_grid, student_labels, cached_widgets
         )
         if updated:
             ResultDisplayUtils.dispose_widgets(student_labels)
-            widget._cached_animation_widgets = cached_widgets
-            return
-
-    ResultDisplayUtils.display_results_in_grid(widget.result_grid, student_labels)
-    widget._cached_animation_widgets = student_labels
+        else:
+            ResultDisplayUtils.display_results_in_grid(
+                widget.result_grid, student_labels
+            )
+    else:
+        ResultDisplayUtils.display_results_in_grid(widget.result_grid, student_labels)
 
     settings = widget.manager.get_notification_settings(pool_name, refresh=False)
     if settings is not None:

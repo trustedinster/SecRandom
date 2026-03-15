@@ -285,20 +285,10 @@ class RollCallUtils:
         gender_filter,
         current_count,
         half_repeat,
-        settings_group="roll_call_settings",
     ):
         """
         抽取随机学生
         """
-        from app.tools.list_specific_settings_access import (
-            read_quick_draw_setting,
-        )
-
-        def _read_setting(list_name, key, default=None):
-            if settings_group == "quick_draw_settings":
-                return read_quick_draw_setting(list_name, key, default)
-            return read_roll_call_setting(list_name, key, default)
-
         # 1. 获取候选人
         students_dict_list = RollCallUtils._get_filtered_candidates(
             class_name, group_index, group_filter, gender_index, gender_filter
@@ -314,11 +304,11 @@ class RollCallUtils:
 
         # 3. 如果是小组模式，直接抽取小组
         if group_index == 1:
-            draw_type = _read_setting(class_name, "draw_type")
+            draw_type = read_roll_call_setting(class_name, "draw_type")
             selected_groups = RollCallUtils.draw_random_groups(
                 students_dict_list, current_count, draw_type
             )
-            show_random = _read_setting(class_name, "show_random")
+            show_random = read_roll_call_setting(class_name, "show_random")
             selected_groups, ipc_selected_students = (
                 RollCallUtils.render_group_display_students_and_ipc(
                     class_name, selected_groups, show_random
@@ -388,7 +378,7 @@ class RollCallUtils:
             }
 
         # 8. 计算最终权重
-        draw_type = _read_setting(class_name, "draw_type")
+        draw_type = read_roll_call_setting(class_name, "draw_type")
         weights = []
         if draw_type == 1:
             students_with_weight = calculate_weight(

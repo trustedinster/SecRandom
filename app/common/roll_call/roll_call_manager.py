@@ -72,7 +72,7 @@ class RollCallManager(QObject):
     data_loaded = Signal(bool)  # 数据加载完成信号
     error_occurred = Signal(str)  # 错误信号
 
-    def __init__(self, settings_group="roll_call_settings"):
+    def __init__(self):
         super().__init__()
         self.students = []
         self.tags_by_id = {}
@@ -83,7 +83,6 @@ class RollCallManager(QObject):
         self.current_group_index = 0
         self.current_gender_index = 0
         self.half_repeat = 0
-        self.settings_group = settings_group
         self._precomputed_result = None
         self._precompute_key = None
         self._precompute_running = False
@@ -204,6 +203,10 @@ class RollCallManager(QObject):
             self.current_gender_index = gender_index
             self.half_repeat = half_repeat
 
+            record_key = f"{class_name}_{gender_filter}_{group_filter}"
+            if record_key in RollCallUtils._drawn_record_cache:
+                del RollCallUtils._drawn_record_cache[record_key]
+
             # 获取原始学生列表
             raw_students = get_student_list(class_name)
 
@@ -295,7 +298,6 @@ class RollCallManager(QObject):
             self.current_gender_filter,
             count,
             self.half_repeat,
-            settings_group=self.settings_group,
         )
         return result
 
@@ -375,7 +377,6 @@ class RollCallManager(QObject):
                 gender_filter,
                 draw_count,
                 half_repeat,
-                settings_group=self.settings_group,
             )
 
         signals = _Signals()
@@ -427,12 +428,6 @@ def start_roll_call_draw(widget):
         half_repeat,
     )
     widget._draw_plan = manager.prepare_draw(context)
-
-    widget._cached_display_dict = RollCallUtils.create_display_settings(
-        "roll_call_settings"
-    )
-    widget._cached_animation_widgets = None
-    widget._cached_show_random = widget._cached_display_dict.get("show_random", 0)
 
     widget.start_button.setText(
         get_content_pushbutton_name_async("roll_call", "start_button")
@@ -575,8 +570,6 @@ def stop_animation(widget):
         get_content_pushbutton_name_async("roll_call", "start_button")
     )
     widget.is_animating = False
-    widget._cached_animation_widgets = None
-    widget._cached_display_dict = None
     BehindScenesUtils.clear_cache()
     try:
         widget.start_button.clicked.disconnect()
@@ -771,91 +764,15 @@ def display_result_animated(
     widget, selected_students, class_name, draw_count=None, selected_students_dict=None
 ):
     group_index = widget.range_combobox.currentIndex()
+    display_dict = RollCallUtils.create_display_settings("roll_call_settings")
     if draw_count is None:
         draw_count = widget.current_count
 
     if group_index == 1:
-        show_random = getattr(widget, "_cached_show_random", 0)
         selected_students = RollCallUtils.render_group_display_students(
-            class_name, selected_students, show_random
+            class_name, selected_students, display_dict.get("show_random", 0)
         )
         selected_students_dict = None
-
-    cached_widgets = getattr(widget, "_cached_animation_widgets", None)
-    cached_count = len(cached_widgets) if cached_widgets else 0
-    current_count = len(selected_students) if selected_students else 0
-
-    display_dict = getattr(widget, "_cached_display_dict", None)
-    if display_dict is None:
-        display_dict = RollCallUtils.create_display_settings("roll_call_settings")
-        widget._cached_display_dict = display_dict
-
-    if cached_widgets and cached_count == current_count and current_count > 0:
-        new_texts = []
-        new_colors = []
-        font_size = display_dict.get("font_size", 50)
-        animation_color = display_dict.get("animation_color", 0)
-        display_format = display_dict.get("display_format", 0)
-
-        for item in selected_students:
-            if isinstance(item, (list, tuple)) and len(item) >= 2:
-                student_id = str(item[0]) if item[0] is not None else ""
-                name = str(item[1])
-            else:
-                student_id = ""
-                name = str(item)
-
-            from app.common.display.result_display import (
-                STUDENT_ID_FORMAT,
-                NAME_SPACING,
-            )
-
-            student_id_str = (
-                STUDENT_ID_FORMAT.format(num=student_id) if student_id else ""
-            )
-
-            formatted_name = (
-                f"{name[0]}{NAME_SPACING}{name[1]}"
-                if len(name) == 2 and group_index == 0
-                else name
-            )
-
-            if display_format == 1:
-                text = formatted_name
-            elif display_format == 2:
-                text = student_id_str if student_id_str else formatted_name
-            else:
-                if draw_count == 1:
-                    text = (
-                        f"{student_id_str}\n{formatted_name}"
-                        if student_id_str
-                        else formatted_name
-                    )
-                else:
-                    text = (
-                        f"{student_id_str} {formatted_name}"
-                        if student_id_str
-                        else formatted_name
-                    )
-            new_texts.append(text)
-
-            if animation_color == 1:
-                color = ResultDisplayUtils._generate_vibrant_color()
-            elif animation_color == 2:
-                fixed_color = display_dict.get("animation_fixed_color", "#000000")
-                color = fixed_color
-            else:
-                from app.tools.personalised import is_dark_theme
-                from qfluentwidgets import qconfig
-
-                color = "#ffffff" if is_dark_theme(qconfig) else "#000000"
-            new_colors.append(color)
-
-        updated = ResultDisplayUtils.update_animation_labels_fast(
-            cached_widgets, new_texts, new_colors, font_size, "roll_call_settings"
-        )
-        if updated:
-            return
 
     student_labels = ResultDisplayUtils.create_student_label(
         class_name=class_name,
@@ -873,19 +790,19 @@ def display_result_animated(
         show_tags=bool(display_dict.get("show_tags")),
     )
 
-    if cached_widgets and cached_count == current_count:
+    cached_widgets = ResultDisplayUtils.collect_grid_widgets(widget.result_grid)
+    if cached_widgets and len(cached_widgets) == len(student_labels):
         updated = ResultDisplayUtils.update_grid_labels(
             widget.result_grid, student_labels, cached_widgets
         )
         if updated:
             ResultDisplayUtils.dispose_widgets(student_labels)
-            widget._cached_animation_widgets = cached_widgets
-            return
-
-    ResultDisplayUtils.display_results_in_grid(widget.result_grid, student_labels)
-    widget._cached_animation_widgets = student_labels
-
-    widget._cached_show_random = display_dict.get("show_random", 0)
+        else:
+            ResultDisplayUtils.display_results_in_grid(
+                widget.result_grid, student_labels
+            )
+    else:
+        ResultDisplayUtils.display_results_in_grid(widget.result_grid, student_labels)
 
     RollCallUtils.show_notification_if_enabled(
         class_name=class_name,

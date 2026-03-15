@@ -11,9 +11,17 @@ from app.common.history import *
 from app.tools.settings_access import *
 from app.common.music.music_player import music_player
 from app.common.roll_call.roll_call_utils import RollCallUtils
-from app.Language.obtain_language import get_content_combo_name_async
+from app.Language.obtain_language import (
+    get_content_combo_name_async,
+    get_any_position_value,
+)
 from qfluentwidgets import FluentIcon
-from app.tools.config import show_notification, NotificationType, NotificationConfig
+from app.tools.config import (
+    show_notification,
+    NotificationType,
+    NotificationConfig,
+    calculate_remaining_count,
+)
 from app.tools.personalised import get_theme_icon
 from app.tools.list_specific_settings_access import read_quick_draw_setting
 
@@ -187,7 +195,6 @@ class QuickDrawAnimation(QObject):
         logger.debug(f"start_animation: 开始闪抽动画，设置: {quick_draw_settings}")
 
         self.roll_call_widget.is_quick_draw = True
-        self.roll_call_widget.manager.settings_group = "quick_draw_settings"
 
         class_name, group_index, group_filter, gender_index, gender_filter = (
             self._get_default_filters()
@@ -251,8 +258,6 @@ class QuickDrawAnimation(QObject):
         class_name = self.active_class_name
         current_count = read_quick_draw_setting(class_name, "draw_count")
         result = self.roll_call_widget.manager.draw_final_students(current_count)
-
-        self.roll_call_widget.manager.settings_group = "roll_call_settings"
 
         if result.get("reset_required"):
             self._reset_records(
@@ -416,7 +421,6 @@ class QuickDrawAnimation(QObject):
             else:
                 # 无动画模式，直接抽取
                 self.roll_call_widget.is_quick_draw = True
-                self.roll_call_widget.manager.settings_group = "quick_draw_settings"
                 # 使用独立的抽取逻辑
                 success = self.draw_random_students()
                 if success:
@@ -427,7 +431,6 @@ class QuickDrawAnimation(QObject):
                         quick_draw_settings,
                     )
                 self.roll_call_widget.is_quick_draw = False
-                self.roll_call_widget.manager.settings_group = "roll_call_settings"
                 self.animation_finished.emit()
 
         except Exception as e:
@@ -461,7 +464,7 @@ class QuickDrawAnimation(QObject):
 
                 self._record_drawn_student(quick_draw_settings)
 
-                self.roll_call_widget.update_many_count_label()
+                self._update_quick_draw_count_label()
 
                 from app.tools.variable import APP_INIT_DELAY
                 from PySide6.QtCore import QTimer
@@ -505,6 +508,66 @@ class QuickDrawAnimation(QObject):
 
         except Exception as e:
             logger.exception(f"_record_drawn_student: 记录已抽取学生失败: {e}")
+
+    def _update_quick_draw_count_label(self):
+        """更新闪抽的剩余人数显示"""
+        try:
+            class_name = self.final_class_name
+            half_repeat = read_quick_draw_setting(class_name, "half_repeat")
+            group_index = 0
+            group_filter = self.final_group_filter or ""
+            gender_filter = self.final_gender_filter or ""
+
+            total_count = RollCallUtils.get_total_count(
+                class_name, group_index, group_filter
+            )
+
+            remaining_count = calculate_remaining_count(
+                half_repeat=half_repeat,
+                class_name=class_name,
+                gender_filter=gender_filter,
+                group_index=group_index,
+                group_filter=group_filter,
+                total_count=total_count,
+            )
+
+            if remaining_count == 0:
+                self._reset_records(class_name)
+                remaining_count = total_count
+
+            display_mode = readme_settings_async(
+                "page_management", "roll_call_quantity_label"
+            )
+
+            if display_mode == 0:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_0"
+                )
+            elif display_mode == 1:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_1"
+                )
+            elif display_mode == 2:
+                text_template = get_any_position_value(
+                    "roll_call", "many_count_label", "text_2"
+                )
+            else:
+                text_template = ""
+
+            if text_template:
+                formatted_text = text_template.format(
+                    total_count=total_count, remaining_count=remaining_count
+                )
+            else:
+                formatted_text = ""
+
+            self.roll_call_widget.remaining_count = remaining_count
+            self.roll_call_widget.many_count_label.setText(formatted_text)
+
+        except Exception as e:
+            logger.exception(
+                f"_update_quick_draw_count_label: 更新剩余人数显示失败: {e}"
+            )
 
     def _update_floating_notification(self):
         """更新浮窗通知内容
@@ -553,10 +616,6 @@ class QuickDrawAnimation(QObject):
                 "show_tags", readme_settings_async("quick_draw_settings", "show_tags")
             )
         )
-        display_style = (display_settings or {}).get(
-            "display_style",
-            readme_settings_async("quick_draw_settings", "display_style", 0),
-        )
         student_labels = ResultDisplayUtils.create_student_label(
             class_name=class_name,
             selected_students=selected_students,
@@ -565,7 +624,7 @@ class QuickDrawAnimation(QObject):
             font_size=display_settings["font_size"],
             animation_color=display_settings["animation_color_theme"],
             display_format=display_settings["display_format"],
-            display_style=display_style,
+            display_style=0,
             show_student_image=display_settings["student_image"],
             group_index=getattr(
                 self.roll_call_widget.range_combobox, "currentIndex", lambda: 0
