@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QMenu,
     QSizePolicy,
-    QLabel,
 )
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtCore import Qt, QPoint, QTimer, QEvent
@@ -839,120 +838,13 @@ class ResultDisplayUtils:
             result_grid: QGridLayout 网格布局
             new_labels: 新的学生标签列表
             cached_labels: 缓存的旧标签列表
+
+        返回:
+            bool: 始终返回False，强制重新创建组件以确保头像正确显示
         """
-        if not new_labels:
-            return False
-
-        count = result_grid.count()
-        min_count = min(len(new_labels), len(cached_labels))
-        if min_count == 0:
-            return False
-
-        for i in range(min_count):
-            old_widget = cached_labels[i]
-            new_widget = new_labels[i]
-
-            if old_widget and new_widget:
-
-                def sync_widgets(old_obj, new_obj):
-                    if old_obj is None or new_obj is None:
-                        return False
-
-                    if isinstance(old_obj, BodyLabel) and isinstance(
-                        new_obj, BodyLabel
-                    ):
-                        old_obj.setText(new_obj.text())
-                        old_obj.setStyleSheet(new_obj.styleSheet())
-                        return True
-
-                    if isinstance(old_obj, QLabel) and isinstance(new_obj, QLabel):
-                        old_obj.setText(new_obj.text())
-                        old_obj.setStyleSheet(new_obj.styleSheet())
-                        return True
-
-                    if isinstance(old_obj, AvatarWidget) and isinstance(
-                        new_obj, AvatarWidget
-                    ):
-
-                        def _safe_get_text(obj):
-                            text_attr = getattr(obj, "text", None)
-                            if callable(text_attr):
-                                try:
-                                    return text_attr()
-                                except Exception:
-                                    return ""
-                            if isinstance(text_attr, str):
-                                return text_attr
-                            return ""
-
-                        def _extract_image(obj):
-                            for name in (
-                                "imagePath",
-                                "_imagePath",
-                                "_pixmap",
-                                "pixmap",
-                                "_image",
-                                "image",
-                            ):
-                                value = getattr(obj, name, None)
-                                if callable(value):
-                                    try:
-                                        value = value()
-                                    except Exception:
-                                        continue
-                                if value is not None:
-                                    return value
-                            return None
-
-                        new_image = _extract_image(new_obj)
-                        if new_image is not None and hasattr(old_obj, "setImage"):
-                            try:
-                                old_obj.setImage(new_image)
-                            except Exception:
-                                pass
-
-                        if hasattr(old_obj, "setText"):
-                            old_text = _safe_get_text(old_obj)
-                            new_text = _safe_get_text(new_obj)
-                            if old_text != new_text:
-                                old_obj.setText(new_text)
-                        return True
-
-                    old_layout = (
-                        old_obj.layout() if isinstance(old_obj, QWidget) else None
-                    )
-                    new_layout = (
-                        new_obj.layout() if isinstance(new_obj, QWidget) else None
-                    )
-                    if old_layout is None or new_layout is None:
-                        return False
-
-                    if old_layout.count() != new_layout.count():
-                        return False
-
-                    for idx in range(old_layout.count()):
-                        old_item = old_layout.itemAt(idx)
-                        new_item = new_layout.itemAt(idx)
-                        if old_item is None or new_item is None:
-                            return False
-
-                        old_child = old_item.widget()
-                        new_child = new_item.widget()
-                        if old_child is None or new_child is None:
-                            return False
-
-                        if not sync_widgets(old_child, new_child):
-                            return False
-
-                    return True
-
-                if not sync_widgets(old_widget, new_widget):
-                    return False
-            else:
-                return False
-
-        cached_labels[:] = new_labels
-        return True
+        # 简化逻辑：始终返回False，强制重新创建所有组件
+        # 这样可以避免头像缓存导致的显示问题
+        return False
 
     @staticmethod
     def clear_grid(result_grid, log_debug=False):
