@@ -515,6 +515,8 @@ class SettingsWindow(FluentWindow):
         """
         logger.debug(f"处理设置页面请求: {page_name}")
 
+        self._ensure_sub_interface_created()
+
         page_mapping = self._get_page_mapping()
 
         if page_name in page_mapping:
@@ -532,6 +534,19 @@ class SettingsWindow(FluentWindow):
                 logger.warning(f"设置页面不存在或尚未初始化: {page_name}")
         else:
             logger.warning(f"未知的设置页面: {page_name}")
+
+    def _ensure_sub_interface_created(self):
+        """确保子界面已创建"""
+        if not hasattr(self, "_sub_interface_created"):
+            self._sub_interface_created = False
+
+        if not self._sub_interface_created:
+            logger.debug("子界面尚未创建，立即创建")
+            try:
+                self.createSubInterface()
+                self._sub_interface_created = True
+            except Exception as e:
+                logger.exception(f"创建子界面失败: {e}")
 
     def _get_page_mapping(self):
         """获取页面映射字典
@@ -605,6 +620,10 @@ class SettingsWindow(FluentWindow):
     def createSubInterface(self):
         """创建子界面
         搭建子界面导航系统"""
+        if hasattr(self, "_sub_interface_created") and self._sub_interface_created:
+            logger.debug("子界面已创建，跳过重复创建")
+            return
+
         from app.page_building import settings_window_page
 
         settings = self._get_sidebar_settings()
@@ -620,6 +639,7 @@ class SettingsWindow(FluentWindow):
         self._create_special_pages(settings_window_page)
         self.initNavigation()
         self._setup_background_warmup()
+        self._sub_interface_created = True
 
     def _get_sidebar_settings(self):
         """获取侧边栏设置

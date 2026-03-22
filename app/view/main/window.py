@@ -487,8 +487,14 @@ class MainWindow(FluentWindow):
         self.lottery_page = lottery_page(self)
         self.lottery_page.setObjectName("lottery_page")
 
-        self.camera_preview_page = CameraPreview(self)
-        self.camera_preview_page.setObjectName("camera_preview_page")
+        camera_sidebar_pos = readme_settings_async(
+            "sidebar_management_window", "camera_preview_sidebar_position"
+        )
+        if camera_sidebar_pos is None or camera_sidebar_pos != 2:
+            self.camera_preview_page = CameraPreview(self)
+            self.camera_preview_page.setObjectName("camera_preview_page")
+        else:
+            self.camera_preview_page = None
 
         self.history_page = history_page(self)
         self.history_page.setObjectName("history_page")
@@ -496,12 +502,15 @@ class MainWindow(FluentWindow):
         self.settingsInterface = QWidget(self)
         self.settingsInterface.setObjectName("settingsInterface")
 
-        for page in [
+        pages = [
             self.roll_call_page,
             self.lottery_page,
-            self.camera_preview_page,
-            self.history_page,
-        ]:
+        ]
+        if self.camera_preview_page:
+            pages.append(self.camera_preview_page)
+        pages.append(self.history_page)
+
+        for page in pages:
             page.installEventFilter(self)
 
         self.initNavigation()
@@ -554,6 +563,8 @@ class MainWindow(FluentWindow):
             )
 
     def _add_camera_preview_navigation(self):
+        if self.camera_preview_page is None:
+            return
         camera_sidebar_pos = readme_settings_async(
             "sidebar_management_window", "camera_preview_sidebar_position"
         )
@@ -940,6 +951,8 @@ class MainWindow(FluentWindow):
                 "font_size",
             ),
             "display_format": read_quick_draw_setting(list_name, "display_format"),
+            "display_style": read_quick_draw_setting(list_name, "display_style"),
+            "show_tags": read_quick_draw_setting(list_name, "show_tags"),
             "animation": read_quick_draw_setting(list_name, "animation"),
             "animation_interval": read_quick_draw_setting(
                 list_name, "animation_interval"

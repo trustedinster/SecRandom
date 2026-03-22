@@ -101,7 +101,7 @@
 
 ### 🌐 官方下载页面
 
-- 📥 **[官方下载页面](https://secrandom.sectl.top/download.html)** - 获取最新稳定版本和测试版本
+- 📥 **[官方下载页面](https://stk.sectl.top/SecRandom)** - 获取最新稳定版本和测试版本
 
 ## 📸 软件截图
 

@@ -203,6 +203,10 @@ class RollCallManager(QObject):
             self.current_gender_index = gender_index
             self.half_repeat = half_repeat
 
+            record_key = f"{class_name}_{gender_filter}_{group_filter}"
+            if record_key in RollCallUtils._drawn_record_cache:
+                del RollCallUtils._drawn_record_cache[record_key]
+
             # 获取原始学生列表
             raw_students = get_student_list(class_name)
 

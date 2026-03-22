@@ -5,11 +5,12 @@
 from loguru import logger
 import os
 import ctypes
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QHBoxLayout
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtCore import QSignalBlocker
 from qfluentwidgets import (
     GroupHeaderCardWidget,
+    HeaderCardWidget,
     SwitchButton,
     ComboBox,
     PushButton,
@@ -19,6 +20,9 @@ from qfluentwidgets import (
     setTheme,
     setThemeColor,
     MessageBox,
+    BodyLabel,
+    IconWidget,
+    InfoBarIcon,
 )
 
 from app.tools.variable import EXIT_CODE_RESTART
@@ -64,6 +68,10 @@ class basic_settings(QWidget):
         self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
         self.vBoxLayout.setSpacing(10)
 
+        # 添加版本通知卡片
+        self.version_notice_widget = VersionNoticeCard(self)
+        self.vBoxLayout.addWidget(self.version_notice_widget)
+
         # 添加基本功能设置组件
         self.basic_function_widget = basic_settings_function(self)
         self.vBoxLayout.addWidget(self.basic_function_widget)
@@ -75,6 +83,50 @@ class basic_settings(QWidget):
         # 添加数据管理组件
         self.data_management_widget = basic_settings_data_management(self)
         self.vBoxLayout.addWidget(self.data_management_widget)
+
+
+class VersionNoticeCard(HeaderCardWidget):
+    """版本通知卡片"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("版本公告")
+
+        self._visible = readme_settings_async(
+            "basic_settings", "show_version_notice", True
+        )
+        if not self._visible:
+            self.setVisible(False)
+            return
+
+        self.infoLabel = BodyLabel(
+            "当前处于 Ava 重构阶段，暂不新增功能，重心放在性能优化与问题修复。\n敬请期待基于 Ava 架构的 v3 版本！\nbug报 GitHub Issue 或 SECTL QQ组织群 - 833875216",
+            self,
+        )
+        self.infoIcon = IconWidget(InfoBarIcon.INFORMATION, self)
+        self.closeButton = PushButton("不再显示", self)
+        self.closeButton.setFixedWidth(100)
+        self.closeButton.clicked.connect(self._on_close_clicked)
+
+        self.vBoxLayout = QVBoxLayout()
+        self.hBoxLayout = QHBoxLayout()
+
+        self.infoIcon.setFixedSize(16, 16)
+        self.hBoxLayout.setSpacing(10)
+        self.vBoxLayout.setSpacing(8)
+        self.hBoxLayout.setContentsMargins(0, 0, 0, 0)
+        self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
+
+        self.hBoxLayout.addWidget(self.infoIcon)
+        self.hBoxLayout.addWidget(self.infoLabel, 1)
+        self.vBoxLayout.addLayout(self.hBoxLayout)
+        self.vBoxLayout.addWidget(self.closeButton, 0)
+
+        self.viewLayout.addLayout(self.vBoxLayout)
+
+    def _on_close_clicked(self):
+        update_settings("basic_settings", "show_version_notice", False)
+        self.setVisible(False)
 
 
 class basic_settings_function(GroupHeaderCardWidget):
