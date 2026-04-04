@@ -450,8 +450,10 @@ class LotteryManager(QObject):
 
                 group_name = ""
                 student_name = ""
+                student_id = 0
                 if self.current_group_index == 1:
-                    raw_group = system_random.choice(candidates).get("name", "")
+                    selected_candidate = system_random.choice(candidates)
+                    raw_group = selected_candidate.get("name", "")
                     include_group = show_random in (0, 1, 2, 5, 6, 7, 8, 9)
                     include_name = show_random in (0, 1, 2, 3, 4, 7, 8, 9, 10, 11)
 
@@ -464,13 +466,23 @@ class LotteryManager(QObject):
                         if group_members:
                             selected_member = system_random.choice(group_members)
                             student_name = (selected_member or {}).get("name", "")
+                            try:
+                                student_id = int((selected_member or {}).get("id", 0) or 0)
+                            except Exception:
+                                student_id = 0
                         if not student_name:
                             student_name = raw_group
                 else:
-                    student_name = system_random.choice(candidates).get("name", "")
+                    selected_candidate = system_random.choice(candidates)
+                    student_name = selected_candidate.get("name", "")
+                    try:
+                        student_id = int(selected_candidate.get("id", 0) or 0)
+                    except Exception:
+                        student_id = 0
 
                 prize_copy["ipc_group_name"] = str(group_name or "")
                 prize_copy["ipc_student_name"] = str(student_name or "")
+                prize_copy["student_id"] = student_id
                 if group_name or student_name:
                     prize_copy["name"] = self._format_prize_student_text(
                         prize_name, group_name, student_name, show_random
@@ -1125,9 +1137,13 @@ def draw_random(widget):
         for p in prizes or []:
             if not isinstance(p, dict):
                 continue
+            try:
+                sid = int(p.get("student_id", 0) or 0)
+            except Exception:
+                sid = 0
             ipc_selected_students.append(
                 {
-                    "student_id": 0,
+                    "student_id": sid,
                     "student_name": str(p.get("ipc_student_name", "") or ""),
                     "display_text": str(
                         p.get("ipc_display_text", p.get("name", "")) or ""
@@ -1139,7 +1155,10 @@ def draw_random(widget):
                     ),
                 }
             )
-        selected_prizes = [(p["id"], p["name"], p.get("exist", True)) for p in prizes]
+        selected_prizes = [
+            (p.get("student_id", 0) or 0, p["name"], p.get("exist", True))
+            for p in prizes
+        ]
 
         display_result_animated(
             widget,
