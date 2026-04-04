@@ -3,7 +3,6 @@
 # ==================================================
 
 import threading
-import time
 from typing import Optional
 import numpy as np
 from loguru import logger
@@ -287,7 +286,10 @@ class MusicPlayer:
                                 if self._fade_out_remaining_time >= chunk_duration:
                                     # 整个块都在渐出范围内
                                     fade_out_ratio = 1.0 - (
-                                        (self._fade_out_duration - self._fade_out_remaining_time)
+                                        (
+                                            self._fade_out_duration
+                                            - self._fade_out_remaining_time
+                                        )
                                         / self._fade_out_duration
                                     )
                                     chunk *= self._volume * fade_out_ratio
@@ -299,10 +301,15 @@ class MusicPlayer:
                                     )
                                     if fade_out_samples > 0:
                                         fade_out_ratio = 1.0 - (
-                                            (self._fade_out_duration - self._fade_out_remaining_time)
+                                            (
+                                                self._fade_out_duration
+                                                - self._fade_out_remaining_time
+                                            )
                                             / self._fade_out_duration
                                         )
-                                        chunk[:fade_out_samples] *= self._volume * fade_out_ratio
+                                        chunk[:fade_out_samples] *= (
+                                            self._volume * fade_out_ratio
+                                        )
                                         chunk[fade_out_samples:] = 0
                                     else:
                                         chunk[:] = 0
