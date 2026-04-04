@@ -26,7 +26,7 @@ def check_single_instance() -> Tuple[Optional[QSharedMemory], bool]:
                 _activate_existing_instance()
                 return shared_memory, False
             else:
-                logger.warning("服务器无响应，清理残留资源后重新启动")
+                logger.warning("服务器不可连接，清理残留资源后重新启动")
                 _cleanup_stale_resources()
                 if shared_memory.create(1):
                     logger.info("单实例检查通过（清理后重新创建）")
@@ -40,10 +40,10 @@ def check_single_instance() -> Tuple[Optional[QSharedMemory], bool]:
 
 
 def _check_server_alive() -> bool:
-    """检查本地服务器是否有响应
+    """检查本地服务器是否在监听（可连接）
 
     Returns:
-        bool: 服务器是否有响应
+        bool: 服务器是否可连接
     """
     local_socket = QLocalSocket()
     local_socket.connectToServer(SHARED_MEMORY_KEY)

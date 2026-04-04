@@ -467,7 +467,9 @@ class LotteryManager(QObject):
                             selected_member = system_random.choice(group_members)
                             student_name = (selected_member or {}).get("name", "")
                             try:
-                                student_id = int((selected_member or {}).get("id", 0) or 0)
+                                student_id = int(
+                                    (selected_member or {}).get("id", 0) or 0
+                                )
                             except Exception:
                                 student_id = 0
                         if not student_name:
@@ -1155,10 +1157,18 @@ def draw_random(widget):
                     ),
                 }
             )
-        selected_prizes = [
-            (p.get("student_id", 0) or 0, p["name"], p.get("exist", True))
-            for p in prizes
-        ]
+        selected_prizes = []
+        for p in prizes:
+            try:
+                display_num = int(p.get("student_id", 0) or 0)
+            except Exception:
+                display_num = 0
+            if not display_num:
+                try:
+                    display_num = int(p.get("id", 0) or 0)
+                except Exception:
+                    display_num = 0
+            selected_prizes.append((display_num, p["name"], p.get("exist", True)))
 
         display_result_animated(
             widget,
