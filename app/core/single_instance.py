@@ -60,6 +60,21 @@ def _cleanup_stale_resources() -> None:
     QLocalServer.removeServer(SHARED_MEMORY_KEY)
     logger.debug("已清理残留的socket资源")
 
+    _cleanup_stale_shared_memory()
+
+
+def _cleanup_stale_shared_memory() -> None:
+    """清理残留的共享内存段（POSIX系统需要）
+
+    在POSIX系统上，QSharedMemory在进程崩溃后不会自动清理。
+    需要先attach再detach来触发清理。
+    """
+    stale_memory = QSharedMemory(SHARED_MEMORY_KEY)
+    if stale_memory.attach():
+        logger.debug("检测到残留的共享内存段，正在清理")
+        stale_memory.detach()
+        logger.debug("已清理残留的共享内存段")
+
 
 def _activate_existing_instance() -> bool:
     """激活已有实例
