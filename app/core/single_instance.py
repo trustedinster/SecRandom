@@ -20,11 +20,59 @@ def check_single_instance() -> Tuple[Optional[QSharedMemory], bool]:
             _activate_existing_instance()
             return shared_memory, False
         else:
-            logger.exception("无法附加到共享内存")
-            return shared_memory, False
+            logger.warning("无法附加到共享内存，尝试检测服务器状态")
+            if _check_server_alive():
+                logger.info("检测到活跃的服务器，已有实例正在运行")
+                _activate_existing_instance()
+                return shared_memory, False
+            else:
+                logger.warning("服务器不可连接，清理残留资源后重新启动")
+                _cleanup_stale_resources()
+                if shared_memory.create(1):
+                    logger.info("单实例检查通过（清理后重新创建）")
+                    return shared_memory, True
+                else:
+                    logger.exception("清理后仍无法创建共享内存")
+                    return shared_memory, False
 
     logger.info("单实例检查通过，可以安全启动程序")
     return shared_memory, True
+
+
+def _check_server_alive() -> bool:
+    """检查本地服务器是否在监听（可连接）
+
+    Returns:
+        bool: 服务器是否可连接
+    """
+    local_socket = QLocalSocket()
+    local_socket.connectToServer(SHARED_MEMORY_KEY)
+    connected = local_socket.waitForConnected(500)
+    if connected:
+        local_socket.disconnectFromServer()
+        return True
+    return False
+
+
+def _cleanup_stale_resources() -> None:
+    """清理残留的单实例资源"""
+    QLocalServer.removeServer(SHARED_MEMORY_KEY)
+    logger.debug("已清理残留的socket资源")
+
+    _cleanup_stale_shared_memory()
+
+
+def _cleanup_stale_shared_memory() -> None:
+    """清理残留的共享内存段（POSIX系统需要）
+
+    在POSIX系统上，QSharedMemory在进程崩溃后不会自动清理。
+    需要先attach再detach来触发清理。
+    """
+    stale_memory = QSharedMemory(SHARED_MEMORY_KEY)
+    if stale_memory.attach():
+        logger.debug("检测到残留的共享内存段，正在清理")
+        stale_memory.detach()
+        logger.debug("已清理残留的共享内存段")
 
 
 def _activate_existing_instance() -> bool:
@@ -74,8 +122,14 @@ def setup_local_server(
     """
     server = QLocalServer()
     if not server.listen(SHARED_MEMORY_KEY):
-        logger.exception(f"无法启动本地服务器: {server.errorString()}")
-        return None
+        error_string = server.errorString()
+        logger.warning(f"本地服务器启动失败，尝试清理残留socket: {error_string}")
+
+        QLocalServer.removeServer(SHARED_MEMORY_KEY)
+
+        if not server.listen(SHARED_MEMORY_KEY):
+            logger.exception(f"无法启动本地服务器: {server.errorString()}")
+            return None
 
     server.newConnection.connect(
         lambda: _handle_new_connection(server, main_window, float_window, url_handler)

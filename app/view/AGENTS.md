@@ -72,11 +72,11 @@ class SomeSettingPage(QWidget):
         super().__init__(parent)
         self._init_ui()
         self._load_settings()
-    
+
     def _init_ui(self):
         # Setup layout and widgets
         pass
-    
+
     def _load_settings(self):
         # Load from settings_access
         pass
