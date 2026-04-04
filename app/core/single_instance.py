@@ -55,8 +55,7 @@ def _check_server_alive() -> bool:
 
 
 def _cleanup_stale_resources() -> None:
-    """清理残留的单实例资源
-    """
+    """清理残留的单实例资源"""
     QLocalServer.removeServer(SHARED_MEMORY_KEY)
     logger.debug("已清理残留的socket资源")
 
