@@ -180,6 +180,8 @@ class LevitationWindow(QWidget):
         self._uia_last_error_ms = 0
         self._uia_last_error_text = ""
         self._uiaccess_restart_requested = False
+        self._uiaccess_restart_exceeded = False
+        self._check_uiaccess_restart_count()
 
     def _get_uiaccess_funcs(self):
         if self._uiaccess_funcs is not None:
@@ -187,30 +189,78 @@ class LevitationWindow(QWidget):
         try:
             from app.common.windows.uiaccess import (
                 UIACCESS_RESTART_ENV,
+                UIACCESS_RESTART_COUNT_ENV,
                 is_uiaccess_process,
                 set_window_band_uiaccess,
             )
 
             self._uiaccess_funcs = (
                 UIACCESS_RESTART_ENV,
+                UIACCESS_RESTART_COUNT_ENV,
                 is_uiaccess_process,
                 set_window_band_uiaccess,
             )
         except Exception:
-            self._uiaccess_funcs = (None, None, None)
+            self._uiaccess_funcs = (None, None, None, None)
         return self._uiaccess_funcs
+
+    def _check_uiaccess_restart_count(self):
+        """检查 UIAccess 重启次数，如果超过上限则标记为已超出"""
+        MAX_RESTART_COUNT = 2
+        _, count_env_key, _, _ = self._get_uiaccess_funcs()
+        if not count_env_key:
+            return
+        try:
+            current_count = int(os.environ.get(str(count_env_key), "0") or "0")
+            if current_count >= MAX_RESTART_COUNT:
+                self._uiaccess_restart_exceeded = True
+                logger.warning(
+                    "检测到 UIAccess 重启次数已达上限 ({} 次)，将使用普通置顶模式",
+                    current_count,
+                )
+        except Exception:
+            pass
 
     def _request_uiaccess_restart(self):
         if getattr(self, "_uiaccess_restart_requested", False):
             return
-        self._uiaccess_restart_requested = True
 
-        env_key, _, _ = self._get_uiaccess_funcs()
-        if env_key:
-            try:
-                os.environ[str(env_key)] = "1"
-            except Exception:
-                pass
+        env_key, count_env_key, _, _ = self._get_uiaccess_funcs()
+        if not env_key or not count_env_key:
+            return
+
+        MAX_RESTART_COUNT = 2
+
+        try:
+            current_count = int(os.environ.get(str(count_env_key), "0") or "0")
+        except Exception:
+            current_count = 0
+
+        if current_count >= MAX_RESTART_COUNT:
+            logger.warning(
+                "UIAccess 重启次数已达上限 ({} 次)，回退到普通置顶模式",
+                MAX_RESTART_COUNT,
+            )
+            self._uiaccess_restart_exceeded = True
+            return
+
+        self._uiaccess_restart_requested = True
+        new_count = current_count + 1
+        try:
+            os.environ[str(count_env_key)] = str(new_count)
+        except Exception:
+            pass
+
+        logger.info(
+            "请求 UIAccess 重启 (第 {} 次，上限 {} 次)",
+            new_count,
+            MAX_RESTART_COUNT,
+        )
+
+        try:
+            os.environ[str(env_key)] = "1"
+        except Exception:
+            pass
         try:
             if not bool(self._is_admin()):
                 from app.common.windows.uiaccess import ELEVATE_RESTART_ENV
@@ -284,12 +334,19 @@ class LevitationWindow(QWidget):
             if not self._periodic_topmost_timer.isActive():
                 self._periodic_topmost_timer.start(self._periodic_topmost_interval)
             if mode == 2 and self.isVisible():
-                _, is_uiaccess, _ = self._get_uiaccess_funcs()
+                _, _, is_uiaccess, _ = self._get_uiaccess_funcs()
                 if is_uiaccess is not None:
                     try:
                         if not bool(is_uiaccess()):
-                            logger.debug("需要UIAccess置顶，准备重启切换为UIAccess进程")
-                            self._request_uiaccess_restart()
+                            if getattr(self, "_uiaccess_restart_exceeded", False):
+                                logger.debug(
+                                    "UIAccess 重启次数已达上限，使用普通置顶模式"
+                                )
+                                if self._uia_topmost_timer.isActive():
+                                    self._uia_topmost_timer.stop()
+                            else:
+                                logger.debug("需要UIAccess置顶，准备重启切换为UIAccess进程")
+                                self._request_uiaccess_restart()
                             return
                     except Exception:
                         pass
@@ -327,7 +384,7 @@ class LevitationWindow(QWidget):
         if not self.isVisible() or int(getattr(self, "_topmost_mode", 1) or 0) != 2:
             return
 
-        _, _, set_band = self._get_uiaccess_funcs()
+        _, _, _, set_band = self._get_uiaccess_funcs()
         if set_band is None:
             return
 
@@ -1276,46 +1333,62 @@ class LevitationWindow(QWidget):
         Args:
             signal: 要发出的信号
         """
-        # 检查是否是闪抽按钮
+        logger.debug(f"_handle_button_click: 开始处理按钮点击，signal={signal}")
+
         if signal == self.quickDrawRequested:
-            # 检查闪抽是否被禁用
             if self._quick_draw_disabled:
                 logger.info("闪抽功能已被禁用，请稍后再试")
                 return
 
-            # 检查当前时间是否在非上课时间段内
-            is_non_class_time = _is_non_class_time()
-            logger.debug(f"当前时间是否在非上课时间段内: {is_non_class_time}")
-            if is_non_class_time:
-                # 检查是否需要验证流程
-                verification_required = readme_settings_async(
-                    "linkage_settings", "verification_required"
-                )
-                if verification_required:
-                    # 如果需要验证流程，弹出密码验证窗口
-                    logger.info("当前时间在非上课时间段内，需要密码验证")
-                    require_and_run(
-                        "quick_draw", self, lambda: self._emit_signal(signal)
+            was_disabled = self._quick_draw_disabled
+            self._quick_draw_disabled = True
+            logger.debug(f"_handle_button_click: 已禁用闪抽按钮（防抖），之前状态={was_disabled}")
+
+            try:
+                is_non_class_time = _is_non_class_time()
+                logger.debug(f"当前时间是否在非上课时间段内: {is_non_class_time}")
+                if is_non_class_time:
+                    verification_required = readme_settings_async(
+                        "linkage_settings", "verification_required"
                     )
-                    return
+                    if verification_required:
+                        logger.info("当前时间在非上课时间段内，需要密码验证")
+                        require_and_run(
+                            "quick_draw", self, lambda: self._emit_signal_with_reenable(signal)
+                        )
+                        return
+                    else:
+                        logger.info("当前时间在非上课时间段内，禁止闪抽")
+                        self._quick_draw_disabled = False
+                        logger.debug("_handle_button_click: 检查失败，已恢复闪抽按钮")
+                        return
+
+                disable_time = int(
+                    readme_settings_async("quick_draw_settings", "disable_after_click") or 0
+                )
+
+                if disable_time >= 1:
+                    self._disable_quick_draw_timer.start(disable_time * 1000)
+                    logger.info(f"闪抽功能已禁用，将在 {disable_time}s 后恢复")
                 else:
-                    # 如果不需要验证流程，直接禁止点击
-                    logger.info("当前时间在非上课时间段内，禁止闪抽")
-                    return
+                    self._quick_draw_disabled = False
+                    logger.debug("_handle_button_click: 未设置禁用时间，立即恢复闪抽按钮")
 
-            # 获取禁用时间设置
-            disable_time = int(
-                readme_settings_async("quick_draw_settings", "disable_after_click")
-            )
+            except Exception as e:
+                logger.exception(f"_handle_button_click: 处理闪抽按钮点击时发生异常: {e}")
+                self._quick_draw_disabled = False
+                logger.debug("_handle_button_click: 发生异常，已恢复闪抽按钮")
+                return
 
-            # 如果设置了禁用时间，则禁用闪抽功能
-            if disable_time >= 1:
-                self._disable_quick_draw()
-                self._disable_quick_draw_timer.start(disable_time * 1000)
-                logger.info(f"闪抽功能已禁用，将在 {disable_time}s 后恢复")
-
-        # 发出信号
+        logger.debug(f"_handle_button_click: 准备发出信号 {signal}")
         signal.emit()
+        logger.debug(f"_handle_button_click: 信号已发出 {signal}")
+
+    def _emit_signal_with_reenable(self, signal):
+        """发出信号并在完成后恢复闪抽按钮状态"""
+        logger.debug(f"_emit_signal_with_reenable: 准备发出信号 {signal}")
+        signal.emit()
+        logger.debug(f"_emit_signal_with_reenable: 信号已发出 {signal}")
 
     def _disable_quick_draw(self):
         """禁用闪抽功能"""
