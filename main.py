@@ -183,8 +183,6 @@ def initialize_application():
     if DEV_VERSION not in VERSION:
         initialize_sentry()
 
-    initialize_online_status()
-
     wm.app_start_time = time.perf_counter()
 
     shared_memory, is_first_instance = check_single_instance()
@@ -491,6 +489,7 @@ def main():
 
     if VERSION == DEV_VERSION:
         setup_dev_hints(app)
+        initialize_online_status()
 
     try:
         exit_code = app.exec()

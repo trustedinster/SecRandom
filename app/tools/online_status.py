@@ -9,12 +9,12 @@ SECTL 在线状态上报模块
 import json
 import uuid
 import socket
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Dict, Any
 
 import requests
 from loguru import logger
-from PySide6.QtCore import QTimer, QObject
 
 from app.tools.path_utils import get_data_path
 from app.tools.variable import (
@@ -244,7 +244,7 @@ def report_online_status_async(
     )
 
 
-class OnlineStatusReporter(QObject):
+class OnlineStatusReporter:
     """在线状态上报器，负责定期上报在线状态（后台线程执行）"""
 
     def __init__(
@@ -252,7 +252,6 @@ class OnlineStatusReporter(QObject):
         platform_id: Optional[str] = None,
         report_interval_ms: Optional[int] = None,
     ):
-        super().__init__()
         self.platform_id = platform_id or SECTL_PLATFORM_ID
         self.report_interval_ms = report_interval_ms or SECTL_ONLINE_REPORT_INTERVAL_MS
         self.device_uuid = _load_or_create_device_uuid()
@@ -262,9 +261,10 @@ class OnlineStatusReporter(QObject):
         self._province: Optional[str] = None
         self._city: Optional[str] = None
         self._district: Optional[str] = None
-        self._timer: Optional[QTimer] = None
+        self._timer: Optional[threading.Timer] = None
         self._is_running = False
         self._initialized = False
+        self._lock = threading.Lock()
 
     def _init_ip_and_location_async(self):
         def _do_init():
@@ -283,33 +283,51 @@ class OnlineStatusReporter(QObject):
 
         _executor.submit(_do_init)
 
+    def _schedule_next_report(self):
+        """调度下一次上报"""
+        with self._lock:
+            if not self._is_running:
+                return
+            self._timer = threading.Timer(
+                self.report_interval_ms / 1000.0,
+                self._on_timer_tick
+            )
+            self._timer.daemon = True
+            self._timer.start()
+
+    def _on_timer_tick(self):
+        """定时器触发时的回调"""
+        self._report_async()
+        self._schedule_next_report()
+
     def start(self):
-        if self._is_running:
-            return
+        with self._lock:
+            if self._is_running:
+                return
 
-        self._is_running = True
-        logger.debug("在线状态上报器正在启动...")
+            self._is_running = True
+            logger.debug("在线状态上报器正在启动...")
+
         self._init_ip_and_location_async()
-
-        self._timer = QTimer()
-        self._timer.timeout.connect(self._report_async)
-        self._timer.start(self.report_interval_ms)
+        self._schedule_next_report()
         logger.debug(f"在线状态上报器已启动，上报间隔: {self.report_interval_ms}ms")
 
     def stop(self):
-        if not self._is_running:
-            return
+        with self._lock:
+            if not self._is_running:
+                return
 
-        self._is_running = False
-        if self._timer:
-            self._timer.stop()
-            self._timer.deleteLater()
-            self._timer = None
+            self._is_running = False
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
         logger.debug("在线状态上报器已停止")
 
     def _report_async(self):
         if not self._is_running:
             return
+
+        logger.debug(f"触发在线状态上报，IP: {self._ip_address}, 已初始化: {self._initialized}")
 
         _executor.submit(
             _do_report,
