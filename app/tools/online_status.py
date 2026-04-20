@@ -68,17 +68,14 @@ def _get_local_ip() -> str:
 
 def _get_public_ip(timeout_seconds: float = 5.0) -> Optional[str]:
     services = [
-        "https://uapis.cn/api/v1/network/myip",
+        "https://321260.xyz/api/ip.php", # v4出口网络
     ]
 
     for service in services:
         try:
             response = requests.get(service, timeout=timeout_seconds)
             if response.status_code == 200:
-                data = response.json()
-                ip = data.get("ip")
-                if ip:
-                    return ip
+                return response.text.strip()
         except Exception:
             continue
 
