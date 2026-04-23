@@ -125,6 +125,7 @@ about = {
         },
         "copyright": {"name": "版权", "description": "SecRandom遵循GPL-3.0协议"},
         "version": {"name": "版本", "description": "显示当前软件版本号"},
+        "online_count": {"name": "当前在线", "description": "当前在线用户数量"},
         "user_id": {"name": "用户ID", "description": "用于错误追踪的离线唯一标识"},
         "user_info": {"name": "用户信息", "description": "显示本机与使用信息"},
         "user_name": {"name": "当前电脑用户名"},
@@ -177,6 +178,7 @@ about = {
         },
         "copyright": {"name": "Copyright", "description": "SecRandom follows GPL-3.0"},
         "version": {"name": "Version", "description": "Show current version"},
+        "online_count": {"name": "Online", "description": "Current online user count"},
         "user_id": {
             "name": "User ID",
             "description": "Offline unique identifier for error tracking",

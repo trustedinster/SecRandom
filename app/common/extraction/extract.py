@@ -99,6 +99,7 @@ def _is_non_class_time() -> bool:
 
     Returns:
         bool: 如果当前时间在非上课时间段内返回True，否则返回False
+             当数据源连接失败时返回False，允许抽取
     """
     try:
         instant_draw_disable = readme_settings_async(
@@ -122,35 +123,54 @@ def _is_non_class_time() -> bool:
         logger.debug(f"数据源选择: {data_source}")
 
         if data_source == 0:
-            logger.debug("未启用数据源，不进行课间禁用判断")
+            logger.warning("未启用数据源，跳过课间禁用判断，允许抽取")
             return False
 
         if data_source == 2:
-            is_breaking = CSharpIPCHandler.instance().is_breaking()
-            on_class_left_time = CSharpIPCHandler.instance().get_on_class_left_time()
+            ipc_handler = CSharpIPCHandler.instance()
 
-            logger.debug(
-                f"ClassIsland状态 - 是否下课: {is_breaking}, 距离上课: {on_class_left_time}秒"
-            )
-
-            # 如果距离上课时间小于等于提前解禁时间，则提前解禁
-            if on_class_left_time > 0 and on_class_left_time <= pre_class_enable_time:
-                logger.debug(
-                    f"距离上课{on_class_left_time}秒，小于等于提前解禁时间{pre_class_enable_time}秒，提前解禁"
+            if not ipc_handler.is_running or not ipc_handler.is_connected:
+                logger.warning(
+                    "ClassIsland IPC 连接未建立或已断开，跳过课间禁用判断，允许抽取"
                 )
                 return False
 
-            if (
-                is_breaking
-                and post_class_disable_delay > 0
-                and on_class_left_time > 0
-                and 0
-                < CSharpIPCHandler.instance().get_elapsed_since_previous_time_point_end_seconds()
-                <= post_class_disable_delay
-            ):
-                return False
+            try:
+                is_breaking = ipc_handler.is_breaking()
+                on_class_left_time = ipc_handler.get_on_class_left_time()
 
-            return is_breaking
+                logger.debug(
+                    f"ClassIsland状态 - 是否下课: {is_breaking}, 距离上课: {on_class_left_time}秒"
+                )
+
+                if (
+                    on_class_left_time > 0
+                    and on_class_left_time <= pre_class_enable_time
+                ):
+                    logger.debug(
+                        f"距离上课{on_class_left_time}秒，小于等于提前解禁时间{pre_class_enable_time}秒，提前解禁"
+                    )
+                    return False
+
+                if (
+                    is_breaking
+                    and post_class_disable_delay > 0
+                    and on_class_left_time > 0
+                ):
+                    try:
+                        elapsed_seconds = (
+                            ipc_handler.get_elapsed_since_previous_time_point_end_seconds()
+                        )
+                        if 0 < elapsed_seconds <= post_class_disable_delay:
+                            return False
+                    except Exception as e:
+                        logger.warning(f"获取课间经过时间失败: {e}，跳过此判断")
+
+                return is_breaking
+
+            except Exception as e:
+                logger.error(f"ClassIsland IPC 调用失败: {e}，跳过课间禁用判断，允许抽取")
+                return False
 
         current_day_of_week = _get_current_day_of_week()
         class_times = _get_class_times_by_day(current_day_of_week)

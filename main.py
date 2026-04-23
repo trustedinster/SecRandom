@@ -7,7 +7,6 @@ import platform
 
 import sentry_sdk
 from sentry_sdk.integrations.loguru import LoguruIntegration, LoggingLevels
-from posthog import Posthog
 from PySide6.QtCore import Qt, QTimer, qInstallMessageHandler
 from PySide6.QtWidgets import QApplication
 from loguru import logger
@@ -15,13 +14,14 @@ from loguru import logger
 from app.tools.path_utils import get_app_root
 from app.tools.config import (
     configure_logging,
-    set_posthog_client,
     create_sentry_before_send_filter,
-    get_geoip_properties_zh_cn,
 )
 from app.tools.settings_default import manage_settings_file
 from app.tools.settings_access import readme_settings_async, get_or_create_user_id
-from app.core.app_init import calculate_total_draw_counts
+from app.tools.online_status import (
+    start_online_status_reporter,
+    stop_online_status_reporter,
+)
 from app.tools.variable import (
     APP_QUIT_ON_LAST_WINDOW_CLOSED,
     VERSION,
@@ -32,8 +32,6 @@ from app.tools.variable import (
     DEV_HINT_DELAY_MS,
     UPDATE_CHECK_THREAD_TIMEOUT_MS,
     PROCESS_EXIT_WAIT_SECONDS,
-    POSTHOG_API_KEY,
-    POSTHOG_HOST,
 )
 from app.core.single_instance import (
     check_single_instance,
@@ -78,29 +76,9 @@ def initialize_sentry():
     sentry_sdk.set_user({"id": user_id, "ip_address": "{{auto}}"})
 
 
-def initialize_posthog():
-    """初始化 PostHog 产品分析系统"""
-    posthog = Posthog(
-        project_api_key=POSTHOG_API_KEY,
-        host=POSTHOG_HOST,
-    )
-    set_posthog_client(posthog)
-    user_id = get_or_create_user_id()
-    geoip_properties = get_geoip_properties_zh_cn()
-    total_draw_count, roll_call_total, lottery_total = calculate_total_draw_counts()
-
-    posthog.capture(
-        distinct_id=user_id,
-        event="app_started",
-        properties={
-            **geoip_properties,
-            "$set": {
-                "total_draw_count": total_draw_count,
-                "roll_call_total_count": roll_call_total,
-                "lottery_total_count": lottery_total,
-            },
-        },
-    )
+def initialize_online_status():
+    """初始化在线状态上报系统（后台线程执行，不阻塞主线程）"""
+    start_online_status_reporter()
 
 
 # ==================================================
@@ -204,7 +182,6 @@ def initialize_application():
 
     if DEV_VERSION not in VERSION:
         initialize_sentry()
-        initialize_posthog()
 
     wm.app_start_time = time.perf_counter()
 
@@ -445,6 +422,8 @@ def handle_exit(
     """
     logger.debug("Qt 事件循环已结束")
 
+    stop_online_status_reporter()
+
     cleanup_resources(
         shared_memory, local_server, url_handler, cs_ipc_handler, update_check_thread
     )
@@ -510,6 +489,7 @@ def main():
 
     if VERSION == DEV_VERSION:
         setup_dev_hints(app)
+        initialize_online_status()
 
     try:
         exit_code = app.exec()

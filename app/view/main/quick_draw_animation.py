@@ -345,13 +345,20 @@ class QuickDrawAnimation(QObject):
             "quick_draw_settings", "default_class"
         )
         if not class_name:
-            # 未设置默认班级，初始化为空结果并停止动画
             logger.warning(
                 "draw_random_students: 未设置默认抽取名单，请在设置中配置默认班级"
             )
+            show_notification(
+                NotificationType.WARNING,
+                NotificationConfig(
+                    title="抽取失败",
+                    content="未设置默认抽取名单，请在设置中配置默认班级",
+                    icon=FluentIcon.WARNING,
+                ),
+                parent=self.roll_call_widget,
+            )
             self.final_selected_students = []
             self.final_class_name = None
-            # 停止动画计时器
             if self.animation_timer and self.animation_timer.isActive():
                 self.animation_timer.stop()
             self.stop_animation()
@@ -360,8 +367,27 @@ class QuickDrawAnimation(QObject):
         current_count = read_quick_draw_setting(class_name, "draw_count")
 
         if self.is_animating:
-            # 动画过程中，使用管理器快速获取随机学生
             students = self.roll_call_widget.manager.get_random_students(current_count)
+
+            if not students or len(students) == 0:
+                logger.warning(
+                    f"draw_random_students: 班级 {class_name} 名单为空或无可抽取学生"
+                )
+                show_notification(
+                    NotificationType.WARNING,
+                    NotificationConfig(
+                        title="抽取失败",
+                        content=f"班级 {class_name} 名单为空或无可抽取学生，请检查名单配置",
+                        icon=FluentIcon.WARNING,
+                    ),
+                    parent=self.roll_call_widget,
+                )
+                self.final_selected_students = []
+                self.final_class_name = class_name
+                if self.animation_timer and self.animation_timer.isActive():
+                    self.animation_timer.stop()
+                self.stop_animation()
+                return False
 
             self.final_selected_students = self._build_selected_students(students)
             self.final_selected_students_dict = []
@@ -382,11 +408,28 @@ class QuickDrawAnimation(QObject):
                 )
             self.final_class_name = self.roll_call_widget.manager.current_class_name
         else:
-            # 非动画状态（直接抽取），执行最终抽取
             result = self.roll_call_widget.manager.draw_final_students(current_count)
 
             if result.get("reset_required"):
                 self._reset_records(class_name)
+                return False
+
+            selected_students = result.get("selected_students", [])
+            if not selected_students or len(selected_students) == 0:
+                logger.warning(
+                    f"draw_random_students: 班级 {class_name} 名单为空或无可抽取学生"
+                )
+                show_notification(
+                    NotificationType.WARNING,
+                    NotificationConfig(
+                        title="抽取失败",
+                        content=f"班级 {class_name} 名单为空或无可抽取学生，请检查名单配置",
+                        icon=FluentIcon.WARNING,
+                    ),
+                    parent=self.roll_call_widget,
+                )
+                self.final_selected_students = []
+                self.final_class_name = class_name
                 return False
 
             self._set_final_result(result)

@@ -421,10 +421,10 @@ jobs:
             echo "is_beta=false" >> $GITHUB_ENV
           fi
 
-      - name:
+      - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.Releases_BOT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: release/*
           body_path: CHANGELOG/${{ github.ref_name }}/CHANGELOG.md
           draft: false
@@ -432,8 +432,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: SecRandom 新版本 - ${{ github.ref_name }}
           fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 创建 Sentry Release
         uses: getsentry/action-release@v3

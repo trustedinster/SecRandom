@@ -10,7 +10,7 @@ from datetime import datetime
 # -------------------- 软件基本信息 --------------------
 APPLY_NAME = "SecRandom"  # 软件名称
 VERSION = "v0.0.0"  # 软件当前版本
-NEXT_VERSION = "v2.3.6"  # 软件下一个版本
+NEXT_VERSION = "v2.3.7"  # 软件下一个版本
 CODENAME = "Shiroko"  # 软件代号
 SPECIAL_VERSION = VERSION if VERSION != "v0.0.0" else NEXT_VERSION
 
@@ -343,6 +343,12 @@ DEV_VERSION = "v0.0.0"  # 开发版本标识
 DEV_HINT_DELAY_MS = 100  # 开发提示延迟时间（毫秒）
 UPDATE_CHECK_THREAD_TIMEOUT_MS = 2000  # 更新检查线程超时时间（毫秒）
 PROCESS_EXIT_WAIT_SECONDS = 1  # 进程退出等待时间（秒）
+
+# -------------------- SECTL 在线状态上报配置 --------------------
+SECTL_API_BASE_URL = "https://appwrite.sectl.top"
+SECTL_PLATFORM_ID = "69c8cd6a0012dd3ea10a"
+SECTL_ONLINE_REPORT_INTERVAL_MS = 120000
+SECTL_ONLINE_REPORT_TIMEOUT_SECONDS = 10
 
 
 # ==================================================

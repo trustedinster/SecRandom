@@ -26,6 +26,7 @@ from app.common.safety.secure_store import (
 )
 from app.core.app_init import calculate_total_draw_counts
 from app.view.components.center_flow_layout import CenterFlowLayout
+from app.tools.online_status import get_cached_online_count, get_online_stats_async
 import app.core.window_manager as wm
 
 from app.page_building.another_window import create_contributor_window
@@ -230,6 +231,40 @@ class about_info(GroupHeaderCardWidget):
             get_content_description_async("about", "version"),
             self.about_version_label,
         )
+
+        self.online_count_label = BodyLabel(self._get_online_count_text())
+        self.addGroup(
+            get_theme_icon("ic_fluent_people_20_filled"),
+            get_content_name_async("about", "online_count"),
+            get_content_description_async("about", "online_count"),
+            self.online_count_label,
+        )
+
+        self._online_count_timer = QTimer(self)
+        self._online_count_timer.setInterval(60000)
+        self._online_count_timer.timeout.connect(self._update_online_count)
+        self._online_count_timer.start()
+        self._fetch_online_count()
+
+    def _get_online_count_text(self) -> str:
+        count = get_cached_online_count()
+        if count > 0:
+            return str(count)
+        return "-"
+
+    def _fetch_online_count(self):
+        def on_result(result):
+            if result.get("success"):
+                online_data = result.get("online", {})
+                count = online_data.get("online_count", 0)
+                self.online_count_label.setText(str(count) if count > 0 else "-")
+            else:
+                self.online_count_label.setText("-")
+
+        get_online_stats_async(on_result)
+
+    def _update_online_count(self):
+        self._fetch_online_count()
 
     def show_contributors(self):
         """显示贡献人员"""

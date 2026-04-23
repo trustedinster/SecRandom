@@ -264,13 +264,17 @@ def get_or_create_user_id():
     try:
         user_id = readme_settings("basic_settings", "offline_user_id")
         if isinstance(user_id, str) and user_id.strip():
-            return user_id
-        user_id = uuid.uuid4().hex
+            try:
+                uuid.UUID(user_id)
+                return user_id
+            except ValueError:
+                pass
+        user_id = str(uuid.uuid4())
         update_settings("basic_settings", "offline_user_id", user_id)
         return user_id
     except Exception as e:
         logger.exception(f"获取用户ID失败: {e}")
-        return uuid.uuid4().hex
+        return str(uuid.uuid4())
 
 
 def _get_default_setting(first_level_key: str, second_level_key: str):
